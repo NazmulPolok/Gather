@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-groupchat}
+      POSTGRES_USER: ${POSTGRES_USER:-groupchat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-groupchat-local-password}
+    ports: ["5432:5432"]
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-groupchat} -d ${POSTGRES_DB:-groupchat}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://groupchat:groupchat-local-password@db:5432/groupchat}
+    ports: ["8000:8000"]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes: ["./backend:/app"]
+volumes:
+  postgres_data:
