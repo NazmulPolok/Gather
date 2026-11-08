@@ -12,11 +12,16 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
   const [groupName, setGroupName] = useState('')
   const [joinId, setJoinId] = useState('')
   const [joinPolicy, setJoinPolicy] = useState<'open' | 'approval'>('open')
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiList = ['😀','😂','🥰','👍','🎉','❤️','🚀','👎','😢','😎'];
   const [loadingGroups, setLoadingGroups] = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [showMembers, setShowMembers] = useState(false)
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [editName, setEditName] = useState('')
+  const [renameBusy, setRenameBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [chatError, setChatError] = useState('')
@@ -70,6 +75,7 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
   }, [token])
 
   useEffect(() => {
+    setIsEditingName(false)
     if (!activeGroup) {
       setMessages([])
       setMembers([])
@@ -81,6 +87,39 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
     const interval = window.setInterval(() => { void loadMessages(groupId, true) }, 5000)
     return () => window.clearInterval(interval)
   }, [activeGroup?.id, token, loadMessages])
+
+  const isAdmin = Boolean(
+    activeGroup && (
+      activeGroup.owner_id === user.id ||
+      members.some(member => member.user_id === user.id && member.role === 'admin' && member.status === 'active')
+    )
+  )
+
+  async function updateGroupSettings(newName: string, newPolicy?: Group['join_policy']) {
+    if (!activeGroup) return
+    const trimmed = newName.trim()
+    if (!trimmed) {
+      setError('Group name cannot be empty')
+      return
+    }
+    setRenameBusy(true)
+    setError('')
+    try {
+      const updated = await api.updateGroup(token, activeGroup.id, {
+        name: trimmed,
+        ...(newPolicy ? { join_policy: newPolicy } : {}),
+      })
+      setActiveGroup(updated)
+      setGroups(current => current.map(item => item.id === updated.id ? updated : item))
+      setIsEditingName(false)
+      setNotice(`Group updated to “${updated.name}”.`)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not update group')
+      throw cause
+    } finally {
+      setRenameBusy(false)
+    }
+  }
 
   useEffect(() => {
     if (!activeGroup || !unreadGroups[activeGroup.id]) return
@@ -181,15 +220,71 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
         {error && <div className="toast toast-error" role="alert"><span>!</span>{error}<button onClick={() => setError('')} aria-label="Dismiss">×</button></div>}
         {notice && <div className="toast toast-success" role="status"><span>✓</span>{notice}<button onClick={() => setNotice('')} aria-label="Dismiss">×</button></div>}
         {activeGroup ? <>
-          <header className="chat-header"><div className="group-avatar tone-1 header-group-avatar">{activeGroup.name.slice(0, 1).toUpperCase()}</div><div className="chat-heading"><h1>{activeGroup.name}</h1><p><span className="online-dot" />{members.filter(member => member.status === 'active').length} members · Code {activeGroup.invite_code}</p></div><div className="chat-header-actions"><button className="outline-button back-groups-button" onClick={() => { setActiveGroup(null); setShowMembers(false); setNotice('') }}>‹ My groups</button><button className={`outline-button ${showMembers ? 'pressed' : ''}`} onClick={() => setShowMembers(value => !value)}><span>♙</span> Members{pendingCount > 0 && <b className="pending-badge">{pendingCount}</b>}</button><button className="icon-button header-more" onClick={() => { void navigator.clipboard?.writeText(activeGroup.invite_code); setNotice('Group invite code copied to clipboard.') }} aria-label="Copy group invite code">⧉</button></div></header>
+          <header className="chat-header">
+            <div className="group-avatar tone-1 header-group-avatar">{activeGroup.name.slice(0, 1).toUpperCase()}</div>
+            <div className="chat-heading">
+              {isEditingName ? (
+                <form className="inline-rename-form" onSubmit={e => { e.preventDefault(); void updateGroupSettings(editName) }}>
+                  <input
+                    className="rename-input"
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    maxLength={100}
+                    autoFocus
+                    placeholder="Group name"
+                  />
+                  <button className="button button-primary rename-save-btn" type="submit" disabled={renameBusy || !editName.trim()}>
+                    {renameBusy ? '…' : 'Save'}
+                  </button>
+                  <button className="outline-button rename-cancel-btn" type="button" onClick={() => setIsEditingName(false)} disabled={renameBusy}>
+                    Cancel
+                  </button>
+                </form>
+              ) : (
+                <div className="chat-title-row">
+                  <h1>{activeGroup.name}</h1>
+                  {isAdmin && (
+                    <button
+                      className="edit-group-name-btn"
+                      onClick={() => { setEditName(activeGroup.name); setIsEditingName(true) }}
+                      title="Change group name"
+                      aria-label="Change group name"
+                    >
+                      ✎
+                    </button>
+                  )}
+                </div>
+              )}
+              <p><span className="online-dot" />{members.filter(member => member.status === 'active').length} members · Code {activeGroup.invite_code}</p>
+            </div>
+            <div className="chat-header-actions">
+              <button className="outline-button back-groups-button" onClick={() => { setActiveGroup(null); setShowMembers(false); setNotice('') }}>‹ My groups</button>
+              <button className={`outline-button ${showMembers ? 'pressed' : ''}`} onClick={() => setShowMembers(value => !value)}><span>♙</span> Members{pendingCount > 0 && <b className="pending-badge">{pendingCount}</b>}</button>
+              <button className="icon-button header-more" onClick={() => { void navigator.clipboard?.writeText(activeGroup.invite_code); setNotice('Group invite code copied to clipboard.') }} aria-label="Copy group invite code">⧉</button>
+            </div>
+          </header>
           <div className="chat-area">
-            {showMembers ? <MemberPanel group={activeGroup} members={members} currentUserId={user.id} onApprove={approve} onRemove={removeMember} onLeave={leaveGroup} /> : <>
+            {showMembers ? <MemberPanel group={activeGroup} members={members} currentUserId={user.id} onApprove={approve} onRemove={removeMember} onLeave={leaveGroup} onUpdateGroup={updateGroupSettings} /> : <>
               <div className="conversation-intro"><div className="intro-mark">✳</div><h2>You’re in {activeGroup.name}</h2><p>Start the conversation. Everything shared here stays with the group.</p><span className="date-divider">TODAY</span></div>
               {loadingMessages && messages.length === 0 ? <div className="chat-loading"><span className="spinner" />Loading conversation…</div> : <div className="message-list">{messages.map(message => <MessageBubble key={message.id} message={message} own={message.sender_id === user.id} />)}<div ref={bottomRef} /></div>}
               {chatError && <div className="chat-error" role="alert">{chatError}<button onClick={() => setChatError('')}>Dismiss</button></div>}
             </>}
           </div>
-          {!showMembers && <form className="composer" onSubmit={sendMessage}><textarea rows={1} value={messageText} onChange={e => setMessageText(e.target.value)} onKeyDown={onComposerKeyDown} placeholder={`Message ${activeGroup.name}…`} maxLength={10000} /><span className="composer-hint">Text only · Enter to send · Shift + Enter for a new line</span><button className="send-button" aria-label="Send message" disabled={busy || !messageText.trim()}>↑</button></form>}
+          {!showMembers && (
+  <form className="composer" onSubmit={sendMessage}>
+    <textarea rows={1} value={messageText} onChange={e => setMessageText(e.target.value)} onKeyDown={onComposerKeyDown} placeholder={`Message ${activeGroup.name}…`} maxLength={10000} />
+    <span className="composer-hint">Text only · Enter to send · Shift + Enter for a new line</span>
+    <button type="button" className="emoji-button" onClick={() => setShowEmojiPicker(v => !v)} aria-label="Insert emoji">😊</button>
+    {showEmojiPicker && (
+      <div className="emoji-picker">
+        {emojiList.map(e => (
+          <button key={e} type="button" className="emoji-item" onClick={() => { setMessageText(prev => prev + e); setShowEmojiPicker(false); }}>{e}</button>
+        ))}
+      </div>
+    )}
+    <button className="send-button" aria-label="Send message" disabled={busy || !messageText.trim()}>↑</button>
+  </form>
+)}
         </> : <WelcomePanel groups={groups} unreadGroups={unreadGroups} loadingGroups={loadingGroups} onSelectGroup={group => { setActiveGroup(group); setShowMembers(false); setNotice('') }} />}
       </section>
     </main>
@@ -201,12 +296,86 @@ function MessageBubble({ message, own }: { message: Message; own: boolean }) {
   return <article className={`message-row ${own ? 'message-own' : ''}`}><div className={`message-avatar ${own ? 'my-message-avatar' : ''}`}>{(own ? 'Y' : message.sender_name.slice(0, 1)).toUpperCase()}</div><div className="message-content"><div className="message-meta"><strong>{own ? 'You' : message.sender_name}</strong>{!own && <small>@{message.sender_username}</small>}<time>{time}</time></div><div className={`message-bubble ${own ? 'bubble-own' : ''}`}>{message.body}</div></div></article>
 }
 
-function MemberPanel({ group, members, currentUserId, onApprove, onRemove, onLeave }: { group: Group; members: Member[]; currentUserId: number; onApprove: (member: Member) => void; onRemove: (member: Member) => void; onLeave: () => void }) {
+function MemberPanel({ group, members, currentUserId, onApprove, onRemove, onLeave, onUpdateGroup }: { group: Group; members: Member[]; currentUserId: number; onApprove: (member: Member) => void; onRemove: (member: Member) => void; onLeave: () => void; onUpdateGroup: (name: string, policy?: Group['join_policy']) => Promise<void> }) {
   const activeMembers = members.filter(member => member.status === 'active')
   const pending = members.filter(member => member.status === 'pending')
-  const isAdmin = group.owner_id === currentUserId || members.some(member => member.user_id === currentUserId && member.role === 'admin')
+  const isAdmin = group.owner_id === currentUserId || members.some(member => member.user_id === currentUserId && member.role === 'admin' && member.status === 'active')
   const displayName = (member: Member) => [member.first_name, member.last_name].filter(Boolean).join(' ') || member.username
-  return <div className="members-panel"><div className="members-title"><div><p className="eyebrow">YOUR CIRCLE</p><h2>Group members</h2><p>{activeMembers.length} people in this group</p></div><div className="members-title-actions"><span className="member-count-large">{activeMembers.length}</span><button className="leave-group-button" onClick={onLeave}>Leave group</button></div></div>{isAdmin && pending.length > 0 && <section className="pending-section"><div className="member-section-label">WAITING FOR APPROVAL <span>{pending.length}</span></div>{pending.map(member => <div className="member-line" key={member.user_id}><span className="avatar">{displayName(member).slice(0, 1).toUpperCase()}</span><div className="member-info"><strong>{displayName(member)}</strong><small>@{member.username} · Requested to join</small></div><button className="approve-button" onClick={() => onApprove(member)}>Approve</button><button className="remove-member-button" onClick={() => onRemove(member)}>Remove</button></div>)}</section>}<section className="active-members"><div className="member-section-label">MEMBERS</div>{activeMembers.map(member => <div className="member-line" key={member.user_id}><span className="avatar">{displayName(member).slice(0, 1).toUpperCase()}</span><div className="member-info"><strong>{displayName(member)}</strong><small>@{member.username} · {member.role === 'admin' ? 'Group admin' : 'Member'}{member.user_id === currentUserId ? ' · You' : ''}</small></div>{member.role === 'admin' && <span className="admin-pill">ADMIN</span>}{isAdmin && member.user_id !== currentUserId && <button className="remove-member-button" onClick={() => onRemove(member)}>Remove</button>}</div>)}</section><div className="invite-note"><span>ⓘ</span><p>Invite someone by sharing invite code <strong>{group.invite_code}</strong>. They can enter it from their Groups panel.</p></div></div>
+
+  const [panelName, setPanelName] = useState(group.name)
+  const [panelPolicy, setPanelPolicy] = useState<Group['join_policy']>(group.join_policy)
+  const [panelBusy, setPanelBusy] = useState(false)
+
+  useEffect(() => {
+    setPanelName(group.name)
+    setPanelPolicy(group.join_policy)
+  }, [group.name, group.join_policy])
+
+  async function handleSaveSettings(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!panelName.trim()) return
+    setPanelBusy(true)
+    try {
+      await onUpdateGroup(panelName.trim(), panelPolicy)
+    } finally {
+      setPanelBusy(false)
+    }
+  }
+
+  return <div className="members-panel">
+    <div className="members-title">
+      <div>
+        <p className="eyebrow">YOUR CIRCLE</p>
+        <h2>Group details & members</h2>
+        <p>{activeMembers.length} people in this group</p>
+      </div>
+      <div className="members-title-actions">
+        <span className="member-count-large">{activeMembers.length}</span>
+        <button className="leave-group-button" onClick={onLeave}>Leave group</button>
+      </div>
+    </div>
+
+    {isAdmin && (
+      <section className="group-settings-section">
+        <div className="member-section-label">GROUP SETTINGS (ADMIN)</div>
+        <form className="rename-group-form" onSubmit={handleSaveSettings}>
+          <div className="settings-field">
+            <label htmlFor="member-panel-group-name">Group name</label>
+            <input
+              id="member-panel-group-name"
+              value={panelName}
+              onChange={e => setPanelName(e.target.value)}
+              maxLength={100}
+              placeholder="Group name"
+              required
+            />
+          </div>
+          <div className="settings-field">
+            <label htmlFor="member-panel-join-policy">Who can join?</label>
+            <select
+              id="member-panel-join-policy"
+              value={panelPolicy}
+              onChange={e => setPanelPolicy(e.target.value as Group['join_policy'])}
+            >
+              <option value="open">Anyone with the code</option>
+              <option value="approval">Admin approval</option>
+            </select>
+          </div>
+          <button
+            className="button button-primary"
+            type="submit"
+            disabled={panelBusy || !panelName.trim() || (panelName.trim() === group.name && panelPolicy === group.join_policy)}
+          >
+            {panelBusy ? 'Saving changes…' : 'Save group settings'}
+          </button>
+        </form>
+      </section>
+    )}
+
+    {isAdmin && pending.length > 0 && <section className="pending-section"><div className="member-section-label">WAITING FOR APPROVAL <span>{pending.length}</span></div>{pending.map(member => <div className="member-line" key={member.user_id}><span className="avatar">{displayName(member).slice(0, 1).toUpperCase()}</span><div className="member-info"><strong>{displayName(member)}</strong><small>@{member.username} · Requested to join</small></div><button className="approve-button" onClick={() => onApprove(member)}>Approve</button><button className="remove-member-button" onClick={() => onRemove(member)}>Remove</button></div>)}</section>}
+    <section className="active-members"><div className="member-section-label">MEMBERS</div>{activeMembers.map(member => <div className="member-line" key={member.user_id}><span className="avatar">{displayName(member).slice(0, 1).toUpperCase()}</span><div className="member-info"><strong>{displayName(member)}</strong><small>@{member.username} · {member.role === 'admin' ? 'Group admin' : 'Member'}{member.user_id === currentUserId ? ' · You' : ''}</small></div>{member.role === 'admin' && <span className="admin-pill">ADMIN</span>}{isAdmin && member.user_id !== currentUserId && <button className="remove-member-button" onClick={() => onRemove(member)}>Remove</button>}</div>)}</section>
+    <div className="invite-note"><span>ⓘ</span><p>Invite someone by sharing invite code <strong>{group.invite_code}</strong>. They can enter it from their Groups panel.</p></div>
+  </div>
 }
 
 function WelcomePanel({ groups, unreadGroups, loadingGroups, onSelectGroup }: { groups: Group[]; unreadGroups: Record<number, number>; loadingGroups: boolean; onSelectGroup: (group: Group) => void }) {

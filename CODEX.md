@@ -13,6 +13,8 @@ Build a group chat web app (the original request said “group cheating”; inte
 - Header settings uses a notification-style anchored dropdown rendered in a document portal so the app layout cannot clip it. Its first page lists Theme; selecting Theme opens Light and Dark choices. The selected theme is saved in browser local storage.
 - Notification dropdown is also rendered into a document portal and positioned below the header so the app layout cannot clip its content or join-request actions.
 - Group join request notifications have Accept and Decline actions. Decisions are persisted in the notifications table and synchronized across admins; the existing member panel approve/remove actions resolve those notices too.
+- Group admins can change the name of the group at any time after creation, either directly via the inline rename button (✎) beside the group title in the chat header or through the Group Settings section in the Members panel. Non-admins are restricted from editing group names.
+- Password recovery: Added an email-delivered OTP "Forgot password?" flow. Codes are stored as keyed digests, expire after 10 minutes, are limited to five verification attempts, and can be requested once per minute per account. Configure SMTP settings to enable recovery.
 - Image and video sharing are intentionally deferred to Version 2. Do not add media upload controls or endpoints to Version 1 unless the user changes this scope.
 - Frontend currently polls message history every five seconds. WebSocket live chat, email verification, and production deployment setup remain outstanding.
 - The user wants to build in VS Code with Codex working in the terminal.

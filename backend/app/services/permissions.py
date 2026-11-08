@@ -19,7 +19,9 @@ def active_membership(db: Session, group_id: int, user_id: int) -> Membership:
 
 
 def admin_membership(db: Session, group_id: int, user_id: int) -> Membership:
+    from app.models.group import Group
     membership = active_membership(db, group_id, user_id)
-    if membership.role != "admin":
+    group = db.get(Group, group_id)
+    if membership.role != "admin" and (group is None or group.owner_id != user_id):
         raise HTTPException(status_code=403, detail="Group admin required")
     return membership

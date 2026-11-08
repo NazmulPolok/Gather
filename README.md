@@ -4,7 +4,7 @@ React/Vite frontend, FastAPI backend, PostgreSQL database.
 
 ## Local development
 
-1. Copy `.env.example` to `.env`. Change `POSTGRES_PASSWORD` and use a long random `JWT_SECRET_KEY`.
+1. Copy `.env.example` to `.env`. Change `POSTGRES_PASSWORD`, use a long random `JWT_SECRET_KEY`, and configure `SMTP_HOST`, `SMTP_FROM`, and any required SMTP credentials to enable password recovery.
 2. Run `docker compose up --build` for PostgreSQL and FastAPI.
 3. In another terminal: `cd frontend`, `npm install`, then `npm run dev`.
 4. Open <http://localhost:5173>. API docs: <http://localhost:8000/docs>.

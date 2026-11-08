@@ -8,6 +8,13 @@ class Settings(BaseSettings):
     access_token_minutes: int = 30
     frontend_origins: str = "http://localhost:5173"
 
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_from_name: str = "Gather Chat"
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
 
     @field_validator("database_url", mode="before")
