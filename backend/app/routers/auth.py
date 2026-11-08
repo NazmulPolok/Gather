@@ -56,8 +56,12 @@ def _send_password_reset_email(email: str, otp: str) -> None:
     message["From"] = formataddr((settings.smtp_from_name, settings.smtp_from))
     message["To"] = email
     message.set_content(
-        f"Your Gather password reset code is {otp}. "
-        "It expires in 10 minutes. If you did not request this, you can ignore this email."
+        f"Hi,\n\n"
+        f"Your Gather password reset code is:\n\n"
+        f"  {otp}\n\n"
+        "This code expires in 10 minutes.\n"
+        "If you did not request this, you can safely ignore this email.\n\n"
+        "— The Gather team"
     )
 
     try:
@@ -150,8 +154,13 @@ def request_password_reset_otp(payload: ForgotPasswordRequestOTP, db: Session = 
         is_used=False,
     )
     db.add(otp_record)
-    _send_password_reset_email(user.email, otp_code)
-    db.commit()
+    try:
+        db.flush()
+        _send_password_reset_email(user.email, otp_code)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     return response
 
 
@@ -173,17 +182,22 @@ def verify_password_reset_otp(payload: ForgotPasswordVerifyOTP, db: Session = De
         .with_for_update()
     )
 
-    if otp_record is None or otp_record.expires_at < now or otp_record.attempts >= 5:
+    expires_at = otp_record.expires_at if otp_record is not None else None
+    if expires_at is not None and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if otp_record is None or expires_at is None or expires_at < now or otp_record.attempts >= 5:
         if otp_record is not None and not otp_record.is_used:
             otp_record.is_used = True
             db.commit()
         raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
+
     if not hmac.compare_digest(otp_record.otp_hash, _otp_digest(user.email, payload.otp)):
         otp_record.attempts += 1
         if otp_record.attempts >= 5:
             otp_record.is_used = True
         db.commit()
-        raise HTTPException(status_code=400, detail="Invalid or expired verification code.")
+        raise HTTPException(status_code=400, detail="Invalid verification code. Please check and try again.")
 
     otp_record.is_used = True
     user.password_hash = hash_password(payload.new_password)
