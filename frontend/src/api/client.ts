@@ -13,6 +13,7 @@ export type AuthUser = {
   last_name: string
   username: string
   avatar_url?: string | null
+  nickname?: string | null
 }
 
 export type AuthResponse = {
@@ -107,6 +108,7 @@ export const api = {
   requestResetOTP: (email: string) => request<{ status: string; message: string }>('/api/auth/forgot-password/request-otp', { method: 'POST', body: JSON.stringify({ email }) }),
   verifyResetOTP: (email: string, otp: string, new_password: string) => request<AuthResponse>('/api/auth/forgot-password/verify-otp', { method: 'POST', body: JSON.stringify({ email, otp, new_password }) }),
   me: (token: string) => request<AuthUser>('/api/auth/me', {}, token),
+  updateProfile: (token: string, data: { nickname?: string | null }) => request<AuthUser>('/api/auth/profile', { method: 'PATCH', body: JSON.stringify(data) }, token),
   updateAvatar: (token: string, file: File) => {
     const formData = new FormData()
     formData.append('file', file)

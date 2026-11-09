@@ -22,6 +22,7 @@ from app.schemas.auth import (
     ForgotPasswordRequestOTP,
     ForgotPasswordVerifyOTP,
     LoginRequest,
+    ProfileUpdate,
     SignupRequest,
     TokenResponse,
     UserResponse,
@@ -262,6 +263,19 @@ def delete_avatar(
     user: User = Depends(get_current_user),
 ) -> User:
     user.avatar_url = None
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.patch("/profile", response_model=UserResponse)
+def update_profile(
+    payload: ProfileUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> User:
+    clean_nick = payload.nickname.strip() if payload.nickname and payload.nickname.strip() else None
+    user.nickname = clean_nick
     db.commit()
     db.refresh(user)
     return user

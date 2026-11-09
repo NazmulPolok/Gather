@@ -92,7 +92,7 @@ def list_members(
             "avatar_url": member.avatar_url,
             "role": membership.role,
             "status": membership.status,
-            "nickname": membership.nickname,
+            "nickname": membership.nickname or member.nickname,
         }
         for membership, member in rows
     ]

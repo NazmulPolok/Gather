@@ -75,6 +75,10 @@ class ForgotPasswordVerifyOTP(BaseModel):
         return value
 
 
+class ProfileUpdate(BaseModel):
+    nickname: str | None = Field(default=None, max_length=64)
+
+
 class UserResponse(BaseModel):
     id: int
     email: EmailStr
@@ -82,6 +86,7 @@ class UserResponse(BaseModel):
     last_name: str
     username: str
     avatar_url: str | None = None
+    nickname: str | None = None
     model_config = {"from_attributes": True}
 
 

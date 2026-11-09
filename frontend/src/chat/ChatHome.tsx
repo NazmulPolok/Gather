@@ -29,7 +29,6 @@ export function ChatHome({
   const [joinId, setJoinId] = useState('')
   const [joinPolicy, setJoinPolicy] = useState<'open' | 'approval'>('open')
   const [busy, setBusy] = useState(false)
-  const [avatarBusy, setAvatarBusy] = useState(false)
   const [sendAsAnonymous, setSendAsAnonymous] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const emojiList = ['😀', '😂', '🥰', '👍', '🎉', '❤️', '🚀', '👎', '😢', '😎']
@@ -45,7 +44,6 @@ export function ChatHome({
   const [chatError, setChatError] = useState('')
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const avatarInputRef = useRef<HTMLInputElement>(null)
   const chatImageInputRef = useRef<HTMLInputElement>(null)
 
   const refreshGroups = useCallback(async (): Promise<Group[]> => {
@@ -179,49 +177,6 @@ export function ChatHome({
     finally { setBusy(false) }
   }
 
-  async function handleAvatarSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    e.target.value = ''
-    if (file.size > 10 * 1024 * 1024) {
-      setError('Profile picture cannot exceed 10MB.')
-      return
-    }
-    setAvatarBusy(true)
-    try {
-      const updatedUser = await api.updateAvatar(token, file)
-      onUserUpdated?.(updatedUser)
-      setMembers(current => current.map(m => m.user_id === user.id ? { ...m, avatar_url: updatedUser.avatar_url } : m))
-      if (activeGroup) {
-        void loadMessages(activeGroup.id, true)
-      }
-      setNotice('Profile picture updated successfully!')
-      setError('')
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not upload profile picture')
-    } finally {
-      setAvatarBusy(false)
-    }
-  }
-
-  async function handleRemoveAvatar() {
-    setAvatarBusy(true)
-    try {
-      const updatedUser = await api.removeAvatar(token)
-      onUserUpdated?.(updatedUser)
-      setMembers(current => current.map(m => m.user_id === user.id ? { ...m, avatar_url: null } : m))
-      if (activeGroup) {
-        void loadMessages(activeGroup.id, true)
-      }
-      setNotice('Profile picture removed.')
-      setError('')
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not remove profile picture')
-    } finally {
-      setAvatarBusy(false)
-    }
-  }
-
   function handleChatImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -327,58 +282,27 @@ export function ChatHome({
         <form className="join-form" onSubmit={joinGroup}><label htmlFor="sidebar-invite-code">Join with an invite code</label><div className="join-row"><input id="sidebar-invite-code" autoComplete="off" maxLength={8} value={joinId} onChange={e => setJoinId(e.target.value.toUpperCase())} placeholder="8-character code" /><button aria-label="Join group" disabled={busy}>Join</button></div></form>
         <div className="sidebar-note"><span className="sidebar-note-mark">✳</span><strong>Your groups, together.</strong><p>Open a group from the main space to read and send messages.</p></div>
         <div className="sidebar-bottom">
-          <input
-            ref={avatarInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
-            style={{ display: 'none' }}
-            onChange={handleAvatarSelect}
-          />
-          <div className="sidebar-profile-wrapper">
-            <button
-              type="button"
-              className={`profile-card profile-card-clickable ${sendAsAnonymous ? 'profile-card-anon' : ''}`}
-              onClick={() => setSendAsAnonymous(v => !v)}
-              title={sendAsAnonymous ? 'Currently texting as Anonymous. Click to switch to your name/nickname.' : 'Currently texting as yourself. Click to switch to Anonymous.'}
-            >
-              <span className={`avatar ${sendAsAnonymous ? 'avatar-anon' : ''}`}>
-                {sendAsAnonymous ? (
-                  '🎭'
-                ) : user.avatar_url ? (
-                  <img src={getMediaUrl(user.avatar_url)} alt="Profile" className="avatar-img-round" />
-                ) : (
-                  (activeNickname || user.first_name || user.username).slice(0, 1).toUpperCase()
-                )}
-              </span>
-              <div className="profile-copy">
-                <strong>{sendAsAnonymous ? 'Anonymous' : (activeNickname || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)}</strong>
-                <small>{sendAsAnonymous ? '@anonymous · Incognito' : (activeNickname ? `Nick: ${activeNickname} · @${user.username}` : `@${user.username}`)}</small>
-              </div>
-              <span className="profile-switch-badge">Switch ⇄</span>
-            </button>
-            <div className="sidebar-avatar-actions">
-              <button
-                type="button"
-                className="change-avatar-button"
-                onClick={() => avatarInputRef.current?.click()}
-                disabled={avatarBusy}
-                title="Change your profile picture from your desktop or device"
-              >
-                📷 {avatarBusy ? 'Saving…' : user.avatar_url ? 'Change photo' : 'Upload photo'}
-              </button>
-              {user.avatar_url && (
-                <button
-                  type="button"
-                  className="remove-avatar-button"
-                  onClick={handleRemoveAvatar}
-                  disabled={avatarBusy}
-                  title="Remove profile picture"
-                >
-                  ✕
-                </button>
+          <button
+            type="button"
+            className={`profile-card profile-card-clickable ${sendAsAnonymous ? 'profile-card-anon' : ''}`}
+            onClick={() => setSendAsAnonymous(v => !v)}
+            title={sendAsAnonymous ? 'Currently texting as Anonymous. Click to switch to your name/nickname.' : 'Currently texting as yourself. Click to switch to Anonymous.'}
+          >
+            <span className={`avatar ${sendAsAnonymous ? 'avatar-anon' : ''}`}>
+              {sendAsAnonymous ? (
+                '🎭'
+              ) : user.avatar_url ? (
+                <img src={getMediaUrl(user.avatar_url)} alt="Profile" className="avatar-img-round" />
+              ) : (
+                (activeNickname || user.nickname || user.first_name || user.username).slice(0, 1).toUpperCase()
               )}
+            </span>
+            <div className="profile-copy">
+              <strong>{sendAsAnonymous ? 'Anonymous' : (activeNickname || user.nickname || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)}</strong>
+              <small>{sendAsAnonymous ? '@anonymous · Incognito' : (activeNickname ? `Nick: ${activeNickname} · @${user.username}` : user.nickname ? `Nick: ${user.nickname} · @${user.username}` : `@${user.username}`)}</small>
             </div>
-          </div>
+            <span className="profile-switch-badge">Switch ⇄</span>
+          </button>
         </div>
       </aside>
 
@@ -435,8 +359,6 @@ export function ChatHome({
                 group={activeGroup}
                 members={members}
                 currentUserId={user.id}
-                currentUserAvatar={user.avatar_url}
-                onOpenAvatarPicker={() => avatarInputRef.current?.click()}
                 onApprove={approve}
                 onRemove={removeMember}
                 onLeave={leaveGroup}
@@ -621,8 +543,6 @@ function MemberPanel({
   group,
   members,
   currentUserId,
-  currentUserAvatar,
-  onOpenAvatarPicker,
   onApprove,
   onRemove,
   onLeave,
@@ -632,8 +552,6 @@ function MemberPanel({
   group: Group
   members: Member[]
   currentUserId: number
-  currentUserAvatar?: string | null
-  onOpenAvatarPicker?: () => void
   onApprove: (member: Member) => void
   onRemove: (member: Member) => void
   onLeave: () => void
@@ -764,7 +682,7 @@ function MemberPanel({
           const hasNickname = Boolean(member.nickname)
           const avatarLetter = (member.nickname || displayName(member)).slice(0, 1).toUpperCase()
           const isSelf = member.user_id === currentUserId
-          const memberAvatar = isSelf ? (currentUserAvatar || member.avatar_url) : member.avatar_url
+          const memberAvatar = member.avatar_url
 
           return (
             <div className="member-line" key={member.user_id}>
@@ -832,16 +750,6 @@ function MemberPanel({
 
               {!isEditingThis && (
                 <div className="member-line-actions">
-                  {isSelf && (
-                    <button
-                      type="button"
-                      className="nickname-action-button"
-                      onClick={onOpenAvatarPicker}
-                      title="Change your profile picture"
-                    >
-                      📷 Photo
-                    </button>
-                  )}
                   <button
                     type="button"
                     className="nickname-action-button"
