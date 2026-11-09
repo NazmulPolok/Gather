@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, aliased
 from app.core.dependencies import get_current_user
 from app.db.session import get_db
 from app.models.group import Group
+from app.models.message import Message
 from app.models.notification import Notification
 from app.models.user import User
 from app.schemas.notification import JoinRequestResponse, NotificationFeed, NotificationItem
@@ -24,9 +25,10 @@ def list_notifications(
 ) -> NotificationFeed:
     actor = aliased(User)
     rows = db.execute(
-        select(Notification, Group.name, actor.first_name, actor.last_name, actor.username)
+        select(Notification, Group.name, actor.first_name, actor.last_name, actor.username, Message.is_anonymous)
         .join(Group, Group.id == Notification.group_id)
         .join(actor, actor.id == Notification.actor_id)
+        .outerjoin(Message, Message.id == Notification.message_id)
         .where(Notification.user_id == user.id)
         .order_by(Notification.created_at.desc(), Notification.id.desc())
         .limit(limit)
@@ -37,22 +39,31 @@ def list_notifications(
             Notification.read_at.is_(None),
         )
     ) or 0
-    items = [
-        NotificationItem(
-            id=notification.id,
-            group_id=notification.group_id,
-            group_name=group_name,
-            actor_id=notification.actor_id,
-            actor_name=" ".join(part for part in (first_name, last_name) if part).strip() or username,
-            actor_username=username,
-            notification_type=notification.notification_type,
-            resolution=notification.resolution,
-            message_id=notification.message_id,
-            read_at=notification.read_at,
-            created_at=notification.created_at,
+    items: list[NotificationItem] = []
+    for notification, group_name, first_name, last_name, username, msg_is_anon in rows:
+        if notification.notification_type == "message" and msg_is_anon:
+            act_id = 0
+            act_name = "Anonymous"
+            act_uname = "anonymous"
+        else:
+            act_id = notification.actor_id
+            act_name = " ".join(part for part in (first_name, last_name) if part).strip() or username
+            act_uname = username
+        items.append(
+            NotificationItem(
+                id=notification.id,
+                group_id=notification.group_id,
+                group_name=group_name,
+                actor_id=act_id,
+                actor_name=act_name,
+                actor_username=act_uname,
+                notification_type=notification.notification_type,
+                resolution=notification.resolution,
+                message_id=notification.message_id,
+                read_at=notification.read_at,
+                created_at=notification.created_at,
+            )
         )
-        for notification, group_name, first_name, last_name, username in rows
-    ]
     return NotificationFeed(items=items, unread_count=unread_count)
 
 

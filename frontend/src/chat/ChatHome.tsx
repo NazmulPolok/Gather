@@ -13,6 +13,7 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
   const [joinId, setJoinId] = useState('')
   const [joinPolicy, setJoinPolicy] = useState<'open' | 'approval'>('open')
   const [busy, setBusy] = useState(false);
+  const [sendAsAnonymous, setSendAsAnonymous] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiList = ['😀','😂','🥰','👍','🎉','❤️','🚀','👎','😢','😎'];
   const [loadingGroups, setLoadingGroups] = useState(true)
@@ -164,7 +165,7 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
     const body = messageText.trim()
     if (!activeGroup || !body || busy) return
     setBusy(true); setChatError('')
-    try { const sent = await api.sendText(token, activeGroup.id, body); setMessages(current => [...current, sent]); setMessageText('') }
+    try { const sent = await api.sendText(token, activeGroup.id, body, sendAsAnonymous); setMessages(current => [...current, sent]); setMessageText('') }
     catch (cause) { setChatError(cause instanceof Error ? cause.message : 'Message could not be sent') }
     finally { setBusy(false) }
   }
@@ -213,7 +214,15 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
         {showCreate && <form className="sidebar-form" onSubmit={createGroup}><label htmlFor="sidebar-group-name">Group name</label><input id="sidebar-group-name" value={groupName} onChange={e => setGroupName(e.target.value)} placeholder="Weekend plans" maxLength={100} required /><label htmlFor="sidebar-join-policy">Who can join?</label><select id="sidebar-join-policy" value={joinPolicy} onChange={e => setJoinPolicy(e.target.value as 'open' | 'approval')}><option value="open">Anyone with the code</option><option value="approval">Admin approval</option></select><button className="button button-primary button-full" disabled={busy}>{busy ? 'Creating…' : 'Create group'}</button></form>}
         <form className="join-form" onSubmit={joinGroup}><label htmlFor="sidebar-invite-code">Join with an invite code</label><div className="join-row"><input id="sidebar-invite-code" autoComplete="off" maxLength={8} value={joinId} onChange={e => setJoinId(e.target.value.toUpperCase())} placeholder="8-character code" /><button aria-label="Join group" disabled={busy}>Join</button></div></form>
         <div className="sidebar-note"><span className="sidebar-note-mark">✳</span><strong>Your groups, together.</strong><p>Open a group from the main space to read and send messages.</p></div>
-        <div className="sidebar-bottom"><div className="profile-card"><span className="avatar">{(user.first_name || user.username).slice(0, 1).toUpperCase()}</span><div className="profile-copy"><strong>{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username}</strong><small>@{user.username}</small></div></div></div>
+        <div className="sidebar-bottom">
+          <div className="profile-card">
+            <span className="avatar">{(user.first_name || user.username).slice(0, 1).toUpperCase()}</span>
+            <div className="profile-copy">
+              <strong>{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username}</strong>
+              <small>@{user.username}</small>
+            </div>
+          </div>
+        </div>
       </aside>
 
       <section className="main-panel">
@@ -271,20 +280,66 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
             </>}
           </div>
           {!showMembers && (
-  <form className="composer" onSubmit={sendMessage}>
-    <textarea rows={1} value={messageText} onChange={e => setMessageText(e.target.value)} onKeyDown={onComposerKeyDown} placeholder={`Message ${activeGroup.name}…`} maxLength={10000} />
-    <span className="composer-hint">Text only · Enter to send · Shift + Enter for a new line</span>
-    <button type="button" className="emoji-button" onClick={() => setShowEmojiPicker(v => !v)} aria-label="Insert emoji">😊</button>
-    {showEmojiPicker && (
-      <div className="emoji-picker">
-        {emojiList.map(e => (
-          <button key={e} type="button" className="emoji-item" onClick={() => { setMessageText(prev => prev + e); setShowEmojiPicker(false); }}>{e}</button>
-        ))}
-      </div>
-    )}
-    <button className="send-button" aria-label="Send message" disabled={busy || !messageText.trim()}>↑</button>
-  </form>
-)}
+            <div className="composer-container">
+              <div className="composer-identity-bar">
+                <span className="composer-identity-title">Post as:</span>
+                <div className="identity-side-by-side">
+                  <button
+                    type="button"
+                    className={`identity-chip-btn ${!sendAsAnonymous ? 'is-active' : ''}`}
+                    onClick={() => setSendAsAnonymous(false)}
+                    title="Send with your real name and handle"
+                  >
+                    <span className="avatar avatar-small">
+                      {(user.first_name || user.username).slice(0, 1).toUpperCase()}
+                    </span>
+                    <span className="chip-name">
+                      <strong>{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username}</strong>
+                      <small>@{user.username}</small>
+                    </span>
+                    {!sendAsAnonymous && <span className="chip-check">✓</span>}
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`identity-chip-btn chip-anon ${sendAsAnonymous ? 'is-active is-anon-active' : ''}`}
+                    onClick={() => setSendAsAnonymous(true)}
+                    title="Send anonymously without revealing your identity"
+                  >
+                    <span className="avatar avatar-small avatar-anon">🎭</span>
+                    <span className="chip-name">
+                      <strong>Anonymous</strong>
+                      <small>@anonymous</small>
+                    </span>
+                    {sendAsAnonymous && <span className="chip-check chip-check-anon">✓</span>}
+                  </button>
+                </div>
+              </div>
+
+              <form className={`composer ${sendAsAnonymous ? 'composer-anon' : ''}`} onSubmit={sendMessage}>
+                <textarea
+                  rows={1}
+                  value={messageText}
+                  onChange={e => setMessageText(e.target.value)}
+                  onKeyDown={onComposerKeyDown}
+                  placeholder={sendAsAnonymous ? `Message ${activeGroup.name} as Anonymous…` : `Message ${activeGroup.name}…`}
+                  maxLength={10000}
+                />
+                <span className="composer-hint">
+                  {sendAsAnonymous ? '🎭 Posting as Anonymous · Identity hidden from members' : 'Text only · Enter to send · Shift + Enter for a new line'}
+                </span>
+                <button type="button" className="emoji-button" onClick={() => setShowEmojiPicker(v => !v)} aria-label="Insert emoji">😊</button>
+                {showEmojiPicker && (
+                  <div className="emoji-picker">
+                    {emojiList.map(e => (
+                      <button key={e} type="button" className="emoji-item" onClick={() => { setMessageText(prev => prev + e); setShowEmojiPicker(false); }}>{e}</button>
+                    ))}
+                  </div>
+                )}
+                <button className="send-button" aria-label="Send message" disabled={busy || !messageText.trim()}>↑</button>
+              </form>
+            </div>
+          )}
         </> : <WelcomePanel groups={groups} unreadGroups={unreadGroups} loadingGroups={loadingGroups} onSelectGroup={group => { setActiveGroup(group); setShowMembers(false); setNotice('') }} />}
       </section>
     </main>
@@ -293,7 +348,26 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
 
 function MessageBubble({ message, own }: { message: Message; own: boolean }) {
   const time = new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-  return <article className={`message-row ${own ? 'message-own' : ''}`}><div className={`message-avatar ${own ? 'my-message-avatar' : ''}`}>{(own ? 'Y' : message.sender_name.slice(0, 1)).toUpperCase()}</div><div className="message-content"><div className="message-meta"><strong>{own ? 'You' : message.sender_name}</strong>{!own && <small>@{message.sender_username}</small>}<time>{time}</time></div><div className={`message-bubble ${own ? 'bubble-own' : ''}`}>{message.body}</div></div></article>
+  const isAnon = Boolean(message.is_anonymous)
+
+  return (
+    <article className={`message-row ${own ? 'message-own' : ''} ${isAnon ? 'message-anon' : ''}`}>
+      <div className={`message-avatar ${own ? 'my-message-avatar' : ''} ${isAnon ? 'avatar-anon-bubble' : ''}`}>
+        {isAnon ? '🎭' : (own ? 'Y' : message.sender_name.slice(0, 1)).toUpperCase()}
+      </div>
+      <div className="message-content">
+        <div className="message-meta">
+          <strong>{own ? (isAnon ? 'You (Anonymous)' : 'You') : message.sender_name}</strong>
+          <small>{isAnon ? '@anonymous' : (!own ? `@${message.sender_username}` : '')}</small>
+          {isAnon && <span className="anon-tag">Anonymous</span>}
+          <time>{time}</time>
+        </div>
+        <div className={`message-bubble ${own ? 'bubble-own' : ''} ${isAnon ? 'bubble-anon' : ''}`}>
+          {message.body}
+        </div>
+      </div>
+    </article>
+  )
 }
 
 function MemberPanel({ group, members, currentUserId, onApprove, onRemove, onLeave, onUpdateGroup }: { group: Group; members: Member[]; currentUserId: number; onApprove: (member: Member) => void; onRemove: (member: Member) => void; onLeave: () => void; onUpdateGroup: (name: string, policy?: Group['join_policy']) => Promise<void> }) {

@@ -21,7 +21,7 @@ def list_messages(
     before_id: int | None = Query(default=None, gt=0),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
-) -> list[Message]:
+) -> list[MessageResponse]:
     active_membership(db, group_id, user.id)
     query = select(Message).where(Message.group_id == group_id)
     if before_id is not None:
@@ -29,7 +29,32 @@ def list_messages(
     query = query.order_by(Message.id.desc()).limit(limit)
     messages = list(db.scalars(query).all())
     messages.reverse()
-    return [MessageResponse(id=message.id, group_id=message.group_id, sender_id=message.sender_id, sender_name=_display_name(message.sender), sender_username=message.sender.username, message_type=message.message_type, body=message.body, created_at=message.created_at) for message in messages]
+    response_items: list[MessageResponse] = []
+    for message in messages:
+        is_anon = message.is_anonymous
+        is_own = (message.sender_id == user.id)
+        if is_anon:
+            sender_id = message.sender_id if is_own else 0
+            sender_name = "Anonymous"
+            sender_username = "anonymous"
+        else:
+            sender_id = message.sender_id
+            sender_name = _display_name(message.sender)
+            sender_username = message.sender.username
+        response_items.append(
+            MessageResponse(
+                id=message.id,
+                group_id=message.group_id,
+                sender_id=sender_id,
+                sender_name=sender_name,
+                sender_username=sender_username,
+                message_type=message.message_type,
+                body=message.body,
+                is_anonymous=is_anon,
+                created_at=message.created_at,
+            )
+        )
+    return response_items
 
 
 @router.post("/{group_id}/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
@@ -38,9 +63,15 @@ def create_message(
     payload: MessageCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
-) -> Message:
+) -> MessageResponse:
     active_membership(db, group_id, user.id)
-    message = Message(group_id=group_id, sender_id=user.id, message_type="text", body=payload.body)
+    message = Message(
+        group_id=group_id,
+        sender_id=user.id,
+        message_type="text",
+        body=payload.body,
+        is_anonymous=payload.is_anonymous,
+    )
     db.add(message)
     db.flush()
     recipient_ids = db.scalars(
@@ -64,7 +95,18 @@ def create_message(
     )
     db.commit()
     db.refresh(message)
-    return MessageResponse(id=message.id, group_id=group_id, sender_id=user.id, sender_name=_display_name(user), sender_username=user.username, message_type="text", body=message.body, created_at=message.created_at)
+    is_anon = message.is_anonymous
+    return MessageResponse(
+        id=message.id,
+        group_id=group_id,
+        sender_id=user.id,
+        sender_name="Anonymous" if is_anon else _display_name(user),
+        sender_username="anonymous" if is_anon else user.username,
+        message_type="text",
+        body=message.body,
+        is_anonymous=is_anon,
+        created_at=message.created_at,
+    )
 
 
 def _display_name(user: User) -> str:

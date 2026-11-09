@@ -150,3 +150,57 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 :root[data-theme="dark"] .otp-popup-modal p{color:#a8b8aa}
 :root[data-theme="dark"] .otp-popup-code{background:#152217;border-color:#488159;color:#92e2a8}
 :root[data-theme="dark"] .otp-popup-icon{background:#263a2a}
+
+/* Anonymous vs Identified Side-by-Side Toggle */
+.composer-container{margin:0 26px 20px;display:grid;gap:8px}
+.composer-container .composer{margin:0;width:100%}
+.composer-identity-bar{display:flex;align-items:center;gap:10px;padding:0 2px;flex-wrap:wrap}
+.composer-identity-title{font-size:10px;font-weight:700;letter-spacing:1px;color:#859286;text-transform:uppercase}
+.identity-side-by-side{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.identity-chip-btn{display:inline-flex;align-items:center;gap:8px;padding:4px 11px 4px 5px;border:1.5px solid #dbe4dc;border-radius:24px;background:#fbfdfb;color:#455347;cursor:pointer;transition:all 0.15s ease}
+.identity-chip-btn:hover{background:#f0f5f0;border-color:#b5ceb9}
+.identity-chip-btn.is-active{background:#edf6ee;border-color:#3f8854;box-shadow:0 1px 5px rgba(40,99,68,0.12)}
+.chip-name{display:grid;gap:1px;text-align:left}
+.chip-name strong{font-size:11px;font-weight:700;color:#2c3a2f;line-height:1.2}
+.chip-name small{font-size:9px;color:#7e8d80}
+.chip-check{width:16px;height:16px;display:grid;place-items:center;border-radius:50%;background:#38824f;color:#fff;font-size:10px;font-weight:800;margin-left:2px}
+
+.identity-chip-btn.chip-anon{border-color:#d7c7e5}
+.identity-chip-btn.chip-anon:hover{background:#f6f1f9;border-color:#b598ce}
+.identity-chip-btn.chip-anon.is-active{background:#f3eaf9;border-color:#7f529f;box-shadow:0 1px 5px rgba(120,70,160,0.14)}
+.identity-chip-btn.chip-anon .chip-name strong{color:#563773}
+.identity-chip-btn.chip-anon .chip-name small{color:#846ea0}
+.chip-check-anon{background:#794b99}
+
+.composer-anon{border-color:#c8b8dc;box-shadow:0 5px 16px rgba(110,80,150,0.08)}
+.composer-anon:focus-within{border-color:#8e6cb0;box-shadow:0 0 0 3px rgba(142,108,176,0.15)}
+
+.avatar-anon-bubble{background:#ebdff2!important;color:#553170!important;font-size:13px}
+.anon-tag{display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;background:#f0eaf7;color:#67438c;font-size:8px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;border:1px solid #dfd3ec}
+.bubble-anon{border-color:#e4daee!important;background:#faf6fc!important;color:#372847!important}
+.bubble-own.bubble-anon{border-color:#d7c3e8!important;background:#f3eaf9!important;color:#3b2352!important}
+
+:root[data-theme="dark"] .identity-chip-btn{background:#1a231c;border-color:#354637;color:#cbd7cd}
+:root[data-theme="dark"] .identity-chip-btn:hover{background:#233025;border-color:#485e4b}
+:root[data-theme="dark"] .identity-chip-btn.is-active{background:#213825;border-color:#4e935b}
+:root[data-theme="dark"] .chip-name strong{color:#e1ebe2}
+:root[data-theme="dark"] .chip-name small{color:#9aa79c}
+:root[data-theme="dark"] .identity-chip-btn.chip-anon{border-color:#483359;background:#1f1926}
+:root[data-theme="dark"] .identity-chip-btn.chip-anon:hover{background:#281f33;border-color:#6c4a87}
+:root[data-theme="dark"] .identity-chip-btn.chip-anon.is-active{background:#2e2039;border-color:#925eb8}
+:root[data-theme="dark"] .identity-chip-btn.chip-anon .chip-name strong{color:#e2ceee}
+:root[data-theme="dark"] .identity-chip-btn.chip-anon .chip-name small{color:#b39ec4}
+:root[data-theme="dark"] .chip-check{background:#3f9055}
+:root[data-theme="dark"] .chip-check-anon{background:#8c56b3}
+:root[data-theme="dark"] .composer-anon{border-color:#4a395c;box-shadow:0 5px 16px rgba(0,0,0,0.3)}
+:root[data-theme="dark"] .avatar-anon-bubble{background:#352745!important;color:#dabfe8!important}
+:root[data-theme="dark"] .anon-tag{background:#2e2239;color:#c9b0dc;border-color:#4c3960}
+:root[data-theme="dark"] .bubble-anon{background:#27202e!important;border-color:#3e304b!important;color:#ded3e8!important}
+:root[data-theme="dark"] .bubble-own.bubble-anon{background:#382747!important;border-color:#53386d!important;color:#f0e3fa!important}
+
+@media(max-width:850px){
+  .composer-container{margin-left:17px;margin-right:17px}
+}
+@media(max-width:650px){
+  .composer-container{margin:0 10px 20px}
+}

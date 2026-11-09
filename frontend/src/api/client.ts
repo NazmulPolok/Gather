@@ -32,6 +32,7 @@ export type Message = {
   sender_username: string
   message_type: 'text'
   body: string
+  is_anonymous?: boolean
   created_at: string
 }
 
@@ -92,7 +93,7 @@ export const api = {
   updateGroup: (token: string, groupId: number, data: { name?: string; join_policy?: Group['join_policy'] }) => request<Group>(`/api/groups/${groupId}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
   joinGroup: (token: string, inviteCode: string) => request<{ status: string }>(`/api/groups/join/${encodeURIComponent(inviteCode)}`, { method: 'POST' }, token),
   messages: (token: string, groupId: number) => request<Message[]>(`/api/groups/${groupId}/messages?limit=100`, {}, token),
-  sendText: (token: string, groupId: number, body: string) => request<Message>(`/api/groups/${groupId}/messages`, { method: 'POST', body: JSON.stringify({ message_type: 'text', body }) }, token),
+  sendText: (token: string, groupId: number, body: string, is_anonymous = false) => request<Message>(`/api/groups/${groupId}/messages`, { method: 'POST', body: JSON.stringify({ message_type: 'text', body, is_anonymous }) }, token),
   members: (token: string, groupId: number) => request<Member[]>(`/api/groups/${groupId}/members`, {}, token),
   approveMember: (token: string, groupId: number, userId: number) => request<{ status: string }>(`/api/groups/${groupId}/members/${userId}/approve`, { method: 'POST' }, token),
   leaveGroup: (token: string, groupId: number) => request<{ status: string }>(`/api/groups/${groupId}/leave`, { method: 'DELETE' }, token),

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator
 class MessageCreate(BaseModel):
     message_type: Literal["text"] = "text"
     body: str = Field(min_length=1, max_length=10000)
+    is_anonymous: bool = False
 
     @field_validator("body")
     @classmethod
@@ -25,6 +26,7 @@ class MessageResponse(BaseModel):
     sender_username: str
     message_type: Literal["text"]
     body: str
+    is_anonymous: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}
