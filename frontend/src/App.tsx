@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ApiError, api } from './api/client'
-import type { AuthResponse, NotificationItem } from './api/client'
+import { ApiError, api, getMediaUrl } from './api/client'
+import type { AuthResponse, AuthUser, NotificationItem } from './api/client'
 import { AuthForm } from './auth/AuthForm'
 import { ChatHome } from './chat/ChatHome'
 import { NotificationCenter } from './notifications/NotificationCenter'
@@ -12,7 +12,7 @@ type Theme = 'light' | 'dark'
 
 export default function App() {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY))
-  const [user, setUser] = useState<AuthResponse['user'] | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [checkingSession, setCheckingSession] = useState(Boolean(token))
   const [apiReady, setApiReady] = useState<boolean | null>(null)
   const [sessionError, setSessionError] = useState('')
@@ -82,10 +82,10 @@ export default function App() {
           <span className={`connection ${apiReady === false ? 'offline' : ''}`}><span className="connection-dot" />{apiReady === null ? 'Connecting' : apiReady ? 'All systems ready' : 'Server unavailable'}</span>
           {token && user && <NotificationCenter token={token} onSelect={handleNotificationSelect} onUnreadGroups={handleUnreadGroups} />}
           {user && <SettingsMenu theme={theme} onThemeChange={setTheme} />}
-          {user && <div className="account-chip"><span className="avatar avatar-small">{(user.first_name || user.username).slice(0, 1).toUpperCase()}</span><span>{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username} <small>@{user.username}</small></span><button className="header-logout" onClick={signOut}>Log out</button></div>}
+          {user && <div className="account-chip"><span className="avatar avatar-small">{user.avatar_url ? <img src={getMediaUrl(user.avatar_url)} alt={user.username} className="avatar-img" /> : (user.first_name || user.username).slice(0, 1).toUpperCase()}</span><span>{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username} <small>@{user.username}</small></span><button className="header-logout" onClick={signOut}>Log out</button></div>}
         </div>
       </header>
-      {checkingSession ? <div className="loading-screen"><span className="spinner" />Restoring your session…</div> : token && sessionError ? <div className="loading-screen"><div className="session-recovery"><strong>Can’t reach your account right now</strong><p>{sessionError}</p><button className="button button-primary" onClick={() => setSessionAttempt(value => value + 1)}>Try again</button><button className="recovery-signout" onClick={signOut}>Sign out</button></div></div> : token && user ? <ChatHome token={token} user={user} notificationTarget={notificationTarget} onNotificationHandled={handleNotificationHandled} unreadGroups={unreadGroups} onUnreadGroups={handleUnreadGroups} /> : <AuthForm onSignedIn={signedIn} />}
+      {checkingSession ? <div className="loading-screen"><span className="spinner" />Restoring your session…</div> : token && sessionError ? <div className="loading-screen"><div className="session-recovery"><strong>Can’t reach your account right now</strong><p>{sessionError}</p><button className="button button-primary" onClick={() => setSessionAttempt(value => value + 1)}>Try again</button><button className="recovery-signout" onClick={signOut}>Sign out</button></div></div> : token && user ? <ChatHome token={token} user={user} onUserUpdated={setUser} notificationTarget={notificationTarget} onNotificationHandled={handleNotificationHandled} unreadGroups={unreadGroups} onUnreadGroups={handleUnreadGroups} /> : <AuthForm onSignedIn={signedIn} />}
       <footer className="site-footer"><span>Gather · good conversations, together.</span><span>Made for your group</span></footer>
     </div>
   )

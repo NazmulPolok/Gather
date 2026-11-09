@@ -1,9 +1,24 @@
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 
+export function getMediaUrl(path?: string | null): string {
+  if (!path) return ''
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) return path
+  return `${API_URL}${path.startsWith('/') ? '' : '/'}${path}`
+}
+
+export type AuthUser = {
+  id: number
+  email: string
+  first_name: string
+  last_name: string
+  username: string
+  avatar_url?: string | null
+}
+
 export type AuthResponse = {
   access_token: string
   token_type: string
-  user: { id: number; email: string; first_name: string; last_name: string; username: string }
+  user: AuthUser
 }
 
 export type Group = {
@@ -23,6 +38,7 @@ export type Member = {
   role: 'admin' | 'member'
   status: 'active' | 'pending' | 'rejected'
   nickname?: string | null
+  avatar_url?: string | null
 }
 
 export type Message = {
@@ -31,8 +47,10 @@ export type Message = {
   sender_id: number
   sender_name: string
   sender_username: string
-  message_type: 'text'
-  body: string
+  sender_avatar_url?: string | null
+  message_type: 'text' | 'image'
+  body?: string | null
+  image_url?: string | null
   is_anonymous?: boolean
   created_at: string
 }
@@ -88,13 +106,38 @@ export const api = {
   login: (email: string, password: string) => request<AuthResponse>('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   requestResetOTP: (email: string) => request<{ status: string; message: string }>('/api/auth/forgot-password/request-otp', { method: 'POST', body: JSON.stringify({ email }) }),
   verifyResetOTP: (email: string, otp: string, new_password: string) => request<AuthResponse>('/api/auth/forgot-password/verify-otp', { method: 'POST', body: JSON.stringify({ email, otp, new_password }) }),
-  me: (token: string) => request<AuthResponse['user']>('/api/auth/me', {}, token),
+  me: (token: string) => request<AuthUser>('/api/auth/me', {}, token),
+  updateAvatar: (token: string, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request<AuthUser>('/api/auth/avatar', { method: 'POST', body: formData }, token)
+  },
+  removeAvatar: (token: string) => request<AuthUser>('/api/auth/avatar', { method: 'DELETE' }, token),
   groups: (token: string) => request<Group[]>('/api/groups', {}, token),
   createGroup: (token: string, name: string, join_policy: Group['join_policy']) => request<Group>('/api/groups', { method: 'POST', body: JSON.stringify({ name, join_policy }) }, token),
   updateGroup: (token: string, groupId: number, data: { name?: string; join_policy?: Group['join_policy'] }) => request<Group>(`/api/groups/${groupId}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
   joinGroup: (token: string, inviteCode: string) => request<{ status: string }>(`/api/groups/join/${encodeURIComponent(inviteCode)}`, { method: 'POST' }, token),
   messages: (token: string, groupId: number) => request<Message[]>(`/api/groups/${groupId}/messages?limit=100`, {}, token),
   sendText: (token: string, groupId: number, body: string, is_anonymous = false) => request<Message>(`/api/groups/${groupId}/messages`, { method: 'POST', body: JSON.stringify({ message_type: 'text', body, is_anonymous }) }, token),
+  uploadGroupImage: (token: string, groupId: number, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request<{ image_url: string }>(`/api/groups/${groupId}/upload-image`, { method: 'POST', body: formData }, token)
+  },
+  sendImage: (token: string, groupId: number, imageUrl: string, caption?: string, is_anonymous = false) =>
+    request<Message>(
+      `/api/groups/${groupId}/messages`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          message_type: 'image',
+          image_url: imageUrl,
+          body: caption || null,
+          is_anonymous,
+        }),
+      },
+      token
+    ),
   members: (token: string, groupId: number) => request<Member[]>(`/api/groups/${groupId}/members`, {}, token),
   approveMember: (token: string, groupId: number, userId: number) => request<{ status: string }>(`/api/groups/${groupId}/members/${userId}/approve`, { method: 'POST' }, token),
   updateNickname: (token: string, groupId: number, targetUserId: number, nickname: string | null) => request<{ status: string; user_id: number; nickname: string | null }>(`/api/groups/${groupId}/members/${targetUserId}/nickname`, { method: 'PATCH', body: JSON.stringify({ nickname }) }, token),

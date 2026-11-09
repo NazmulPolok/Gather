@@ -1,21 +1,38 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { api, type Group, type Member, type Message, type NotificationItem } from '../api/client'
+import { api, getMediaUrl, type AuthUser, type Group, type Member, type Message, type NotificationItem } from '../api/client'
 
-type CurrentUser = { id: number; email: string; first_name: string; last_name: string; username: string }
-
-export function ChatHome({ token, user, notificationTarget, onNotificationHandled, unreadGroups, onUnreadGroups }: { token: string; user: CurrentUser; notificationTarget: NotificationItem | null; onNotificationHandled: () => void; unreadGroups: Record<number, number>; onUnreadGroups: (counts: Record<number, number>) => void }) {
+export function ChatHome({
+  token,
+  user,
+  onUserUpdated,
+  notificationTarget,
+  onNotificationHandled,
+  unreadGroups,
+  onUnreadGroups,
+}: {
+  token: string
+  user: AuthUser
+  onUserUpdated?: (user: AuthUser) => void
+  notificationTarget: NotificationItem | null
+  onNotificationHandled: () => void
+  unreadGroups: Record<number, number>
+  onUnreadGroups: (counts: Record<number, number>) => void
+}) {
   const [groups, setGroups] = useState<Group[]>([])
   const [activeGroup, setActiveGroup] = useState<Group | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [messageText, setMessageText] = useState('')
+  const [attachedImage, setAttachedImage] = useState<File | null>(null)
+  const [attachedPreview, setAttachedPreview] = useState<string | null>(null)
   const [groupName, setGroupName] = useState('')
   const [joinId, setJoinId] = useState('')
   const [joinPolicy, setJoinPolicy] = useState<'open' | 'approval'>('open')
-  const [busy, setBusy] = useState(false);
-  const [sendAsAnonymous, setSendAsAnonymous] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const emojiList = ['😀','😂','🥰','👍','🎉','❤️','🚀','👎','😢','😎'];
+  const [busy, setBusy] = useState(false)
+  const [avatarBusy, setAvatarBusy] = useState(false)
+  const [sendAsAnonymous, setSendAsAnonymous] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const emojiList = ['😀', '😂', '🥰', '👍', '🎉', '❤️', '🚀', '👎', '😢', '😎']
   const [loadingGroups, setLoadingGroups] = useState(true)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
@@ -28,6 +45,8 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
   const [chatError, setChatError] = useState('')
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
+  const chatImageInputRef = useRef<HTMLInputElement>(null)
 
   const refreshGroups = useCallback(async (): Promise<Group[]> => {
     setLoadingGroups(true)
@@ -160,14 +179,93 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
     finally { setBusy(false) }
   }
 
+  async function handleAvatarSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Profile picture cannot exceed 10MB.')
+      return
+    }
+    setAvatarBusy(true)
+    try {
+      const updatedUser = await api.updateAvatar(token, file)
+      onUserUpdated?.(updatedUser)
+      setMembers(current => current.map(m => m.user_id === user.id ? { ...m, avatar_url: updatedUser.avatar_url } : m))
+      if (activeGroup) {
+        void loadMessages(activeGroup.id, true)
+      }
+      setNotice('Profile picture updated successfully!')
+      setError('')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not upload profile picture')
+    } finally {
+      setAvatarBusy(false)
+    }
+  }
+
+  async function handleRemoveAvatar() {
+    setAvatarBusy(true)
+    try {
+      const updatedUser = await api.removeAvatar(token)
+      onUserUpdated?.(updatedUser)
+      setMembers(current => current.map(m => m.user_id === user.id ? { ...m, avatar_url: null } : m))
+      if (activeGroup) {
+        void loadMessages(activeGroup.id, true)
+      }
+      setNotice('Profile picture removed.')
+      setError('')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not remove profile picture')
+    } finally {
+      setAvatarBusy(false)
+    }
+  }
+
+  function handleChatImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    if (file.size > 10 * 1024 * 1024) {
+      setChatError('Image size cannot exceed 10MB.')
+      return
+    }
+    setAttachedImage(file)
+    setAttachedPreview(URL.createObjectURL(file))
+  }
+
+  function clearAttachedImage() {
+    if (attachedPreview) {
+      URL.revokeObjectURL(attachedPreview)
+    }
+    setAttachedImage(null)
+    setAttachedPreview(null)
+  }
+
   async function sendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!activeGroup || busy) return
     const body = messageText.trim()
-    if (!activeGroup || !body || busy) return
-    setBusy(true); setChatError('')
-    try { const sent = await api.sendText(token, activeGroup.id, body, sendAsAnonymous); setMessages(current => [...current, sent]); setMessageText('') }
-    catch (cause) { setChatError(cause instanceof Error ? cause.message : 'Message could not be sent') }
-    finally { setBusy(false) }
+    if (!body && !attachedImage) return
+    setBusy(true)
+    setChatError('')
+    try {
+      if (attachedImage) {
+        const uploadRes = await api.uploadGroupImage(token, activeGroup.id, attachedImage)
+        const sent = await api.sendImage(token, activeGroup.id, uploadRes.image_url, body || undefined, sendAsAnonymous)
+        setMessages(current => [...current, sent])
+        clearAttachedImage()
+        setMessageText('')
+      } else {
+        const sent = await api.sendText(token, activeGroup.id, body, sendAsAnonymous)
+        setMessages(current => [...current, sent])
+        setMessageText('')
+      }
+    } catch (cause) {
+      setChatError(cause instanceof Error ? cause.message : 'Message could not be sent')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function approve(member: Member) {
@@ -229,21 +327,58 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
         <form className="join-form" onSubmit={joinGroup}><label htmlFor="sidebar-invite-code">Join with an invite code</label><div className="join-row"><input id="sidebar-invite-code" autoComplete="off" maxLength={8} value={joinId} onChange={e => setJoinId(e.target.value.toUpperCase())} placeholder="8-character code" /><button aria-label="Join group" disabled={busy}>Join</button></div></form>
         <div className="sidebar-note"><span className="sidebar-note-mark">✳</span><strong>Your groups, together.</strong><p>Open a group from the main space to read and send messages.</p></div>
         <div className="sidebar-bottom">
-          <button
-            type="button"
-            className={`profile-card profile-card-clickable ${sendAsAnonymous ? 'profile-card-anon' : ''}`}
-            onClick={() => setSendAsAnonymous(v => !v)}
-            title={sendAsAnonymous ? 'Currently texting as Anonymous. Click to switch to your name/nickname.' : 'Currently texting as yourself. Click to switch to Anonymous.'}
-          >
-            <span className={`avatar ${sendAsAnonymous ? 'avatar-anon' : ''}`}>
-              {sendAsAnonymous ? '🎭' : (activeNickname || user.first_name || user.username).slice(0, 1).toUpperCase()}
-            </span>
-            <div className="profile-copy">
-              <strong>{sendAsAnonymous ? 'Anonymous' : (activeNickname || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)}</strong>
-              <small>{sendAsAnonymous ? '@anonymous · Incognito' : (activeNickname ? `Nick: ${activeNickname} · @${user.username}` : `@${user.username}`)}</small>
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            style={{ display: 'none' }}
+            onChange={handleAvatarSelect}
+          />
+          <div className="sidebar-profile-wrapper">
+            <button
+              type="button"
+              className={`profile-card profile-card-clickable ${sendAsAnonymous ? 'profile-card-anon' : ''}`}
+              onClick={() => setSendAsAnonymous(v => !v)}
+              title={sendAsAnonymous ? 'Currently texting as Anonymous. Click to switch to your name/nickname.' : 'Currently texting as yourself. Click to switch to Anonymous.'}
+            >
+              <span className={`avatar ${sendAsAnonymous ? 'avatar-anon' : ''}`}>
+                {sendAsAnonymous ? (
+                  '🎭'
+                ) : user.avatar_url ? (
+                  <img src={getMediaUrl(user.avatar_url)} alt="Profile" className="avatar-img-round" />
+                ) : (
+                  (activeNickname || user.first_name || user.username).slice(0, 1).toUpperCase()
+                )}
+              </span>
+              <div className="profile-copy">
+                <strong>{sendAsAnonymous ? 'Anonymous' : (activeNickname || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)}</strong>
+                <small>{sendAsAnonymous ? '@anonymous · Incognito' : (activeNickname ? `Nick: ${activeNickname} · @${user.username}` : `@${user.username}`)}</small>
+              </div>
+              <span className="profile-switch-badge">Switch ⇄</span>
+            </button>
+            <div className="sidebar-avatar-actions">
+              <button
+                type="button"
+                className="change-avatar-button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={avatarBusy}
+                title="Change your profile picture from your desktop or device"
+              >
+                📷 {avatarBusy ? 'Saving…' : user.avatar_url ? 'Change photo' : 'Upload photo'}
+              </button>
+              {user.avatar_url && (
+                <button
+                  type="button"
+                  className="remove-avatar-button"
+                  onClick={handleRemoveAvatar}
+                  disabled={avatarBusy}
+                  title="Remove profile picture"
+                >
+                  ✕
+                </button>
+              )}
             </div>
-            <span className="profile-switch-badge">Switch ⇄</span>
-          </button>
+          </div>
         </div>
       </aside>
 
@@ -295,34 +430,137 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
             </div>
           </header>
           <div className="chat-area">
-            {showMembers ? <MemberPanel group={activeGroup} members={members} currentUserId={user.id} onApprove={approve} onRemove={removeMember} onLeave={leaveGroup} onUpdateGroup={updateGroupSettings} onUpdateNickname={updateMemberNickname} /> : <>
-              <div className="conversation-intro"><div className="intro-mark">✳</div><h2>You’re in {activeGroup.name}</h2><p>Start the conversation. Everything shared here stays with the group.</p><span className="date-divider">TODAY</span></div>
-              {loadingMessages && messages.length === 0 ? <div className="chat-loading"><span className="spinner" />Loading conversation…</div> : <div className="message-list">{messages.map(message => <MessageBubble key={message.id} message={message} own={message.sender_id === user.id} />)}<div ref={bottomRef} /></div>}
-              {chatError && <div className="chat-error" role="alert">{chatError}<button onClick={() => setChatError('')}>Dismiss</button></div>}
-            </>}
+            {showMembers ? (
+              <MemberPanel
+                group={activeGroup}
+                members={members}
+                currentUserId={user.id}
+                currentUserAvatar={user.avatar_url}
+                onOpenAvatarPicker={() => avatarInputRef.current?.click()}
+                onApprove={approve}
+                onRemove={removeMember}
+                onLeave={leaveGroup}
+                onUpdateGroup={updateGroupSettings}
+                onUpdateNickname={updateMemberNickname}
+              />
+            ) : (
+              <>
+                <div className="conversation-intro">
+                  <div className="intro-mark">✳</div>
+                  <h2>You’re in {activeGroup.name}</h2>
+                  <p>Start the conversation. Everything shared here stays with the group.</p>
+                  <span className="date-divider">TODAY</span>
+                </div>
+                {loadingMessages && messages.length === 0 ? (
+                  <div className="chat-loading">
+                    <span className="spinner" />
+                    Loading conversation…
+                  </div>
+                ) : (
+                  <div className="message-list">
+                    {messages.map(message => (
+                      <MessageBubble key={message.id} message={message} own={message.sender_id === user.id} />
+                    ))}
+                    <div ref={bottomRef} />
+                  </div>
+                )}
+                {chatError && (
+                  <div className="chat-error" role="alert">
+                    {chatError}
+                    <button onClick={() => setChatError('')}>Dismiss</button>
+                  </div>
+                )}
+              </>
+            )}
           </div>
           {!showMembers && (
             <form className={`composer ${sendAsAnonymous ? 'composer-anon' : ''}`} onSubmit={sendMessage}>
-              <textarea
-                rows={1}
-                value={messageText}
-                onChange={e => setMessageText(e.target.value)}
-                onKeyDown={onComposerKeyDown}
-                placeholder={sendAsAnonymous ? `Message ${activeGroup.name} as Anonymous…` : `Message ${activeGroup.name}…`}
-                maxLength={10000}
-              />
-              <span className="composer-hint">
-                {sendAsAnonymous ? '🎭 Posting as Anonymous · Identity hidden from members' : 'Text only · Enter to send · Shift + Enter for a new line'}
-              </span>
-              <button type="button" className="emoji-button" onClick={() => setShowEmojiPicker(v => !v)} aria-label="Insert emoji">😊</button>
-              {showEmojiPicker && (
-                <div className="emoji-picker">
-                  {emojiList.map(e => (
-                    <button key={e} type="button" className="emoji-item" onClick={() => { setMessageText(prev => prev + e); setShowEmojiPicker(false); }}>{e}</button>
-                  ))}
+              {attachedPreview && (
+                <div className="composer-attachment-preview">
+                  <img src={attachedPreview} alt="Attached preview" className="composer-preview-thumb" />
+                  <div className="composer-preview-details">
+                    <strong>{attachedImage?.name}</strong>
+                    <small>{attachedImage ? (attachedImage.size / 1024).toFixed(0) : 0} KB · Ready to share</small>
+                  </div>
+                  <button
+                    type="button"
+                    className="composer-remove-attachment"
+                    onClick={clearAttachedImage}
+                    title="Remove attachment"
+                  >
+                    ✕
+                  </button>
                 </div>
               )}
-              <button className="send-button" aria-label="Send message" disabled={busy || !messageText.trim()}>↑</button>
+              <div className="composer-main-row">
+                <input
+                  ref={chatImageInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  style={{ display: 'none' }}
+                  onChange={handleChatImageSelect}
+                />
+                <button
+                  type="button"
+                  className="attach-button"
+                  onClick={() => chatImageInputRef.current?.click()}
+                  title="Share an image from your device"
+                  aria-label="Share image"
+                >
+                  📷
+                </button>
+                <textarea
+                  rows={1}
+                  value={messageText}
+                  onChange={e => setMessageText(e.target.value)}
+                  onKeyDown={onComposerKeyDown}
+                  placeholder={
+                    attachedImage
+                      ? `Add a caption for this photo…`
+                      : sendAsAnonymous
+                      ? `Message ${activeGroup.name} as Anonymous…`
+                      : `Message ${activeGroup.name}…`
+                  }
+                  maxLength={10000}
+                />
+                <span className="composer-hint">
+                  {sendAsAnonymous
+                    ? '🎭 Posting as Anonymous · Identity hidden from members'
+                    : 'Enter to send · Shift + Enter for a new line'}
+                </span>
+                <button
+                  type="button"
+                  className="emoji-button"
+                  onClick={() => setShowEmojiPicker(v => !v)}
+                  aria-label="Insert emoji"
+                >
+                  😊
+                </button>
+                {showEmojiPicker && (
+                  <div className="emoji-picker">
+                    {emojiList.map(e => (
+                      <button
+                        key={e}
+                        type="button"
+                        className="emoji-item"
+                        onClick={() => {
+                          setMessageText(prev => prev + e)
+                          setShowEmojiPicker(false)
+                        }}
+                      >
+                        {e}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button
+                  className="send-button"
+                  aria-label="Send message"
+                  disabled={busy || (!messageText.trim() && !attachedImage)}
+                >
+                  ↑
+                </button>
+              </div>
             </form>
           )}
         </> : <WelcomePanel groups={groups} unreadGroups={unreadGroups} loadingGroups={loadingGroups} onSelectGroup={group => { setActiveGroup(group); setShowMembers(false); setNotice('') }} />}
@@ -334,21 +572,45 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
 function MessageBubble({ message, own }: { message: Message; own: boolean }) {
   const time = new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   const isAnon = Boolean(message.is_anonymous)
+  const hasAvatar = !isAnon && Boolean(message.sender_avatar_url)
 
   return (
     <article className={`message-row ${own ? 'message-own' : ''} ${isAnon ? 'message-anon' : ''}`}>
       <div className={`message-avatar ${own ? 'my-message-avatar' : ''} ${isAnon ? 'avatar-anon-bubble' : ''}`}>
-        {isAnon ? '🎭' : (message.sender_name.slice(0, 1) || 'U').toUpperCase()}
+        {isAnon ? (
+          '🎭'
+        ) : hasAvatar ? (
+          <img
+            src={getMediaUrl(message.sender_avatar_url)}
+            alt={message.sender_name}
+            className="avatar-img-round"
+          />
+        ) : (
+          (message.sender_name.slice(0, 1) || 'U').toUpperCase()
+        )}
       </div>
       <div className="message-content">
         <div className="message-meta">
-          <strong>{isAnon ? (own ? 'You (Anonymous)' : 'Anonymous') : (own ? `${message.sender_name} (You)` : message.sender_name)}</strong>
+          <strong>
+            {isAnon ? (own ? 'You (Anonymous)' : 'Anonymous') : (own ? `${message.sender_name} (You)` : message.sender_name)}
+          </strong>
           <small>{isAnon ? '@anonymous' : (!own ? `@${message.sender_username}` : '')}</small>
           {isAnon && <span className="anon-tag">Anonymous</span>}
           <time>{time}</time>
         </div>
         <div className={`message-bubble ${own ? 'bubble-own' : ''} ${isAnon ? 'bubble-anon' : ''}`}>
-          {message.body}
+          {message.message_type === 'image' && message.image_url && (
+            <div className="message-image-wrap">
+              <img
+                src={getMediaUrl(message.image_url)}
+                alt="Shared attachment"
+                className="message-shared-image"
+                onClick={() => window.open(getMediaUrl(message.image_url), '_blank')}
+                title="Click to view full image"
+              />
+            </div>
+          )}
+          {message.body && <div className="message-text-body">{message.body}</div>}
         </div>
       </div>
     </article>
@@ -359,6 +621,8 @@ function MemberPanel({
   group,
   members,
   currentUserId,
+  currentUserAvatar,
+  onOpenAvatarPicker,
   onApprove,
   onRemove,
   onLeave,
@@ -368,6 +632,8 @@ function MemberPanel({
   group: Group
   members: Member[]
   currentUserId: number
+  currentUserAvatar?: string | null
+  onOpenAvatarPicker?: () => void
   onApprove: (member: Member) => void
   onRemove: (member: Member) => void
   onLeave: () => void
@@ -473,7 +739,13 @@ function MemberPanel({
           <div className="member-section-label">WAITING FOR APPROVAL <span>{pending.length}</span></div>
           {pending.map(member => (
             <div className="member-line" key={member.user_id}>
-              <span className="avatar">{displayName(member).slice(0, 1).toUpperCase()}</span>
+              <span className="avatar">
+                {member.avatar_url ? (
+                  <img src={getMediaUrl(member.avatar_url)} alt={displayName(member)} className="avatar-img-round" />
+                ) : (
+                  displayName(member).slice(0, 1).toUpperCase()
+                )}
+              </span>
               <div className="member-info">
                 <strong>{displayName(member)}</strong>
                 <small>@{member.username} · Requested to join</small>
@@ -491,16 +763,24 @@ function MemberPanel({
           const isEditingThis = editingNickUserId === member.user_id
           const hasNickname = Boolean(member.nickname)
           const avatarLetter = (member.nickname || displayName(member)).slice(0, 1).toUpperCase()
+          const isSelf = member.user_id === currentUserId
+          const memberAvatar = isSelf ? (currentUserAvatar || member.avatar_url) : member.avatar_url
 
           return (
             <div className="member-line" key={member.user_id}>
-              <span className="avatar">{avatarLetter}</span>
+              <span className="avatar">
+                {memberAvatar ? (
+                  <img src={getMediaUrl(memberAvatar)} alt={displayName(member)} className="avatar-img-round" />
+                ) : (
+                  avatarLetter
+                )}
+              </span>
               <div className="member-info">
                 <div className="member-info-header">
                   <strong>{member.nickname || displayName(member)}</strong>
                   {hasNickname && <span className="nickname-tag">Nickname</span>}
                   {member.role === 'admin' && <span className="admin-pill">ADMIN</span>}
-                  {member.user_id === currentUserId && <span className="you-pill">YOU</span>}
+                  {isSelf && <span className="you-pill">YOU</span>}
                 </div>
                 <small>
                   {hasNickname ? `${displayName(member)} (@${member.username})` : `@${member.username}`}
@@ -552,6 +832,16 @@ function MemberPanel({
 
               {!isEditingThis && (
                 <div className="member-line-actions">
+                  {isSelf && (
+                    <button
+                      type="button"
+                      className="nickname-action-button"
+                      onClick={onOpenAvatarPicker}
+                      title="Change your profile picture"
+                    >
+                      📷 Photo
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="nickname-action-button"

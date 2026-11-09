@@ -89,6 +89,7 @@ def list_members(
             "first_name": member.first_name,
             "last_name": member.last_name,
             "username": member.username,
+            "avatar_url": member.avatar_url,
             "role": membership.role,
             "status": membership.status,
             "nickname": membership.nickname,

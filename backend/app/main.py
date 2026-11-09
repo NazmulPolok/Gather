@@ -1,5 +1,7 @@
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.routers import auth, groups, health, members, messages, notifications
@@ -12,6 +14,12 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+UPLOAD_DIR = Path(__file__).resolve().parent.parent / "uploads"
+(UPLOAD_DIR / "avatars").mkdir(parents=True, exist_ok=True)
+(UPLOAD_DIR / "messages").mkdir(parents=True, exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 app.include_router(health.router)
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(groups.router, prefix="/api/groups", tags=["groups"])

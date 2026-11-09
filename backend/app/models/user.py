@@ -15,6 +15,7 @@ class User(Base):
     last_name: Mapped[str] = mapped_column(String(50), nullable=False)
     username: Mapped[str] = mapped_column(String(24), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    avatar_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     is_email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     memberships: Mapped[list["Membership"]] = relationship(back_populates="user")

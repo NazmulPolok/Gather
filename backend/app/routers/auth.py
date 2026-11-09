@@ -3,10 +3,11 @@ from email.message import EmailMessage
 from email.utils import formataddr
 import hashlib
 import hmac
+from pathlib import Path
 import secrets
 import smtplib
 import ssl
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -27,6 +28,18 @@ from app.schemas.auth import (
 )
 
 router = APIRouter()
+
+UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
+AVATARS_DIR = UPLOAD_DIR / "avatars"
+AVATARS_DIR.mkdir(parents=True, exist_ok=True)
+
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
+MAX_FILE_SIZE = 10 * 1024 * 1024
 
 
 def _find_user_by_identifier(db: Session, identifier: str) -> User | None:
@@ -211,4 +224,44 @@ def verify_password_reset_otp(payload: ForgotPasswordVerifyOTP, db: Session = De
 
 @router.get("/me", response_model=UserResponse)
 def me(user: User = Depends(get_current_user)) -> User:
+    return user
+
+
+@router.post("/avatar", response_model=UserResponse)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> User:
+    content_type = file.content_type or ""
+    if content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported image format. Please upload JPEG, PNG, WebP, or GIF.",
+        )
+    ext = ALLOWED_IMAGE_TYPES[content_type]
+    contents = await file.read()
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail="File size too large. Maximum size is 10MB.",
+        )
+    filename = f"{secrets.token_hex(16)}{ext}"
+    dest = AVATARS_DIR / filename
+    dest.write_bytes(contents)
+
+    user.avatar_url = f"/uploads/avatars/{filename}"
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.delete("/avatar", response_model=UserResponse)
+def delete_avatar(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> User:
+    user.avatar_url = None
+    db.commit()
+    db.refresh(user)
     return user

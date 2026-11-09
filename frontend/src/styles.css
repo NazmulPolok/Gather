@@ -210,3 +210,43 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 :root[data-theme="dark"] .nickname-action-button:hover{background:#2b3a2e;border-color:#4e6953;color:#c8e5cf}
 :root[data-theme="dark"] .member-nick-input{background:#1a231c;border-color:#38483b;color:#dce5dd}
 :root[data-theme="dark"] .member-nick-input:focus{border-color:#5c916d}
+
+/* Profile Picture & Image Sharing */
+.avatar-img-round{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
+.avatar-img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+.avatar{overflow:hidden}
+.message-avatar{overflow:hidden}
+
+.sidebar-profile-wrapper{display:flex;flex-direction:column;gap:6px}
+.sidebar-avatar-actions{display:flex;align-items:center;gap:6px;padding:0 2px}
+.change-avatar-button{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;height:26px;border:1px dashed #cfdbd1;border-radius:7px;background:#fff;color:#477051;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s}
+.change-avatar-button:hover{background:#f1f7f2;border-color:#9ebb9f;border-style:solid}
+.remove-avatar-button{height:26px;padding:0 8px;border:1px solid #ecd8d5;border-radius:7px;background:#fff;color:#9b463a;font-size:11px;cursor:pointer;transition:all .15s}
+.remove-avatar-button:hover{background:#fff3f1;border-color:#d9a59e}
+
+.composer{flex-direction:column!important;align-items:stretch!important;gap:6px!important}
+.composer-main-row{display:flex;align-items:center;gap:8px;width:100%}
+.composer-attachment-preview{display:flex;align-items:center;gap:10px;padding:7px 10px;background:#f3f7f4;border:1px solid #dce6de;border-radius:8px;width:100%}
+.composer-preview-thumb{width:42px;height:42px;object-fit:cover;border-radius:6px;border:1px solid #c9d8cb;flex:none}
+.composer-preview-details{flex:1;min-width:0;display:grid;gap:2px}
+.composer-preview-details strong{font-size:11px;color:#2b382d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.composer-preview-details small{font-size:9px;color:#78867a}
+.composer-remove-attachment{border:0;background:transparent;color:#859287;font-size:15px;cursor:pointer;padding:2px 6px;line-height:1}
+.composer-remove-attachment:hover{color:#b33e32}
+.attach-button{width:31px;height:31px;display:grid;place-items:center;border:1px solid #dfe7e0;border-radius:8px;background:#fff;color:#47574a;font-size:15px;cursor:pointer;transition:all .15s;flex:none}
+.attach-button:hover{background:#edf6ef;border-color:#a8cbaf;color:#235632}
+
+.message-image-wrap{margin-bottom:6px;overflow:hidden;border-radius:8px}
+.message-shared-image{max-width:320px;max-height:280px;width:auto;height:auto;display:block;border-radius:8px;cursor:pointer;transition:transform .15s,opacity .15s;object-fit:cover}
+.message-shared-image:hover{opacity:0.95;transform:scale(1.01)}
+.message-text-body{margin-top:4px;word-break:break-word}
+
+:root[data-theme="dark"] .change-avatar-button{background:#1d261e;border-color:#384a3c;color:#a8cbb1}
+:root[data-theme="dark"] .change-avatar-button:hover{background:#263428;border-color:#4e6953}
+:root[data-theme="dark"] .remove-avatar-button{background:#2a1e1e;border-color:#4a3232;color:#d59e99}
+:root[data-theme="dark"] .remove-avatar-button:hover{background:#382525;border-color:#654242}
+:root[data-theme="dark"] .composer-attachment-preview{background:#1e2720;border-color:#364839}
+:root[data-theme="dark"] .composer-preview-details strong{color:#dce5de}
+:root[data-theme="dark"] .composer-preview-details small{color:#93a195}
+:root[data-theme="dark"] .attach-button{background:#1a231c;border-color:#344636;color:#cde0d0}
+:root[data-theme="dark"] .attach-button:hover{background:#263529;border-color:#48644b}
