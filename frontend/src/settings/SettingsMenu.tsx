@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { api, getMediaUrl, type AuthUser } from '../api/client'
+import { api, getMediaUrl, PRESET_AVATARS, type AuthUser } from '../api/client'
+import { UserAvatar } from '../components/UserAvatar'
 
 type Theme = 'light' | 'dark'
 
@@ -55,9 +56,25 @@ export function SettingsMenu({
     try {
       const updated = await api.updateAvatar(token, file)
       onUserUpdated?.(updated)
-      setProfileNotice('Profile picture updated successfully!')
+      setProfileNotice('Profile picture uploaded successfully!')
     } catch (err) {
       setProfileError(err instanceof Error ? err.message : 'Could not upload photo')
+    } finally {
+      setSavingAvatar(false)
+    }
+  }
+
+  async function handleSelectPresetAvatar(presetId: string) {
+    if (!token) return
+    setSavingAvatar(true)
+    setProfileError('')
+    setProfileNotice('')
+    try {
+      const updated = await api.updateProfile(token, { avatar_url: presetId })
+      onUserUpdated?.(updated)
+      setProfileNotice('Avatar selected successfully!')
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : 'Could not set avatar')
     } finally {
       setSavingAvatar(false)
     }
@@ -69,9 +86,9 @@ export function SettingsMenu({
     setProfileError('')
     setProfileNotice('')
     try {
-      const updated = await api.removeAvatar(token)
+      const updated = await api.updateProfile(token, { avatar_url: null })
       onUserUpdated?.(updated)
-      setProfileNotice('Profile picture removed.')
+      setProfileNotice('Profile picture/avatar removed.')
     } catch (err) {
       setProfileError(err instanceof Error ? err.message : 'Could not remove photo')
     } finally {
@@ -143,11 +160,18 @@ export function SettingsMenu({
                     </button>
                   </header>
                   <div className="settings-menu-list">
-                    <button className="settings-option-row" onClick={() => { setPage('profile'); setProfileNotice(''); setProfileError('') }}>
+                    <button
+                      className="settings-option-row"
+                      onClick={() => {
+                        setPage('profile')
+                        setProfileNotice('')
+                        setProfileError('')
+                      }}
+                    >
                       <span className="settings-option-icon">👤</span>
                       <span>
                         <strong>Profile</strong>
-                        <small>{user?.nickname ? `Nick: ${user.nickname}` : 'Photo, nickname & account info'}</small>
+                        <small>{user?.nickname ? `Nick: ${user.nickname}` : 'Picture, avatar, nickname & email'}</small>
                       </span>
                       <span className="settings-option-arrow">›</span>
                     </button>
@@ -170,7 +194,7 @@ export function SettingsMenu({
                     </button>
                     <div>
                       <strong>Profile</strong>
-                      <small>Profile picture, nickname & account</small>
+                      <small>Picture, avatar, nickname & account</small>
                     </div>
                     <button className="settings-close" onClick={() => setOpen(false)} aria-label="Close settings">
                       ×
@@ -192,18 +216,16 @@ export function SettingsMenu({
                       </small>
                     </div>
 
-                    {/* 2. Profile Picture */}
+                    {/* 2. Profile Picture or Avatar */}
                     <div className="settings-field-group">
-                      <span className="settings-section-title">PROFILE PICTURE</span>
+                      <span className="settings-section-title">PROFILE PICTURE OR AVATAR</span>
                       <div className="settings-avatar-row">
                         <div className="settings-avatar-display">
-                          {user?.avatar_url ? (
-                            <img src={getMediaUrl(user.avatar_url)} alt="Avatar" className="avatar-img-round" />
-                          ) : (
-                            <span className="avatar-initial">
-                              {(user?.nickname || user?.first_name || user?.username || 'U').slice(0, 1).toUpperCase()}
-                            </span>
-                          )}
+                          <UserAvatar
+                            avatarUrl={user?.avatar_url}
+                            fallback={user?.nickname || user?.first_name || user?.username || 'U'}
+                            size={56}
+                          />
                         </div>
                         <div className="settings-avatar-buttons">
                           <input
@@ -219,7 +241,7 @@ export function SettingsMenu({
                             onClick={() => fileInputRef.current?.click()}
                             disabled={savingAvatar}
                           >
-                            📷 {savingAvatar ? 'Uploading…' : user?.avatar_url ? 'Change Photo' : 'Upload Photo'}
+                            📷 {savingAvatar ? 'Uploading…' : 'Upload Custom Photo'}
                           </button>
                           {user?.avatar_url && (
                             <button
@@ -232,6 +254,29 @@ export function SettingsMenu({
                             </button>
                           )}
                         </div>
+                      </div>
+
+                      {/* 2b. Preset Avatars Grid */}
+                      <div className="preset-avatar-subheading">Choose a fun avatar character:</div>
+                      <div className="preset-avatar-grid">
+                        {PRESET_AVATARS.map(preset => {
+                          const isSelected = user?.avatar_url === preset.id
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              className={`preset-avatar-option ${isSelected ? 'preset-avatar-selected' : ''}`}
+                              style={{ backgroundColor: preset.bg, color: preset.color }}
+                              onClick={() => void handleSelectPresetAvatar(preset.id)}
+                              title={`Set as ${preset.label}`}
+                              disabled={savingAvatar}
+                            >
+                              <span className="preset-avatar-emoji">{preset.emoji}</span>
+                              <span className="preset-avatar-name">{preset.label}</span>
+                              {isSelected && <span className="preset-avatar-check">✓</span>}
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
 

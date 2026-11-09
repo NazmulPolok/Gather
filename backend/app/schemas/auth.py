@@ -77,6 +77,7 @@ class ForgotPasswordVerifyOTP(BaseModel):
 
 class ProfileUpdate(BaseModel):
     nickname: str | None = Field(default=None, max_length=64)
+    avatar_url: str | None = Field(default=None, max_length=512)
 
 
 class UserResponse(BaseModel):

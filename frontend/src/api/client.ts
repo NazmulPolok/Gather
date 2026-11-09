@@ -6,6 +6,34 @@ export function getMediaUrl(path?: string | null): string {
   return `${API_URL}${path.startsWith('/') ? '' : '/'}${path}`
 }
 
+export type PresetAvatar = {
+  id: string
+  label: string
+  emoji: string
+  bg: string
+  color: string
+}
+
+export const PRESET_AVATARS: PresetAvatar[] = [
+  { id: 'preset:fox', label: 'Fox', emoji: '🦊', bg: '#feeed9', color: '#c25816' },
+  { id: 'preset:panda', label: 'Panda', emoji: '🐼', bg: '#e8f3ea', color: '#2b5f3a' },
+  { id: 'preset:lion', label: 'Lion', emoji: '🦁', bg: '#fff2d6', color: '#aa7119' },
+  { id: 'preset:robot', label: 'Robot', emoji: '🤖', bg: '#e2f2f7', color: '#1e6884' },
+  { id: 'preset:ninja', label: 'Ninja', emoji: '🥷', bg: '#efe8f7', color: '#5f358a' },
+  { id: 'preset:astronaut', label: 'Astronaut', emoji: '🚀', bg: '#e4edf7', color: '#275283' },
+  { id: 'preset:cat', label: 'Cat', emoji: '🐱', bg: '#fbe7ea', color: '#a0314b' },
+  { id: 'preset:wizard', label: 'Wizard', emoji: '🧙', bg: '#f2e8fc', color: '#6d2db2' },
+  { id: 'preset:bear', label: 'Bear', emoji: '🐻', bg: '#f5ebe3', color: '#7a4e2f' },
+  { id: 'preset:tiger', label: 'Tiger', emoji: '🐯', bg: '#fdeee2', color: '#b3561a' },
+  { id: 'preset:owl', label: 'Owl', emoji: '🦉', bg: '#e5f1f0', color: '#2a6a66' },
+  { id: 'preset:frog', label: 'Frog', emoji: '🐸', bg: '#ebf5e7', color: '#38732e' },
+]
+
+export function getPresetAvatar(id?: string | null): PresetAvatar | undefined {
+  if (!id || !id.startsWith('preset:')) return undefined
+  return PRESET_AVATARS.find(a => a.id === id)
+}
+
 export type AuthUser = {
   id: number
   email: string
@@ -108,7 +136,7 @@ export const api = {
   requestResetOTP: (email: string) => request<{ status: string; message: string }>('/api/auth/forgot-password/request-otp', { method: 'POST', body: JSON.stringify({ email }) }),
   verifyResetOTP: (email: string, otp: string, new_password: string) => request<AuthResponse>('/api/auth/forgot-password/verify-otp', { method: 'POST', body: JSON.stringify({ email, otp, new_password }) }),
   me: (token: string) => request<AuthUser>('/api/auth/me', {}, token),
-  updateProfile: (token: string, data: { nickname?: string | null }) => request<AuthUser>('/api/auth/profile', { method: 'PATCH', body: JSON.stringify(data) }, token),
+  updateProfile: (token: string, data: { nickname?: string | null; avatar_url?: string | null }) => request<AuthUser>('/api/auth/profile', { method: 'PATCH', body: JSON.stringify(data) }, token),
   updateAvatar: (token: string, file: File) => {
     const formData = new FormData()
     formData.append('file', file)

@@ -5,6 +5,7 @@ import { AuthForm } from './auth/AuthForm'
 import { ChatHome } from './chat/ChatHome'
 import { NotificationCenter } from './notifications/NotificationCenter'
 import { SettingsMenu } from './settings/SettingsMenu'
+import { UserAvatar } from './components/UserAvatar'
 
 const TOKEN_KEY = 'gather_access_token'
 const THEME_KEY = 'gather_theme'
@@ -82,7 +83,7 @@ export default function App() {
           <span className={`connection ${apiReady === false ? 'offline' : ''}`}><span className="connection-dot" />{apiReady === null ? 'Connecting' : apiReady ? 'All systems ready' : 'Server unavailable'}</span>
           {token && user && <NotificationCenter token={token} onSelect={handleNotificationSelect} onUnreadGroups={handleUnreadGroups} />}
           {user && <SettingsMenu theme={theme} onThemeChange={setTheme} user={user} token={token} onUserUpdated={setUser} />}
-          {user && <div className="account-chip"><span className="avatar avatar-small">{user.avatar_url ? <img src={getMediaUrl(user.avatar_url)} alt={user.username} className="avatar-img" /> : ((user.nickname || user.first_name || user.username).slice(0, 1)).toUpperCase()}</span><span>{(user.nickname ? `${user.nickname} (${user.first_name})` : [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)} <small>@{user.username}</small></span><button className="header-logout" onClick={signOut}>Log out</button></div>}
+          {user && <div className="account-chip"><span className="avatar avatar-small"><UserAvatar avatarUrl={user.avatar_url} fallback={user.nickname || user.first_name || user.username} /></span><span>{(user.nickname ? `${user.nickname} (${user.first_name})` : [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)} <small>@{user.username}</small></span><button className="header-logout" onClick={signOut}>Log out</button></div>}
         </div>
       </header>
       {checkingSession ? <div className="loading-screen"><span className="spinner" />Restoring your session…</div> : token && sessionError ? <div className="loading-screen"><div className="session-recovery"><strong>Can’t reach your account right now</strong><p>{sessionError}</p><button className="button button-primary" onClick={() => setSessionAttempt(value => value + 1)}>Try again</button><button className="recovery-signout" onClick={signOut}>Sign out</button></div></div> : token && user ? <ChatHome token={token} user={user} onUserUpdated={setUser} notificationTarget={notificationTarget} onNotificationHandled={handleNotificationHandled} unreadGroups={unreadGroups} onUnreadGroups={handleUnreadGroups} /> : <AuthForm onSignedIn={signedIn} />}

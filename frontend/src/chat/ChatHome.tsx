@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { api, getMediaUrl, type AuthUser, type Group, type Member, type Message, type NotificationItem } from '../api/client'
+import { UserAvatar } from '../components/UserAvatar'
 
 export function ChatHome({
   token,
@@ -291,10 +292,11 @@ export function ChatHome({
             <span className={`avatar ${sendAsAnonymous ? 'avatar-anon' : ''}`}>
               {sendAsAnonymous ? (
                 '🎭'
-              ) : user.avatar_url ? (
-                <img src={getMediaUrl(user.avatar_url)} alt="Profile" className="avatar-img-round" />
               ) : (
-                (activeNickname || user.nickname || user.first_name || user.username).slice(0, 1).toUpperCase()
+                <UserAvatar
+                  avatarUrl={user.avatar_url}
+                  fallback={activeNickname || user.nickname || user.first_name || user.username}
+                />
               )}
             </span>
             <div className="profile-copy">
@@ -494,21 +496,17 @@ export function ChatHome({
 function MessageBubble({ message, own }: { message: Message; own: boolean }) {
   const time = new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   const isAnon = Boolean(message.is_anonymous)
-  const hasAvatar = !isAnon && Boolean(message.sender_avatar_url)
 
   return (
     <article className={`message-row ${own ? 'message-own' : ''} ${isAnon ? 'message-anon' : ''}`}>
       <div className={`message-avatar ${own ? 'my-message-avatar' : ''} ${isAnon ? 'avatar-anon-bubble' : ''}`}>
         {isAnon ? (
           '🎭'
-        ) : hasAvatar ? (
-          <img
-            src={getMediaUrl(message.sender_avatar_url)}
-            alt={message.sender_name}
-            className="avatar-img-round"
-          />
         ) : (
-          (message.sender_name.slice(0, 1) || 'U').toUpperCase()
+          <UserAvatar
+            avatarUrl={message.sender_avatar_url}
+            fallback={message.sender_name}
+          />
         )}
       </div>
       <div className="message-content">
@@ -658,11 +656,7 @@ function MemberPanel({
           {pending.map(member => (
             <div className="member-line" key={member.user_id}>
               <span className="avatar">
-                {member.avatar_url ? (
-                  <img src={getMediaUrl(member.avatar_url)} alt={displayName(member)} className="avatar-img-round" />
-                ) : (
-                  displayName(member).slice(0, 1).toUpperCase()
-                )}
+                <UserAvatar avatarUrl={member.avatar_url} fallback={displayName(member)} />
               </span>
               <div className="member-info">
                 <strong>{displayName(member)}</strong>
@@ -680,18 +674,13 @@ function MemberPanel({
         {activeMembers.map(member => {
           const isEditingThis = editingNickUserId === member.user_id
           const hasNickname = Boolean(member.nickname)
-          const avatarLetter = (member.nickname || displayName(member)).slice(0, 1).toUpperCase()
           const isSelf = member.user_id === currentUserId
           const memberAvatar = member.avatar_url
 
           return (
             <div className="member-line" key={member.user_id}>
               <span className="avatar">
-                {memberAvatar ? (
-                  <img src={getMediaUrl(memberAvatar)} alt={displayName(member)} className="avatar-img-round" />
-                ) : (
-                  avatarLetter
-                )}
+                <UserAvatar avatarUrl={memberAvatar} fallback={member.nickname || displayName(member)} />
               </span>
               <div className="member-info">
                 <div className="member-info-header">

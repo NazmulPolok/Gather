@@ -274,8 +274,14 @@ def update_profile(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> User:
-    clean_nick = payload.nickname.strip() if payload.nickname and payload.nickname.strip() else None
-    user.nickname = clean_nick
+    fields_set = payload.model_fields_set
+    if "nickname" in fields_set:
+        clean_nick = payload.nickname.strip() if payload.nickname and payload.nickname.strip() else None
+        user.nickname = clean_nick
+    if "avatar_url" in fields_set:
+        clean_avatar = payload.avatar_url.strip() if payload.avatar_url and payload.avatar_url.strip() else None
+        user.avatar_url = clean_avatar
     db.commit()
     db.refresh(user)
+    return user
     return user

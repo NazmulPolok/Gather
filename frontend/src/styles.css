@@ -275,3 +275,21 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 :root[data-theme="dark"] .settings-field-hint{color:#89978b}
 :root[data-theme="dark"] .settings-alert-success{background:#1c2d20;border-color:#315437;color:#a4deb0}
 :root[data-theme="dark"] .settings-alert-error{background:#301e1e;border-color:#5a3333;color:#e89f97}
+
+/* Preset Avatars & Avatar Component */
+.avatar-preset-icon{display:inline-grid;place-items:center;border-radius:50%;line-height:1;user-select:none;width:100%;height:100%;font-size:1.15em}
+.settings-avatar-display .avatar-preset-icon{font-size:30px}
+.preset-avatar-subheading{font-size:11px;font-weight:600;color:#536355;margin-top:6px}
+.preset-avatar-grid{display:grid;grid-template-columns:repeat(4, 1fr);gap:8px;max-height:175px;overflow-y:auto;padding:3px;border-radius:8px;border:1px solid #e5eee7;background:#f9fbf9}
+.preset-avatar-option{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:7px 4px;border-radius:8px;border:2px solid transparent;cursor:pointer;position:relative;transition:all .15s;gap:3px;outline:none}
+.preset-avatar-option:hover{transform:translateY(-1px);box-shadow:0 3px 6px rgba(0,0,0,0.12)}
+.preset-avatar-option.preset-avatar-selected{border-color:#2a7e43;box-shadow:0 0 0 2px rgba(42,126,67,0.35)}
+.preset-avatar-emoji{font-size:22px;line-height:1}
+.preset-avatar-name{font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.preset-avatar-check{position:absolute;top:2px;right:4px;font-size:9px;font-weight:900;color:#2a7e43;background:#fff;border-radius:50%;width:14px;height:14px;display:grid;place-items:center;box-shadow:0 1px 2px rgba(0,0,0,0.2)}
+
+:root[data-theme="dark"] .preset-avatar-subheading{color:#9cb19f}
+:root[data-theme="dark"] .preset-avatar-grid{background:#18221a;border-color:#2e3e31}
+:root[data-theme="dark"] .preset-avatar-option.preset-avatar-selected{border-color:#65c280;box-shadow:0 0 0 2px rgba(101,194,128,0.4)}
+:root[data-theme="dark"] .preset-avatar-check{background:#1a251d;color:#7ee29d}
+
