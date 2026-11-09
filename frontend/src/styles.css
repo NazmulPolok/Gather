@@ -191,3 +191,22 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 :root[data-theme="dark"] .anon-tag{background:#2e2239;color:#c9b0dc;border-color:#4c3960}
 :root[data-theme="dark"] .bubble-anon{background:#27202e!important;border-color:#3e304b!important;color:#ded3e8!important}
 :root[data-theme="dark"] .bubble-own.bubble-anon{background:#382747!important;border-color:#53386d!important;color:#f0e3fa!important}
+
+/* Member Nickname & Tags */
+.member-info-header{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.nickname-tag{display:inline-flex;align-items:center;padding:1px 6px;border-radius:4px;background:#e8f4ec;color:#2f6e43;font-size:8px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;border:1px solid #c9e4d0}
+.you-pill{border-radius:5px;padding:2px 5px;background:#e9f1ea;color:#356e46;font-size:8px;font-weight:700;letter-spacing:0.5px}
+.member-line-actions{display:flex;align-items:center;gap:6px;margin-left:auto;flex-shrink:0}
+.nickname-action-button{display:inline-flex;align-items:center;gap:4px;padding:5px 9px;border:1px solid #d5e3d7;border-radius:7px;background:#fff;color:#3d724f;font-size:10px;font-weight:600;cursor:pointer;transition:all .15s}
+.nickname-action-button:hover{background:#edf6ef;border-color:#a8cbaf;color:#245834}
+.member-nick-edit-form{display:flex;align-items:center;gap:6px;margin-top:7px;flex-wrap:wrap}
+.member-nick-input{height:29px;padding:0 8px;border:1px solid #cfded2;border-radius:6px;background:#fff;color:#2a362c;font-size:11px;min-width:140px;outline:none}
+.member-nick-input:focus{border-color:#5c916d;box-shadow:0 0 0 2px rgba(92,145,109,0.15)}
+.button-sm{padding:4px 8px!important;height:29px;font-size:10px!important;border-radius:6px!important}
+
+:root[data-theme="dark"] .nickname-tag{background:#1e3325;color:#9ce3b1;border-color:#355a40}
+:root[data-theme="dark"] .you-pill{background:#233527;color:#a8ddb6}
+:root[data-theme="dark"] .nickname-action-button{background:#222c24;border-color:#39483c;color:#a8c9b0}
+:root[data-theme="dark"] .nickname-action-button:hover{background:#2b3a2e;border-color:#4e6953;color:#c8e5cf}
+:root[data-theme="dark"] .member-nick-input{background:#1a231c;border-color:#38483b;color:#dce5dd}
+:root[data-theme="dark"] .member-nick-input:focus{border-color:#5c916d}

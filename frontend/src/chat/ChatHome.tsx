@@ -188,6 +188,18 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
     } catch (cause) { setChatError(cause instanceof Error ? cause.message : 'Could not remove member') }
   }
 
+  async function updateMemberNickname(member: Member, nickname: string | null) {
+    if (!activeGroup) return
+    try {
+      const res = await api.updateNickname(token, activeGroup.id, member.user_id, nickname)
+      setMembers(current => current.map(item => item.user_id === member.user_id ? { ...item, nickname: res.nickname } : item))
+      void loadMessages(activeGroup.id, true)
+      const targetName = [member.first_name, member.last_name].filter(Boolean).join(' ') || member.username
+      setNotice(res.nickname ? `${member.user_id === user.id ? 'Your' : `${targetName}’s`} nickname set to “${res.nickname}”.` : `${member.user_id === user.id ? 'Your' : `${targetName}’s`} nickname cleared.`)
+      setChatError('')
+    } catch (cause) { setChatError(cause instanceof Error ? cause.message : 'Could not update nickname') }
+  }
+
   async function leaveGroup() {
     if (!activeGroup || !window.confirm('Leave this group? If you are its last active member, the group will be deleted.')) return
     try {
@@ -205,6 +217,8 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
   }
 
   const pendingCount = members.filter(member => member.status === 'pending').length
+  const currentMember = activeGroup ? members.find(m => m.user_id === user.id) : null
+  const activeNickname = currentMember?.nickname
 
   return (
     <main className="workspace">
@@ -219,14 +233,14 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
             type="button"
             className={`profile-card profile-card-clickable ${sendAsAnonymous ? 'profile-card-anon' : ''}`}
             onClick={() => setSendAsAnonymous(v => !v)}
-            title={sendAsAnonymous ? 'Currently texting as Anonymous. Click to switch to your real name.' : 'Currently texting as yourself. Click to switch to Anonymous.'}
+            title={sendAsAnonymous ? 'Currently texting as Anonymous. Click to switch to your name/nickname.' : 'Currently texting as yourself. Click to switch to Anonymous.'}
           >
             <span className={`avatar ${sendAsAnonymous ? 'avatar-anon' : ''}`}>
-              {sendAsAnonymous ? '🎭' : (user.first_name || user.username).slice(0, 1).toUpperCase()}
+              {sendAsAnonymous ? '🎭' : (activeNickname || user.first_name || user.username).slice(0, 1).toUpperCase()}
             </span>
             <div className="profile-copy">
-              <strong>{sendAsAnonymous ? 'Anonymous' : ([user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)}</strong>
-              <small>{sendAsAnonymous ? '@anonymous · Incognito' : `@${user.username}`}</small>
+              <strong>{sendAsAnonymous ? 'Anonymous' : (activeNickname || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)}</strong>
+              <small>{sendAsAnonymous ? '@anonymous · Incognito' : (activeNickname ? `Nick: ${activeNickname} · @${user.username}` : `@${user.username}`)}</small>
             </div>
             <span className="profile-switch-badge">Switch ⇄</span>
           </button>
@@ -281,7 +295,7 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
             </div>
           </header>
           <div className="chat-area">
-            {showMembers ? <MemberPanel group={activeGroup} members={members} currentUserId={user.id} onApprove={approve} onRemove={removeMember} onLeave={leaveGroup} onUpdateGroup={updateGroupSettings} /> : <>
+            {showMembers ? <MemberPanel group={activeGroup} members={members} currentUserId={user.id} onApprove={approve} onRemove={removeMember} onLeave={leaveGroup} onUpdateGroup={updateGroupSettings} onUpdateNickname={updateMemberNickname} /> : <>
               <div className="conversation-intro"><div className="intro-mark">✳</div><h2>You’re in {activeGroup.name}</h2><p>Start the conversation. Everything shared here stays with the group.</p><span className="date-divider">TODAY</span></div>
               {loadingMessages && messages.length === 0 ? <div className="chat-loading"><span className="spinner" />Loading conversation…</div> : <div className="message-list">{messages.map(message => <MessageBubble key={message.id} message={message} own={message.sender_id === user.id} />)}<div ref={bottomRef} /></div>}
               {chatError && <div className="chat-error" role="alert">{chatError}<button onClick={() => setChatError('')}>Dismiss</button></div>}
@@ -324,11 +338,11 @@ function MessageBubble({ message, own }: { message: Message; own: boolean }) {
   return (
     <article className={`message-row ${own ? 'message-own' : ''} ${isAnon ? 'message-anon' : ''}`}>
       <div className={`message-avatar ${own ? 'my-message-avatar' : ''} ${isAnon ? 'avatar-anon-bubble' : ''}`}>
-        {isAnon ? '🎭' : (own ? 'Y' : message.sender_name.slice(0, 1)).toUpperCase()}
+        {isAnon ? '🎭' : (message.sender_name.slice(0, 1) || 'U').toUpperCase()}
       </div>
       <div className="message-content">
         <div className="message-meta">
-          <strong>{own ? (isAnon ? 'You (Anonymous)' : 'You') : message.sender_name}</strong>
+          <strong>{isAnon ? (own ? 'You (Anonymous)' : 'Anonymous') : (own ? `${message.sender_name} (You)` : message.sender_name)}</strong>
           <small>{isAnon ? '@anonymous' : (!own ? `@${message.sender_username}` : '')}</small>
           {isAnon && <span className="anon-tag">Anonymous</span>}
           <time>{time}</time>
@@ -341,7 +355,25 @@ function MessageBubble({ message, own }: { message: Message; own: boolean }) {
   )
 }
 
-function MemberPanel({ group, members, currentUserId, onApprove, onRemove, onLeave, onUpdateGroup }: { group: Group; members: Member[]; currentUserId: number; onApprove: (member: Member) => void; onRemove: (member: Member) => void; onLeave: () => void; onUpdateGroup: (name: string, policy?: Group['join_policy']) => Promise<void> }) {
+function MemberPanel({
+  group,
+  members,
+  currentUserId,
+  onApprove,
+  onRemove,
+  onLeave,
+  onUpdateGroup,
+  onUpdateNickname,
+}: {
+  group: Group
+  members: Member[]
+  currentUserId: number
+  onApprove: (member: Member) => void
+  onRemove: (member: Member) => void
+  onLeave: () => void
+  onUpdateGroup: (name: string, policy?: Group['join_policy']) => Promise<void>
+  onUpdateNickname: (member: Member, nickname: string | null) => Promise<void>
+}) {
   const activeMembers = members.filter(member => member.status === 'active')
   const pending = members.filter(member => member.status === 'pending')
   const isAdmin = group.owner_id === currentUserId || members.some(member => member.user_id === currentUserId && member.role === 'admin' && member.status === 'active')
@@ -350,6 +382,9 @@ function MemberPanel({ group, members, currentUserId, onApprove, onRemove, onLea
   const [panelName, setPanelName] = useState(group.name)
   const [panelPolicy, setPanelPolicy] = useState<Group['join_policy']>(group.join_policy)
   const [panelBusy, setPanelBusy] = useState(false)
+  const [editingNickUserId, setEditingNickUserId] = useState<number | null>(null)
+  const [nicknameInput, setNicknameInput] = useState('')
+  const [nickBusy, setNickBusy] = useState(false)
 
   useEffect(() => {
     setPanelName(group.name)
@@ -367,60 +402,181 @@ function MemberPanel({ group, members, currentUserId, onApprove, onRemove, onLea
     }
   }
 
-  return <div className="members-panel">
-    <div className="members-title">
-      <div>
-        <p className="eyebrow">YOUR CIRCLE</p>
-        <h2>Group details & members</h2>
-        <p>{activeMembers.length} people in this group</p>
+  function startEditNickname(member: Member) {
+    setEditingNickUserId(member.user_id)
+    setNicknameInput(member.nickname || '')
+  }
+
+  async function submitNickname(member: Member, val: string | null) {
+    setNickBusy(true)
+    try {
+      await onUpdateNickname(member, val)
+      setEditingNickUserId(null)
+    } finally {
+      setNickBusy(false)
+    }
+  }
+
+  return (
+    <div className="members-panel">
+      <div className="members-title">
+        <div>
+          <p className="eyebrow">YOUR CIRCLE</p>
+          <h2>Group details & members</h2>
+          <p>{activeMembers.length} people in this group</p>
+        </div>
+        <div className="members-title-actions">
+          <span className="member-count-large">{activeMembers.length}</span>
+          <button className="leave-group-button" onClick={onLeave}>Leave group</button>
+        </div>
       </div>
-      <div className="members-title-actions">
-        <span className="member-count-large">{activeMembers.length}</span>
-        <button className="leave-group-button" onClick={onLeave}>Leave group</button>
+
+      {isAdmin && (
+        <section className="group-settings-section">
+          <div className="member-section-label">GROUP SETTINGS (ADMIN)</div>
+          <form className="rename-group-form" onSubmit={handleSaveSettings}>
+            <div className="settings-field">
+              <label htmlFor="member-panel-group-name">Group name</label>
+              <input
+                id="member-panel-group-name"
+                value={panelName}
+                onChange={e => setPanelName(e.target.value)}
+                maxLength={100}
+                placeholder="Group name"
+                required
+              />
+            </div>
+            <div className="settings-field">
+              <label htmlFor="member-panel-join-policy">Who can join?</label>
+              <select
+                id="member-panel-join-policy"
+                value={panelPolicy}
+                onChange={e => setPanelPolicy(e.target.value as Group['join_policy'])}
+              >
+                <option value="open">Anyone with the code</option>
+                <option value="approval">Admin approval</option>
+              </select>
+            </div>
+            <button
+              className="button button-primary"
+              type="submit"
+              disabled={panelBusy || !panelName.trim() || (panelName.trim() === group.name && panelPolicy === group.join_policy)}
+            >
+              {panelBusy ? 'Saving changes…' : 'Save group settings'}
+            </button>
+          </form>
+        </section>
+      )}
+
+      {isAdmin && pending.length > 0 && (
+        <section className="pending-section">
+          <div className="member-section-label">WAITING FOR APPROVAL <span>{pending.length}</span></div>
+          {pending.map(member => (
+            <div className="member-line" key={member.user_id}>
+              <span className="avatar">{displayName(member).slice(0, 1).toUpperCase()}</span>
+              <div className="member-info">
+                <strong>{displayName(member)}</strong>
+                <small>@{member.username} · Requested to join</small>
+              </div>
+              <button className="approve-button" onClick={() => onApprove(member)}>Approve</button>
+              <button className="remove-member-button" onClick={() => onRemove(member)}>Remove</button>
+            </div>
+          ))}
+        </section>
+      )}
+
+      <section className="active-members">
+        <div className="member-section-label">MEMBERS ({activeMembers.length})</div>
+        {activeMembers.map(member => {
+          const isEditingThis = editingNickUserId === member.user_id
+          const hasNickname = Boolean(member.nickname)
+          const avatarLetter = (member.nickname || displayName(member)).slice(0, 1).toUpperCase()
+
+          return (
+            <div className="member-line" key={member.user_id}>
+              <span className="avatar">{avatarLetter}</span>
+              <div className="member-info">
+                <div className="member-info-header">
+                  <strong>{member.nickname || displayName(member)}</strong>
+                  {hasNickname && <span className="nickname-tag">Nickname</span>}
+                  {member.role === 'admin' && <span className="admin-pill">ADMIN</span>}
+                  {member.user_id === currentUserId && <span className="you-pill">YOU</span>}
+                </div>
+                <small>
+                  {hasNickname ? `${displayName(member)} (@${member.username})` : `@${member.username}`}
+                  {` · ${member.role === 'admin' ? 'Group admin' : 'Member'}`}
+                </small>
+
+                {isEditingThis && (
+                  <form
+                    className="member-nick-edit-form"
+                    onSubmit={e => {
+                      e.preventDefault()
+                      void submitNickname(member, nicknameInput.trim() || null)
+                    }}
+                  >
+                    <input
+                      type="text"
+                      className="member-nick-input"
+                      value={nicknameInput}
+                      onChange={e => setNicknameInput(e.target.value)}
+                      placeholder={`Nickname for ${displayName(member)}`}
+                      maxLength={64}
+                      autoFocus
+                      disabled={nickBusy}
+                    />
+                    <button type="submit" className="button button-primary button-sm" disabled={nickBusy}>
+                      Save
+                    </button>
+                    {hasNickname && (
+                      <button
+                        type="button"
+                        className="outline-button button-sm"
+                        onClick={() => void submitNickname(member, null)}
+                        disabled={nickBusy}
+                      >
+                        Clear
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="outline-button button-sm"
+                      onClick={() => setEditingNickUserId(null)}
+                      disabled={nickBusy}
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                )}
+              </div>
+
+              {!isEditingThis && (
+                <div className="member-line-actions">
+                  <button
+                    type="button"
+                    className="nickname-action-button"
+                    onClick={() => startEditNickname(member)}
+                    title={hasNickname ? 'Change nickname' : 'Set nickname'}
+                  >
+                    ✎ {hasNickname ? 'Change Nick' : 'Set Nick'}
+                  </button>
+                  {isAdmin && member.user_id !== currentUserId && (
+                    <button className="remove-member-button" onClick={() => onRemove(member)}>
+                      Remove
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </section>
+      <div className="invite-note">
+        <span>ⓘ</span>
+        <p>Invite someone by sharing invite code <strong>{group.invite_code}</strong>. They can enter it from their Groups panel.</p>
       </div>
     </div>
-
-    {isAdmin && (
-      <section className="group-settings-section">
-        <div className="member-section-label">GROUP SETTINGS (ADMIN)</div>
-        <form className="rename-group-form" onSubmit={handleSaveSettings}>
-          <div className="settings-field">
-            <label htmlFor="member-panel-group-name">Group name</label>
-            <input
-              id="member-panel-group-name"
-              value={panelName}
-              onChange={e => setPanelName(e.target.value)}
-              maxLength={100}
-              placeholder="Group name"
-              required
-            />
-          </div>
-          <div className="settings-field">
-            <label htmlFor="member-panel-join-policy">Who can join?</label>
-            <select
-              id="member-panel-join-policy"
-              value={panelPolicy}
-              onChange={e => setPanelPolicy(e.target.value as Group['join_policy'])}
-            >
-              <option value="open">Anyone with the code</option>
-              <option value="approval">Admin approval</option>
-            </select>
-          </div>
-          <button
-            className="button button-primary"
-            type="submit"
-            disabled={panelBusy || !panelName.trim() || (panelName.trim() === group.name && panelPolicy === group.join_policy)}
-          >
-            {panelBusy ? 'Saving changes…' : 'Save group settings'}
-          </button>
-        </form>
-      </section>
-    )}
-
-    {isAdmin && pending.length > 0 && <section className="pending-section"><div className="member-section-label">WAITING FOR APPROVAL <span>{pending.length}</span></div>{pending.map(member => <div className="member-line" key={member.user_id}><span className="avatar">{displayName(member).slice(0, 1).toUpperCase()}</span><div className="member-info"><strong>{displayName(member)}</strong><small>@{member.username} · Requested to join</small></div><button className="approve-button" onClick={() => onApprove(member)}>Approve</button><button className="remove-member-button" onClick={() => onRemove(member)}>Remove</button></div>)}</section>}
-    <section className="active-members"><div className="member-section-label">MEMBERS</div>{activeMembers.map(member => <div className="member-line" key={member.user_id}><span className="avatar">{displayName(member).slice(0, 1).toUpperCase()}</span><div className="member-info"><strong>{displayName(member)}</strong><small>@{member.username} · {member.role === 'admin' ? 'Group admin' : 'Member'}{member.user_id === currentUserId ? ' · You' : ''}</small></div>{member.role === 'admin' && <span className="admin-pill">ADMIN</span>}{isAdmin && member.user_id !== currentUserId && <button className="remove-member-button" onClick={() => onRemove(member)}>Remove</button>}</div>)}</section>
-    <div className="invite-note"><span>ⓘ</span><p>Invite someone by sharing invite code <strong>{group.invite_code}</strong>. They can enter it from their Groups panel.</p></div>
-  </div>
+  )
 }
 
 function WelcomePanel({ groups, unreadGroups, loadingGroups, onSelectGroup }: { groups: Group[]; unreadGroups: Record<number, number>; loadingGroups: boolean; onSelectGroup: (group: Group) => void }) {

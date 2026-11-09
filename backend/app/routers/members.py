@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import datetime, timezone
+from pydantic import BaseModel, Field
 from sqlalchemy import case, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -13,6 +14,10 @@ from app.models.user import User
 from app.services.permissions import active_membership, admin_membership
 
 router = APIRouter()
+
+
+class NicknameUpdate(BaseModel):
+    nickname: str | None = Field(default=None, max_length=64)
 
 
 @router.post("/join/{invite_code}")
@@ -78,9 +83,43 @@ def list_members(
     query = query.order_by(Membership.status, User.email)
     rows = db.execute(query).all()
     return [
-        {"user_id": membership.user_id, "email": member.email, "first_name": member.first_name, "last_name": member.last_name, "username": member.username, "role": membership.role, "status": membership.status}
+        {
+            "user_id": membership.user_id,
+            "email": member.email,
+            "first_name": member.first_name,
+            "last_name": member.last_name,
+            "username": member.username,
+            "role": membership.role,
+            "status": membership.status,
+            "nickname": membership.nickname,
+        }
         for membership, member in rows
     ]
+
+
+@router.patch("/{group_id}/members/{target_user_id}/nickname")
+def update_member_nickname(
+    group_id: int,
+    target_user_id: int,
+    payload: NicknameUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, object]:
+    active_membership(db, group_id, user.id)
+    target = db.scalar(
+        select(Membership).where(
+            Membership.group_id == group_id,
+            Membership.user_id == target_user_id,
+            Membership.status == "active",
+        )
+    )
+    if target is None:
+        raise HTTPException(status_code=404, detail="Active group member not found")
+
+    clean_nick = payload.nickname.strip() if payload.nickname and payload.nickname.strip() else None
+    target.nickname = clean_nick
+    db.commit()
+    return {"status": "ok", "user_id": target_user_id, "nickname": clean_nick}
 
 
 @router.post("/{group_id}/members/{user_id}/approve")

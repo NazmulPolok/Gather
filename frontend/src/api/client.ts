@@ -22,6 +22,7 @@ export type Member = {
   username: string
   role: 'admin' | 'member'
   status: 'active' | 'pending' | 'rejected'
+  nickname?: string | null
 }
 
 export type Message = {
@@ -96,6 +97,7 @@ export const api = {
   sendText: (token: string, groupId: number, body: string, is_anonymous = false) => request<Message>(`/api/groups/${groupId}/messages`, { method: 'POST', body: JSON.stringify({ message_type: 'text', body, is_anonymous }) }, token),
   members: (token: string, groupId: number) => request<Member[]>(`/api/groups/${groupId}/members`, {}, token),
   approveMember: (token: string, groupId: number, userId: number) => request<{ status: string }>(`/api/groups/${groupId}/members/${userId}/approve`, { method: 'POST' }, token),
+  updateNickname: (token: string, groupId: number, targetUserId: number, nickname: string | null) => request<{ status: string; user_id: number; nickname: string | null }>(`/api/groups/${groupId}/members/${targetUserId}/nickname`, { method: 'PATCH', body: JSON.stringify({ nickname }) }, token),
   leaveGroup: (token: string, groupId: number) => request<{ status: string }>(`/api/groups/${groupId}/leave`, { method: 'DELETE' }, token),
   removeMember: (token: string, groupId: number, userId: number) => request<{ status: string }>(`/api/groups/${groupId}/members/${userId}`, { method: 'DELETE' }, token),
   notifications: (token: string) => request<NotificationFeed>('/api/notifications?limit=50', {}, token),

@@ -29,6 +29,15 @@ def list_messages(
     query = query.order_by(Message.id.desc()).limit(limit)
     messages = list(db.scalars(query).all())
     messages.reverse()
+
+    memberships = db.scalars(
+        select(Membership).where(
+            Membership.group_id == group_id,
+            Membership.nickname.isnot(None),
+        )
+    ).all()
+    nicknames = {m.user_id: m.nickname for m in memberships if m.nickname}
+
     response_items: list[MessageResponse] = []
     for message in messages:
         is_anon = message.is_anonymous
@@ -39,7 +48,7 @@ def list_messages(
             sender_username = "anonymous"
         else:
             sender_id = message.sender_id
-            sender_name = _display_name(message.sender)
+            sender_name = nicknames.get(message.sender_id) or _display_name(message.sender)
             sender_username = message.sender.username
         response_items.append(
             MessageResponse(
@@ -64,7 +73,7 @@ def create_message(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> MessageResponse:
-    active_membership(db, group_id, user.id)
+    membership = active_membership(db, group_id, user.id)
     message = Message(
         group_id=group_id,
         sender_id=user.id,
@@ -96,11 +105,12 @@ def create_message(
     db.commit()
     db.refresh(message)
     is_anon = message.is_anonymous
+    sender_name = "Anonymous" if is_anon else (membership.nickname or _display_name(user))
     return MessageResponse(
         id=message.id,
         group_id=group_id,
         sender_id=user.id,
-        sender_name="Anonymous" if is_anon else _display_name(user),
+        sender_name=sender_name,
         sender_username="anonymous" if is_anon else user.username,
         message_type="text",
         body=message.body,

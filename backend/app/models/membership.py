@@ -17,5 +17,6 @@ class Membership(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     role: Mapped[str] = mapped_column(String(16), default="member", nullable=False)
     status: Mapped[str] = mapped_column(String(16), default="active", nullable=False)
+    nickname: Mapped[str | None] = mapped_column(String(64), nullable=True)
     group: Mapped["Group"] = relationship(back_populates="memberships")
     user: Mapped["User"] = relationship(back_populates="memberships")
