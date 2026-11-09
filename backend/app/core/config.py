@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = ""
     smtp_from_name: str = "Gather Chat"
+    smtp_tls: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
 

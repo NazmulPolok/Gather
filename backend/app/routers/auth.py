@@ -65,8 +65,10 @@ def _send_password_reset_email(email: str, otp: str) -> None:
     )
 
     try:
+        use_tls = settings.smtp_tls or (settings.smtp_port == 587)
         with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as smtp:
-            smtp.starttls(context=ssl.create_default_context())
+            if use_tls and smtp.has_extn("STARTTLS"):
+                smtp.starttls(context=ssl.create_default_context())
             if settings.smtp_user:
                 smtp.login(settings.smtp_user, settings.smtp_password)
             smtp.send_message(message)
