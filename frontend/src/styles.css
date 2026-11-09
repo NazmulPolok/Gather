@@ -151,26 +151,21 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 :root[data-theme="dark"] .otp-popup-code{background:#152217;border-color:#488159;color:#92e2a8}
 :root[data-theme="dark"] .otp-popup-icon{background:#263a2a}
 
-/* Anonymous vs Identified Side-by-Side Toggle */
-.composer-container{margin:0 26px 20px;display:grid;gap:8px}
-.composer-container .composer{margin:0;width:100%}
-.composer-identity-bar{display:flex;align-items:center;gap:10px;padding:0 2px;flex-wrap:wrap}
-.composer-identity-title{font-size:10px;font-weight:700;letter-spacing:1px;color:#859286;text-transform:uppercase}
-.identity-side-by-side{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.identity-chip-btn{display:inline-flex;align-items:center;gap:8px;padding:4px 11px 4px 5px;border:1.5px solid #dbe4dc;border-radius:24px;background:#fbfdfb;color:#455347;cursor:pointer;transition:all 0.15s ease}
-.identity-chip-btn:hover{background:#f0f5f0;border-color:#b5ceb9}
-.identity-chip-btn.is-active{background:#edf6ee;border-color:#3f8854;box-shadow:0 1px 5px rgba(40,99,68,0.12)}
-.chip-name{display:grid;gap:1px;text-align:left}
-.chip-name strong{font-size:11px;font-weight:700;color:#2c3a2f;line-height:1.2}
-.chip-name small{font-size:9px;color:#7e8d80}
-.chip-check{width:16px;height:16px;display:grid;place-items:center;border-radius:50%;background:#38824f;color:#fff;font-size:10px;font-weight:800;margin-left:2px}
+/* Sidebar Profile Card Switchable Identity */
+.profile-card-clickable{width:100%;display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #dfe7e0;border-radius:12px;background:#fbfdfb;text-align:left;cursor:pointer;transition:all 0.18s ease;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.profile-card-clickable:hover{background:#edf6ef;border-color:#b4d5bb;transform:translateY(-1px);box-shadow:0 3px 8px rgba(35,80,45,0.08)}
+.profile-card-clickable:active{transform:scale(0.99)}
+.profile-card-clickable .profile-copy{flex:1;min-width:0;display:grid;gap:2px}
+.profile-card-clickable .profile-copy strong{font:700 12px Manrope,sans-serif;color:#243226;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.profile-card-clickable .profile-copy small{font-size:10px;color:#78867b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.profile-switch-badge{font-size:10px;font-weight:700;padding:4px 8px;border-radius:12px;background:#e2ede4;color:#2b683e;letter-spacing:0.3px;white-space:nowrap;flex:none}
 
-.identity-chip-btn.chip-anon{border-color:#d7c7e5}
-.identity-chip-btn.chip-anon:hover{background:#f6f1f9;border-color:#b598ce}
-.identity-chip-btn.chip-anon.is-active{background:#f3eaf9;border-color:#7f529f;box-shadow:0 1px 5px rgba(120,70,160,0.14)}
-.identity-chip-btn.chip-anon .chip-name strong{color:#563773}
-.identity-chip-btn.chip-anon .chip-name small{color:#846ea0}
-.chip-check-anon{background:#794b99}
+.profile-card-anon{background:#f8f2fb!important;border-color:#d7c2e8!important}
+.profile-card-anon:hover{background:#f2e6f7!important;border-color:#bd9bda!important}
+.profile-card-anon .profile-copy strong{color:#573377}
+.profile-card-anon .profile-copy small{color:#886fa3}
+.profile-card-anon .profile-switch-badge{background:#ebd8f5;color:#672e8f}
+.avatar-anon{background:#ebd8f5;color:#552777;font-size:14px}
 
 .composer-anon{border-color:#c8b8dc;box-shadow:0 5px 16px rgba(110,80,150,0.08)}
 .composer-anon:focus-within{border-color:#8e6cb0;box-shadow:0 0 0 3px rgba(142,108,176,0.15)}
@@ -180,27 +175,19 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 .bubble-anon{border-color:#e4daee!important;background:#faf6fc!important;color:#372847!important}
 .bubble-own.bubble-anon{border-color:#d7c3e8!important;background:#f3eaf9!important;color:#3b2352!important}
 
-:root[data-theme="dark"] .identity-chip-btn{background:#1a231c;border-color:#354637;color:#cbd7cd}
-:root[data-theme="dark"] .identity-chip-btn:hover{background:#233025;border-color:#485e4b}
-:root[data-theme="dark"] .identity-chip-btn.is-active{background:#213825;border-color:#4e935b}
-:root[data-theme="dark"] .chip-name strong{color:#e1ebe2}
-:root[data-theme="dark"] .chip-name small{color:#9aa79c}
-:root[data-theme="dark"] .identity-chip-btn.chip-anon{border-color:#483359;background:#1f1926}
-:root[data-theme="dark"] .identity-chip-btn.chip-anon:hover{background:#281f33;border-color:#6c4a87}
-:root[data-theme="dark"] .identity-chip-btn.chip-anon.is-active{background:#2e2039;border-color:#925eb8}
-:root[data-theme="dark"] .identity-chip-btn.chip-anon .chip-name strong{color:#e2ceee}
-:root[data-theme="dark"] .identity-chip-btn.chip-anon .chip-name small{color:#b39ec4}
-:root[data-theme="dark"] .chip-check{background:#3f9055}
-:root[data-theme="dark"] .chip-check-anon{background:#8c56b3}
+:root[data-theme="dark"] .profile-card-clickable{background:#1a231c;border-color:#324434;color:#dbe6dc;box-shadow:none}
+:root[data-theme="dark"] .profile-card-clickable:hover{background:#233026;border-color:#48634a}
+:root[data-theme="dark"] .profile-card-clickable .profile-copy strong{color:#e2ebe3}
+:root[data-theme="dark"] .profile-card-clickable .profile-copy small{color:#9aa79c}
+:root[data-theme="dark"] .profile-switch-badge{background:#273d2c;color:#a4dcaf}
+:root[data-theme="dark"] .profile-card-anon{background:#271b30!important;border-color:#4d3260!important}
+:root[data-theme="dark"] .profile-card-anon:hover{background:#32213e!important;border-color:#6e4589!important}
+:root[data-theme="dark"] .profile-card-anon .profile-copy strong{color:#e5d0f5}
+:root[data-theme="dark"] .profile-card-anon .profile-copy small{color:#b99ecc}
+:root[data-theme="dark"] .profile-card-anon .profile-switch-badge{background:#412954;color:#d8b8f2}
+:root[data-theme="dark"] .avatar-anon{background:#3a254c;color:#dcbef2}
 :root[data-theme="dark"] .composer-anon{border-color:#4a395c;box-shadow:0 5px 16px rgba(0,0,0,0.3)}
 :root[data-theme="dark"] .avatar-anon-bubble{background:#352745!important;color:#dabfe8!important}
 :root[data-theme="dark"] .anon-tag{background:#2e2239;color:#c9b0dc;border-color:#4c3960}
 :root[data-theme="dark"] .bubble-anon{background:#27202e!important;border-color:#3e304b!important;color:#ded3e8!important}
 :root[data-theme="dark"] .bubble-own.bubble-anon{background:#382747!important;border-color:#53386d!important;color:#f0e3fa!important}
-
-@media(max-width:850px){
-  .composer-container{margin-left:17px;margin-right:17px}
-}
-@media(max-width:650px){
-  .composer-container{margin:0 10px 20px}
-}

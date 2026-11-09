@@ -215,13 +215,21 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
         <form className="join-form" onSubmit={joinGroup}><label htmlFor="sidebar-invite-code">Join with an invite code</label><div className="join-row"><input id="sidebar-invite-code" autoComplete="off" maxLength={8} value={joinId} onChange={e => setJoinId(e.target.value.toUpperCase())} placeholder="8-character code" /><button aria-label="Join group" disabled={busy}>Join</button></div></form>
         <div className="sidebar-note"><span className="sidebar-note-mark">✳</span><strong>Your groups, together.</strong><p>Open a group from the main space to read and send messages.</p></div>
         <div className="sidebar-bottom">
-          <div className="profile-card">
-            <span className="avatar">{(user.first_name || user.username).slice(0, 1).toUpperCase()}</span>
+          <button
+            type="button"
+            className={`profile-card profile-card-clickable ${sendAsAnonymous ? 'profile-card-anon' : ''}`}
+            onClick={() => setSendAsAnonymous(v => !v)}
+            title={sendAsAnonymous ? 'Currently texting as Anonymous. Click to switch to your real name.' : 'Currently texting as yourself. Click to switch to Anonymous.'}
+          >
+            <span className={`avatar ${sendAsAnonymous ? 'avatar-anon' : ''}`}>
+              {sendAsAnonymous ? '🎭' : (user.first_name || user.username).slice(0, 1).toUpperCase()}
+            </span>
             <div className="profile-copy">
-              <strong>{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username}</strong>
-              <small>@{user.username}</small>
+              <strong>{sendAsAnonymous ? 'Anonymous' : ([user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)}</strong>
+              <small>{sendAsAnonymous ? '@anonymous · Incognito' : `@${user.username}`}</small>
             </div>
-          </div>
+            <span className="profile-switch-badge">Switch ⇄</span>
+          </button>
         </div>
       </aside>
 
@@ -280,65 +288,28 @@ export function ChatHome({ token, user, notificationTarget, onNotificationHandle
             </>}
           </div>
           {!showMembers && (
-            <div className="composer-container">
-              <div className="composer-identity-bar">
-                <span className="composer-identity-title">Post as:</span>
-                <div className="identity-side-by-side">
-                  <button
-                    type="button"
-                    className={`identity-chip-btn ${!sendAsAnonymous ? 'is-active' : ''}`}
-                    onClick={() => setSendAsAnonymous(false)}
-                    title="Send with your real name and handle"
-                  >
-                    <span className="avatar avatar-small">
-                      {(user.first_name || user.username).slice(0, 1).toUpperCase()}
-                    </span>
-                    <span className="chip-name">
-                      <strong>{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username}</strong>
-                      <small>@{user.username}</small>
-                    </span>
-                    {!sendAsAnonymous && <span className="chip-check">✓</span>}
-                  </button>
-
-                  <button
-                    type="button"
-                    className={`identity-chip-btn chip-anon ${sendAsAnonymous ? 'is-active is-anon-active' : ''}`}
-                    onClick={() => setSendAsAnonymous(true)}
-                    title="Send anonymously without revealing your identity"
-                  >
-                    <span className="avatar avatar-small avatar-anon">🎭</span>
-                    <span className="chip-name">
-                      <strong>Anonymous</strong>
-                      <small>@anonymous</small>
-                    </span>
-                    {sendAsAnonymous && <span className="chip-check chip-check-anon">✓</span>}
-                  </button>
+            <form className={`composer ${sendAsAnonymous ? 'composer-anon' : ''}`} onSubmit={sendMessage}>
+              <textarea
+                rows={1}
+                value={messageText}
+                onChange={e => setMessageText(e.target.value)}
+                onKeyDown={onComposerKeyDown}
+                placeholder={sendAsAnonymous ? `Message ${activeGroup.name} as Anonymous…` : `Message ${activeGroup.name}…`}
+                maxLength={10000}
+              />
+              <span className="composer-hint">
+                {sendAsAnonymous ? '🎭 Posting as Anonymous · Identity hidden from members' : 'Text only · Enter to send · Shift + Enter for a new line'}
+              </span>
+              <button type="button" className="emoji-button" onClick={() => setShowEmojiPicker(v => !v)} aria-label="Insert emoji">😊</button>
+              {showEmojiPicker && (
+                <div className="emoji-picker">
+                  {emojiList.map(e => (
+                    <button key={e} type="button" className="emoji-item" onClick={() => { setMessageText(prev => prev + e); setShowEmojiPicker(false); }}>{e}</button>
+                  ))}
                 </div>
-              </div>
-
-              <form className={`composer ${sendAsAnonymous ? 'composer-anon' : ''}`} onSubmit={sendMessage}>
-                <textarea
-                  rows={1}
-                  value={messageText}
-                  onChange={e => setMessageText(e.target.value)}
-                  onKeyDown={onComposerKeyDown}
-                  placeholder={sendAsAnonymous ? `Message ${activeGroup.name} as Anonymous…` : `Message ${activeGroup.name}…`}
-                  maxLength={10000}
-                />
-                <span className="composer-hint">
-                  {sendAsAnonymous ? '🎭 Posting as Anonymous · Identity hidden from members' : 'Text only · Enter to send · Shift + Enter for a new line'}
-                </span>
-                <button type="button" className="emoji-button" onClick={() => setShowEmojiPicker(v => !v)} aria-label="Insert emoji">😊</button>
-                {showEmojiPicker && (
-                  <div className="emoji-picker">
-                    {emojiList.map(e => (
-                      <button key={e} type="button" className="emoji-item" onClick={() => { setMessageText(prev => prev + e); setShowEmojiPicker(false); }}>{e}</button>
-                    ))}
-                  </div>
-                )}
-                <button className="send-button" aria-label="Send message" disabled={busy || !messageText.trim()}>↑</button>
-              </form>
-            </div>
+              )}
+              <button className="send-button" aria-label="Send message" disabled={busy || !messageText.trim()}>↑</button>
+            </form>
           )}
         </> : <WelcomePanel groups={groups} unreadGroups={unreadGroups} loadingGroups={loadingGroups} onSelectGroup={group => { setActiveGroup(group); setShowMembers(false); setNotice('') }} />}
       </section>
