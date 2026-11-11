@@ -355,6 +355,21 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 :root[data-theme="dark"] .typing-dot{background:#9fc1a4}
 :root[data-theme="dark"] .typing-status-text{color:#8fa592}
 
+/* Active Presence & Messenger-style Online Dot */
+.avatar-with-badge{position:relative;display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%}
+.avatar-online-dot{position:absolute;bottom:-1px;right:-1px;width:10px;height:10px;border-radius:50%;background:#31a24c;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.16);pointer-events:none;z-index:2}
+.online-active-label{color:#27863f;font-weight:700}
+.online-badge-pill{display:inline-flex;align-items:center;gap:5px;padding:1px 7px;border-radius:10px;background:#e8f5ec;color:#25793a;font-size:9px;font-weight:700;letter-spacing:0.2px}
+.online-green-dot{width:6px;height:6px;border-radius:50%;background:#31a24c;box-shadow:0 0 0 2px #c3e6cb}
+.last-seen-badge{display:inline-flex;align-items:center;padding:1px 6px;border-radius:8px;background:#f1f4f1;color:#7a887b;font-size:9px;font-weight:500}
+
+:root[data-theme="dark"] .avatar-online-dot{border-color:#18221a;box-shadow:0 1px 3px rgba(0,0,0,0.4)}
+:root[data-theme="dark"] .online-active-label{color:#5ed67a}
+:root[data-theme="dark"] .online-badge-pill{background:#19301e;color:#6ed687}
+:root[data-theme="dark"] .online-green-dot{background:#4ade80;box-shadow:0 0 0 2px #204627}
+:root[data-theme="dark"] .last-seen-badge{background:#202a22;color:#92a394}
+
+
 
 
 

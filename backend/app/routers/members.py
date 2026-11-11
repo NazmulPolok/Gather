@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
+from app.core.ws_manager import manager
 from app.db.session import get_db
 from app.models.group import Group
 from app.models.membership import Membership
@@ -93,6 +94,8 @@ def list_members(
             "role": membership.role,
             "status": membership.status,
             "nickname": membership.nickname or member.nickname,
+            "last_seen_at": member.last_seen_at.isoformat() if member.last_seen_at else None,
+            "is_online": manager.is_user_online(member.id),
         }
         for membership, member in rows
     ]

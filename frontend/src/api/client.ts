@@ -81,6 +81,38 @@ export type Member = {
   status: 'active' | 'pending' | 'rejected'
   nickname?: string | null
   avatar_url?: string | null
+  last_seen_at?: string | null
+  is_online?: boolean
+}
+
+export function formatLastSeen(lastSeenAt?: string | null): string {
+  if (!lastSeenAt) return 'Offline'
+  try {
+    const date = new Date(lastSeenAt)
+    const now = Date.now()
+    const diffMs = now - date.getTime()
+    if (diffMs < 60 * 1000) {
+      return 'Active 1m ago'
+    }
+    const diffMins = Math.floor(diffMs / (60 * 1000))
+    if (diffMins < 60) {
+      return `Active ${diffMins}m ago`
+    }
+    const diffHours = Math.floor(diffMins / 60)
+    if (diffHours < 24) {
+      return `Active ${diffHours}h ago`
+    }
+    const diffDays = Math.floor(diffHours / 24)
+    if (diffDays === 1) {
+      return 'Active yesterday'
+    }
+    if (diffDays < 7) {
+      return `Active ${diffDays}d ago`
+    }
+    return `Active on ${date.toLocaleDateString([], { month: 'short', day: 'numeric' })}`
+  } catch {
+    return 'Offline'
+  }
 }
 
 export type Message = {

@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from pathlib import Path
 import secrets
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect, status
@@ -214,6 +215,7 @@ async def group_websocket(
     group_id: int,
     token: str = Query(...),
 ):
+    now = datetime.now(timezone.utc)
     with SessionLocal() as db:
         user = _get_user_from_token(token, db)
         if user is None:
@@ -224,6 +226,9 @@ async def group_websocket(
         except Exception:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
+
+        user.last_seen_at = now
+        db.commit()
 
         membership = db.scalar(
             select(Membership).where(
@@ -240,6 +245,24 @@ async def group_websocket(
         }
 
     await manager.connect(websocket, group_id, user_info)
+
+    # Send current online users in this group to the connecting client
+    await websocket.send_json({
+        "type": "presence_state",
+        "online_user_ids": manager.get_online_user_ids_in_group(group_id),
+    })
+
+    # Broadcast to other members that this user is now online
+    await manager.broadcast_to_group(
+        group_id,
+        {
+            "type": "presence",
+            "user_id": user_info["user_id"],
+            "is_online": True,
+        },
+        exclude=websocket,
+    )
+
     try:
         while True:
             data = await websocket.receive_json()
@@ -269,13 +292,33 @@ async def group_websocket(
                     exclude=websocket,
                 )
     except WebSocketDisconnect:
-        manager.disconnect(websocket, group_id)
+        _, is_completely_offline = manager.disconnect(websocket, group_id)
+        disconnect_now = datetime.now(timezone.utc)
+        if is_completely_offline:
+            try:
+                with SessionLocal() as db:
+                    u = db.get(User, user_info["user_id"])
+                    if u:
+                        u.last_seen_at = disconnect_now
+                        db.commit()
+            except Exception:
+                pass
+
         await manager.broadcast_to_group(
             group_id,
             {
                 "type": "typing",
                 "user_id": user_info["user_id"],
                 "is_typing": False,
+            },
+        )
+        await manager.broadcast_to_group(
+            group_id,
+            {
+                "type": "presence",
+                "user_id": user_info["user_id"],
+                "is_online": not is_completely_offline,
+                "last_seen_at": disconnect_now.isoformat(),
             },
         )
     except Exception:

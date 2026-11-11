@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { api, getMediaUrl, getWebSocketUrl, type AuthUser, type Group, type Member, type Message, type NotificationItem } from '../api/client'
+import { api, formatLastSeen, getMediaUrl, getWebSocketUrl, type AuthUser, type Group, type Member, type Message, type NotificationItem } from '../api/client'
 import { GroupAvatar } from '../components/GroupAvatar'
 import { UserAvatar } from '../components/UserAvatar'
 
@@ -46,6 +46,7 @@ export function ChatHome({
   const [pendingHeaderPhoto, setPendingHeaderPhoto] = useState<File | null>(null)
   const [pendingHeaderPreview, setPendingHeaderPreview] = useState<string | null>(null)
   const [typingUsers, setTypingUsers] = useState<Record<number, { name: string; avatar_url?: string | null; is_anonymous?: boolean; lastActive: number }>>({})
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<number>>(new Set())
   const wsRef = useRef<WebSocket | null>(null)
   const typingTimeoutRef = useRef<number | null>(null)
   const isCurrentlyTypingRef = useRef(false)
@@ -262,7 +263,35 @@ export function ChatHome({
       ws.onmessage = event => {
         try {
           const data = JSON.parse(event.data)
-          if (data.type === 'typing') {
+          if (data.type === 'presence_state') {
+            const ids = new Set<number>(data.online_user_ids || [])
+            setOnlineUserIds(ids)
+            setMembers(current =>
+              current.map(m => ({
+                ...m,
+                is_online: ids.has(m.user_id),
+              }))
+            )
+          } else if (data.type === 'presence') {
+            const { user_id, is_online, last_seen_at } = data
+            setOnlineUserIds(current => {
+              const next = new Set(current)
+              if (is_online) next.add(user_id)
+              else next.delete(user_id)
+              return next
+            })
+            setMembers(current =>
+              current.map(m =>
+                m.user_id === user_id
+                  ? {
+                      ...m,
+                      is_online,
+                      ...(last_seen_at ? { last_seen_at } : {}),
+                    }
+                  : m
+              )
+            )
+          } else if (data.type === 'typing') {
             const { user_id, name, avatar_url, is_typing, is_anonymous } = data
             setTypingUsers(current => {
               const next = { ...current }
@@ -615,7 +644,15 @@ export function ChatHome({
                   )}
                 </div>
               )}
-              <p><span className="online-dot" />{members.filter(member => member.status === 'active').length} members · Code {activeGroup.invite_code}</p>
+              <p>
+                <span className="online-dot" />
+                {members.filter(m => m.status === 'active' && (onlineUserIds.has(m.user_id) || m.user_id === user.id)).length > 0 && (
+                  <strong className="online-active-label">
+                    {members.filter(m => m.status === 'active' && (onlineUserIds.has(m.user_id) || m.user_id === user.id)).length} active now ·{' '}
+                  </strong>
+                )}
+                {members.filter(member => member.status === 'active').length} members · Code {activeGroup.invite_code}
+              </p>
             </div>
             <div className="chat-header-actions">
               <button className="outline-button back-groups-button" onClick={() => { setActiveGroup(null); setShowMembers(false); setNotice('') }}>‹ My groups</button>
@@ -629,6 +666,7 @@ export function ChatHome({
                 group={activeGroup}
                 members={members}
                 currentUserId={user.id}
+                onlineUserIds={onlineUserIds}
                 onApprove={approve}
                 onRemove={removeMember}
                 onLeave={leaveGroup}
@@ -838,6 +876,7 @@ function MemberPanel({
   group,
   members,
   currentUserId,
+  onlineUserIds,
   onApprove,
   onRemove,
   onLeave,
@@ -850,6 +889,7 @@ function MemberPanel({
   group: Group
   members: Member[]
   currentUserId: number
+  onlineUserIds: Set<number>
   onApprove: (member: Member) => void
   onRemove: (member: Member) => void
   onLeave: () => void
@@ -1076,15 +1116,32 @@ function MemberPanel({
           const hasNickname = Boolean(member.nickname)
           const isSelf = member.user_id === currentUserId
           const memberAvatar = member.avatar_url
+          const isOnline = onlineUserIds.has(member.user_id) || isSelf
 
           return (
             <div className="member-line" key={member.user_id}>
               <span className="avatar">
-                <UserAvatar avatarUrl={memberAvatar} fallback={member.nickname || displayName(member)} />
+                <UserAvatar
+                  avatarUrl={memberAvatar}
+                  fallback={member.nickname || displayName(member)}
+                  isOnline={isOnline}
+                />
               </span>
               <div className="member-info">
                 <div className="member-info-header">
                   <strong>{member.nickname || displayName(member)}</strong>
+                  {isOnline ? (
+                    <span className="online-badge-pill" title="Active now">
+                      <span className="online-green-dot" /> Active now
+                    </span>
+                  ) : (
+                    <span
+                      className="last-seen-badge"
+                      title={member.last_seen_at ? `Last active: ${new Date(member.last_seen_at).toLocaleString()}` : 'Offline'}
+                    >
+                      {formatLastSeen(member.last_seen_at)}
+                    </span>
+                  )}
                   {hasNickname && <span className="nickname-tag">Nickname</span>}
                   {member.role === 'admin' && <span className="admin-pill">ADMIN</span>}
                   {isSelf && <span className="you-pill">YOU</span>}
