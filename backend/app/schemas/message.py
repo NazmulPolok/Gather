@@ -48,4 +48,14 @@ class MessageResponse(BaseModel):
     is_anonymous: bool = False
     created_at: datetime
 
-    model_config = {"from_attributes": True}
+
+class TypingStatusRequest(BaseModel):
+    is_typing: bool = True
+    is_anonymous: bool = False
+
+
+class TypingUserResponse(BaseModel):
+    user_id: int
+    name: str
+    avatar_url: str | None = None
+    is_anonymous: bool = False

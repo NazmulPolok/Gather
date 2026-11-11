@@ -34,6 +34,19 @@ export function getPresetAvatar(id?: string | null): PresetAvatar | undefined {
   return PRESET_AVATARS.find(a => a.id === id)
 }
 
+export function formatLastSeen(lastSeenAt?: string | null): string {
+  if (!lastSeenAt) return 'Offline'
+  const date = new Date(lastSeenAt)
+  const now = new Date()
+  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000)
+  if (diffSec < 45) return 'Active now'
+  if (diffSec < 120) return 'Active 1m ago'
+  if (diffSec < 3600) return `Active ${Math.floor(diffSec / 60)}m ago`
+  if (diffSec < 86400) return `Active ${Math.floor(diffSec / 3600)}h ago`
+  if (diffSec < 172800) return 'Active yesterday'
+  return `Active ${Math.floor(diffSec / 86400)}d ago`
+}
+
 export type AuthUser = {
   id: number
   email: string
@@ -42,6 +55,7 @@ export type AuthUser = {
   username: string
   avatar_url?: string | null
   nickname?: string | null
+  last_seen_at?: string | null
 }
 
 export type AuthResponse = {
@@ -69,6 +83,8 @@ export type Member = {
   status: 'active' | 'pending' | 'rejected'
   nickname?: string | null
   avatar_url?: string | null
+  last_seen_at?: string | null
+  is_online?: boolean
 }
 
 export type Message = {
@@ -83,6 +99,13 @@ export type Message = {
   image_url?: string | null
   is_anonymous?: boolean
   created_at: string
+}
+
+export type TypingUser = {
+  user_id: number
+  name: string
+  avatar_url?: string | null
+  is_anonymous: boolean
 }
 
 export type NotificationItem = {
@@ -144,6 +167,7 @@ export const api = {
     return request<AuthUser>('/api/auth/avatar', { method: 'POST', body: formData }, token)
   },
   removeAvatar: (token: string) => request<AuthUser>('/api/auth/avatar', { method: 'DELETE' }, token),
+  heartbeat: (token: string) => request<{ status: string; last_seen_at: string }>('/api/auth/heartbeat', { method: 'POST' }, token),
   groups: (token: string) => request<Group[]>('/api/groups', {}, token),
   createGroup: (token: string, name: string, join_policy: Group['join_policy']) => request<Group>('/api/groups', { method: 'POST', body: JSON.stringify({ name, join_policy }) }, token),
   updateGroup: (token: string, groupId: number, data: { name?: string; join_policy?: Group['join_policy']; avatar_url?: string | null }) => request<Group>(`/api/groups/${groupId}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
@@ -175,6 +199,10 @@ export const api = {
       },
       token
     ),
+  sendTyping: (token: string, groupId: number, is_typing: boolean, is_anonymous = false) =>
+    request<{ status: string }>(`/api/groups/${groupId}/typing`, { method: 'POST', body: JSON.stringify({ is_typing, is_anonymous }) }, token),
+  getTyping: (token: string, groupId: number) =>
+    request<TypingUser[]>(`/api/groups/${groupId}/typing`, {}, token),
   members: (token: string, groupId: number) => request<Member[]>(`/api/groups/${groupId}/members`, {}, token),
   approveMember: (token: string, groupId: number, userId: number) => request<{ status: string }>(`/api/groups/${groupId}/members/${userId}/approve`, { method: 'POST' }, token),
   updateNickname: (token: string, groupId: number, targetUserId: number, nickname: string | null) => request<{ status: string; user_id: number; nickname: string | null }>(`/api/groups/${groupId}/members/${targetUserId}/nickname`, { method: 'PATCH', body: JSON.stringify({ nickname }) }, token),

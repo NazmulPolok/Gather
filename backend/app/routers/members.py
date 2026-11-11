@@ -77,25 +77,42 @@ def list_members(
     user: User = Depends(get_current_user),
 ) -> list[dict[str, object]]:
     requester = active_membership(db, group_id, user.id)
+    now = datetime.now(timezone.utc)
+    user.last_seen_at = now
+    db.commit()
+
     query = select(Membership, User).join(User).where(Membership.group_id == group_id)
     if requester.role != "admin":
         query = query.where(Membership.status == "active")
     query = query.order_by(Membership.status, User.email)
     rows = db.execute(query).all()
-    return [
-        {
-            "user_id": membership.user_id,
-            "email": member.email,
-            "first_name": member.first_name,
-            "last_name": member.last_name,
-            "username": member.username,
-            "avatar_url": member.avatar_url,
-            "role": membership.role,
-            "status": membership.status,
-            "nickname": membership.nickname or member.nickname,
-        }
-        for membership, member in rows
-    ]
+
+    online_threshold_seconds = 45
+    results = []
+    for membership, member in rows:
+        is_online = False
+        if member.last_seen_at:
+            last_seen = member.last_seen_at
+            if last_seen.tzinfo is None:
+                last_seen = last_seen.replace(tzinfo=timezone.utc)
+            is_online = (now - last_seen).total_seconds() < online_threshold_seconds
+
+        results.append(
+            {
+                "user_id": membership.user_id,
+                "email": member.email,
+                "first_name": member.first_name,
+                "last_name": member.last_name,
+                "username": member.username,
+                "avatar_url": member.avatar_url,
+                "role": membership.role,
+                "status": membership.status,
+                "nickname": membership.nickname or member.nickname,
+                "last_seen_at": member.last_seen_at.isoformat() if member.last_seen_at else None,
+                "is_online": is_online,
+            }
+        )
+    return results
 
 
 @router.patch("/{group_id}/members/{target_user_id}/nickname")

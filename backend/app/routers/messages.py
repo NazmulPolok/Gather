@@ -1,5 +1,7 @@
+from datetime import datetime, timezone
 from pathlib import Path
 import secrets
+import time
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -10,7 +12,7 @@ from app.models.message import Message
 from app.models.membership import Membership
 from app.models.notification import Notification
 from app.models.user import User
-from app.schemas.message import MessageCreate, MessageResponse
+from app.schemas.message import MessageCreate, MessageResponse, TypingStatusRequest, TypingUserResponse
 from app.services.permissions import active_membership
 
 router = APIRouter()
@@ -26,6 +28,14 @@ ALLOWED_IMAGE_TYPES = {
     "image/gif": ".gif",
 }
 MAX_FILE_SIZE = 10 * 1024 * 1024
+
+# In-memory typing tracker: {group_id: {user_id: {"user_id": int, "name": str, "avatar_url": str | None, "is_anonymous": bool, "expires_at": float}}}
+typing_store: dict[int, dict[int, dict]] = {}
+TYPING_TTL_SECONDS = 4.0
+
+
+def _display_name(user: User) -> str:
+    return user.nickname or " ".join(part for part in (user.first_name, user.last_name) if part).strip() or user.username
 
 
 @router.get("/{group_id}/messages", response_model=list[MessageResponse])
@@ -120,6 +130,14 @@ def create_message(
     user: User = Depends(get_current_user),
 ) -> MessageResponse:
     membership = active_membership(db, group_id, user.id)
+
+    # Clear typing indicator for this user when message is posted
+    if group_id in typing_store:
+        typing_store[group_id].pop(user.id, None)
+
+    now_dt = datetime.now(timezone.utc)
+    user.last_seen_at = now_dt
+
     message = Message(
         group_id=group_id,
         sender_id=user.id,
@@ -169,5 +187,61 @@ def create_message(
     )
 
 
-def _display_name(user: User) -> str:
-    return user.nickname or " ".join(part for part in (user.first_name, user.last_name) if part).strip() or user.username
+@router.post("/{group_id}/typing")
+def update_typing_status(
+    group_id: int,
+    payload: TypingStatusRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, str]:
+    membership = active_membership(db, group_id, user.id)
+    now_dt = datetime.now(timezone.utc)
+    user.last_seen_at = now_dt
+    db.commit()
+
+    now_ts = time.time()
+    group_typers = typing_store.setdefault(group_id, {})
+
+    if payload.is_typing:
+        display_name = "Anonymous" if payload.is_anonymous else (membership.nickname or _display_name(user))
+        avatar = None if payload.is_anonymous else user.avatar_url
+        group_typers[user.id] = {
+            "user_id": user.id,
+            "name": display_name,
+            "avatar_url": avatar,
+            "is_anonymous": payload.is_anonymous,
+            "expires_at": now_ts + TYPING_TTL_SECONDS,
+        }
+    else:
+        group_typers.pop(user.id, None)
+
+    return {"status": "ok"}
+
+
+@router.get("/{group_id}/typing", response_model=list[TypingUserResponse])
+def get_typing_users(
+    group_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[TypingUserResponse]:
+    active_membership(db, group_id, user.id)
+    now_ts = time.time()
+    group_typers = typing_store.get(group_id, {})
+
+    # Prune expired entries
+    expired_ids = [uid for uid, info in group_typers.items() if info["expires_at"] <= now_ts]
+    for uid in expired_ids:
+        group_typers.pop(uid, None)
+
+    active_list: list[TypingUserResponse] = []
+    for uid, info in group_typers.items():
+        if uid != user.id:
+            active_list.append(
+                TypingUserResponse(
+                    user_id=info["user_id"] if not info["is_anonymous"] else 0,
+                    name=info["name"],
+                    avatar_url=info["avatar_url"],
+                    is_anonymous=info["is_anonymous"],
+                )
+            )
+    return active_list

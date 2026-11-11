@@ -1,3 +1,4 @@
+from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
@@ -88,6 +89,7 @@ class UserResponse(BaseModel):
     username: str
     avatar_url: str | None = None
     nickname: str | None = None
+    last_seen_at: datetime | None = None
     model_config = {"from_attributes": True}
 
 

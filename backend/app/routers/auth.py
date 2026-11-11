@@ -281,7 +281,19 @@ def update_profile(
     if "avatar_url" in fields_set:
         clean_avatar = payload.avatar_url.strip() if payload.avatar_url and payload.avatar_url.strip() else None
         user.avatar_url = clean_avatar
+    user.last_seen_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(user)
     return user
-    return user
+
+
+@router.post("/heartbeat")
+def heartbeat(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, str]:
+    now = datetime.now(timezone.utc)
+    user.last_seen_at = now
+    db.commit()
+    return {"status": "ok", "last_seen_at": now.isoformat()}
+

@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { api, getMediaUrl, type AuthUser, type Group, type Member, type Message, type NotificationItem } from '../api/client'
+import {
+  api,
+  formatLastSeen,
+  getMediaUrl,
+  type AuthUser,
+  type Group,
+  type Member,
+  type Message,
+  type NotificationItem,
+  type TypingUser,
+} from '../api/client'
 import { GroupAvatar } from '../components/GroupAvatar'
 import { UserAvatar } from '../components/UserAvatar'
 
@@ -24,6 +34,7 @@ export function ChatHome({
   const [activeGroup, setActiveGroup] = useState<Group | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [members, setMembers] = useState<Member[]>([])
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([])
   const [messageText, setMessageText] = useState('')
   const [attachedImage, setAttachedImage] = useState<File | null>(null)
   const [attachedPreview, setAttachedPreview] = useState<string | null>(null)
@@ -52,6 +63,10 @@ export function ChatHome({
   const bottomRef = useRef<HTMLDivElement>(null)
   const chatImageInputRef = useRef<HTMLInputElement>(null)
 
+  // Typing debounce refs
+  const isTypingRef = useRef(false)
+  const typingTimeoutRef = useRef<number | null>(null)
+
   const refreshGroups = useCallback(async (): Promise<Group[]> => {
     setLoadingGroups(true)
     try {
@@ -69,6 +84,15 @@ export function ChatHome({
   }, [token])
 
   useEffect(() => { void refreshGroups() }, [refreshGroups])
+
+  // Periodic user presence heartbeat (every 20 seconds)
+  useEffect(() => {
+    void api.heartbeat(token).catch(() => undefined)
+    const interval = window.setInterval(() => {
+      void api.heartbeat(token).catch(() => undefined)
+    }, 20000)
+    return () => window.clearInterval(interval)
+  }, [token])
 
   useEffect(() => {
     if (!notificationTarget || loadingGroups) return
@@ -98,8 +122,15 @@ export function ChatHome({
     }
   }, [token])
 
+  // Load messages and members polling
   useEffect(() => {
     setIsEditingName(false)
+    setTypingUsers([])
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current)
+    }
+    isTypingRef.current = false
+
     if (!activeGroup) {
       setMessages([])
       setMembers([])
@@ -107,10 +138,62 @@ export function ChatHome({
     }
     const groupId = activeGroup.id
     void loadMessages(groupId)
-    void api.members(token, groupId).then(setMembers).catch(() => setMembers([]))
-    const interval = window.setInterval(() => { void loadMessages(groupId, true) }, 5000)
+
+    const fetchMembers = () => {
+      api.members(token, groupId).then(setMembers).catch(() => undefined)
+    }
+    fetchMembers()
+
+    const interval = window.setInterval(() => {
+      void loadMessages(groupId, true)
+      fetchMembers()
+    }, 5000)
     return () => window.clearInterval(interval)
   }, [activeGroup?.id, token, loadMessages])
+
+  // Typing indicator polling (every 1.5 seconds)
+  useEffect(() => {
+    if (!activeGroup) {
+      setTypingUsers([])
+      return
+    }
+    const groupId = activeGroup.id
+    const pollTyping = async () => {
+      try {
+        const typers = await api.getTyping(token, groupId)
+        setTypingUsers(typers)
+      } catch {
+        // ignore polling error
+      }
+    }
+    void pollTyping()
+    const interval = window.setInterval(pollTyping, 1500)
+    return () => window.clearInterval(interval)
+  }, [activeGroup?.id, token])
+
+  const notifyTyping = useCallback((isTyping: boolean) => {
+    if (!activeGroup) return
+    if (isTyping === isTypingRef.current && isTyping) return
+    isTypingRef.current = isTyping
+    api.sendTyping(token, activeGroup.id, isTyping, sendAsAnonymous).catch(() => undefined)
+  }, [activeGroup, token, sendAsAnonymous])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value
+    setMessageText(text)
+    if (!activeGroup) return
+
+    if (text.trim().length > 0) {
+      notifyTyping(true)
+      if (typingTimeoutRef.current) window.clearTimeout(typingTimeoutRef.current)
+      typingTimeoutRef.current = window.setTimeout(() => {
+        notifyTyping(false)
+      }, 3000)
+    } else {
+      if (typingTimeoutRef.current) window.clearTimeout(typingTimeoutRef.current)
+      notifyTyping(false)
+    }
+  }
 
   const isAdmin = Boolean(
     activeGroup && (
@@ -203,7 +286,9 @@ export function ChatHome({
     }).catch(() => undefined)
   }, [activeGroup?.id, token, unreadGroups, onUnreadGroups])
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [messages.length, activeGroup?.id])
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [messages.length, typingUsers.length, activeGroup?.id])
 
   async function createGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -256,6 +341,10 @@ export function ChatHome({
     if (!activeGroup || busy) return
     const body = messageText.trim()
     if (!body && !attachedImage) return
+
+    if (typingTimeoutRef.current) window.clearTimeout(typingTimeoutRef.current)
+    notifyTyping(false)
+
     setBusy(true)
     setChatError('')
     try {
@@ -326,6 +415,7 @@ export function ChatHome({
   const pendingCount = members.filter(member => member.status === 'pending').length
   const currentMember = activeGroup ? members.find(m => m.user_id === user.id) : null
   const activeNickname = currentMember?.nickname
+  const activeOnlineCount = members.filter(m => m.status === 'active' && (m.user_id === user.id || m.is_online)).length
 
   return (
     <main className="workspace">
@@ -349,6 +439,7 @@ export function ChatHome({
                 <UserAvatar
                   avatarUrl={user.avatar_url}
                   fallback={activeNickname || user.nickname || user.first_name || user.username}
+                  isOnline={true}
                 />
               )}
             </span>
@@ -367,9 +458,9 @@ export function ChatHome({
         {activeGroup ? <>
           <header className="chat-header">
             <div className="group-avatar-wrapper">
-              <div className="group-avatar tone-1 header-group-avatar">
-                <GroupAvatar avatarUrl={activeGroup.avatar_url} name={activeGroup.name} />
-              </div>
+              <span className="group-avatar header-group-avatar">
+                <GroupAvatar avatarUrl={pendingHeaderPreview || activeGroup.avatar_url} name={activeGroup.name} size={42} />
+              </span>
               {isAdmin && (
                 <>
                   <input
@@ -379,23 +470,22 @@ export function ChatHome({
                     style={{ display: 'none' }}
                     onChange={e => {
                       const file = e.target.files?.[0]
-                      if (file) {
-                        e.target.value = ''
-                        if (file.size > 10 * 1024 * 1024) {
-                          setError('Group photo cannot exceed 10MB.')
-                          return
-                        }
-                        setPendingHeaderPhoto(file)
-                        setPendingHeaderPreview(URL.createObjectURL(file))
+                      if (!file) return
+                      e.target.value = ''
+                      if (file.size > 10 * 1024 * 1024) {
+                        setError('Group photo cannot exceed 10MB.')
+                        return
                       }
+                      setPendingHeaderPhoto(file)
+                      setPendingHeaderPreview(URL.createObjectURL(file))
                     }}
                   />
                   <button
                     type="button"
                     className="group-avatar-change-btn"
                     onClick={() => groupFileInputRef.current?.click()}
-                    title="Change group photo from your PC"
-                    aria-label="Change group photo from your PC"
+                    title="Change group photo from PC"
+                    aria-label="Change group photo"
                     disabled={savingGroupPhoto}
                   >
                     {savingGroupPhoto ? '…' : '📷'}
@@ -480,7 +570,11 @@ export function ChatHome({
                   )}
                 </div>
               )}
-              <p><span className="online-dot" />{members.filter(member => member.status === 'active').length} members · Code {activeGroup.invite_code}</p>
+              <p>
+                <span className="online-dot" />
+                {activeOnlineCount > 0 ? `${activeOnlineCount} active now · ` : ''}
+                {members.filter(member => member.status === 'active').length} members · Code {activeGroup.invite_code}
+              </p>
             </div>
             <div className="chat-header-actions">
               <button className="outline-button back-groups-button" onClick={() => { setActiveGroup(null); setShowMembers(false); setNotice('') }}>‹ My groups</button>
@@ -521,6 +615,32 @@ export function ChatHome({
                     {messages.map(message => (
                       <MessageBubble key={message.id} message={message} own={message.sender_id === user.id} />
                     ))}
+                    {typingUsers.length > 0 && (
+                      <div className="typing-indicator-container">
+                        <div className="message-avatar">
+                          {typingUsers[0].is_anonymous ? (
+                            '🎭'
+                          ) : (
+                            <UserAvatar
+                              avatarUrl={typingUsers[0].avatar_url}
+                              fallback={typingUsers[0].name}
+                            />
+                          )}
+                        </div>
+                        <div className="typing-bubble">
+                          <span className="typing-dot" />
+                          <span className="typing-dot" />
+                          <span className="typing-dot" />
+                        </div>
+                        <span className="typing-user-text">
+                          {typingUsers.length === 1
+                            ? `${typingUsers[0].name} is typing…`
+                            : typingUsers.length === 2
+                            ? `${typingUsers[0].name} and ${typingUsers[1].name} are typing…`
+                            : `${typingUsers[0].name} and ${typingUsers.length - 1} others are typing…`}
+                        </span>
+                      </div>
+                    )}
                     <div ref={bottomRef} />
                   </div>
                 )}
@@ -572,7 +692,7 @@ export function ChatHome({
                 <textarea
                   rows={1}
                   value={messageText}
-                  onChange={e => setMessageText(e.target.value)}
+                  onChange={handleInputChange}
                   onKeyDown={onComposerKeyDown}
                   placeholder={
                     attachedImage
@@ -915,11 +1035,16 @@ function MemberPanel({
           const hasNickname = Boolean(member.nickname)
           const isSelf = member.user_id === currentUserId
           const memberAvatar = member.avatar_url
+          const isOnline = isSelf ? true : Boolean(member.is_online)
 
           return (
             <div className="member-line" key={member.user_id}>
               <span className="avatar">
-                <UserAvatar avatarUrl={memberAvatar} fallback={member.nickname || displayName(member)} />
+                <UserAvatar
+                  avatarUrl={memberAvatar}
+                  fallback={member.nickname || displayName(member)}
+                  isOnline={isOnline}
+                />
               </span>
               <div className="member-info">
                 <div className="member-info-header">
@@ -927,6 +1052,11 @@ function MemberPanel({
                   {hasNickname && <span className="nickname-tag">Nickname</span>}
                   {member.role === 'admin' && <span className="admin-pill">ADMIN</span>}
                   {isSelf && <span className="you-pill">YOU</span>}
+                  {isOnline ? (
+                    <span className="online-badge-pill"><span className="online-green-dot" /> Active</span>
+                  ) : (
+                    <span className="last-seen-badge">{formatLastSeen(member.last_seen_at)}</span>
+                  )}
                 </div>
                 <small>
                   {hasNickname ? `${displayName(member)} (@${member.username})` : `@${member.username}`}
