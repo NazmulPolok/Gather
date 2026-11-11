@@ -1,5 +1,17 @@
 const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 
+export function getWebSocketUrl(path: string, token: string): string {
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  let base = `${wsProtocol}//${window.location.host}`
+  if (API_URL.startsWith('http://') || API_URL.startsWith('https://')) {
+    const url = new URL(API_URL)
+    const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+    base = `${protocol}//${url.host}`
+  }
+  const cleanPath = path.startsWith('/') ? path : `/${path}`
+  return `${base}${cleanPath}?token=${encodeURIComponent(token)}`
+}
+
 export function getMediaUrl(path?: string | null): string {
   if (!path) return ''
   if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:') || path.startsWith('blob:')) return path

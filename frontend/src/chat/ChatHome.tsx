@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
-import { api, getMediaUrl, type AuthUser, type Group, type Member, type Message, type NotificationItem } from '../api/client'
+import { api, getMediaUrl, getWebSocketUrl, type AuthUser, type Group, type Member, type Message, type NotificationItem } from '../api/client'
 import { GroupAvatar } from '../components/GroupAvatar'
 import { UserAvatar } from '../components/UserAvatar'
 
@@ -45,6 +45,10 @@ export function ChatHome({
   const [savingGroupPhoto, setSavingGroupPhoto] = useState(false)
   const [pendingHeaderPhoto, setPendingHeaderPhoto] = useState<File | null>(null)
   const [pendingHeaderPreview, setPendingHeaderPreview] = useState<string | null>(null)
+  const [typingUsers, setTypingUsers] = useState<Record<number, { name: string; avatar_url?: string | null; is_anonymous?: boolean; lastActive: number }>>({})
+  const wsRef = useRef<WebSocket | null>(null)
+  const typingTimeoutRef = useRef<number | null>(null)
+  const isCurrentlyTypingRef = useRef(false)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [chatError, setChatError] = useState('')
@@ -203,7 +207,134 @@ export function ChatHome({
     }).catch(() => undefined)
   }, [activeGroup?.id, token, unreadGroups, onUnreadGroups])
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [messages.length, activeGroup?.id])
+  const sendTypingEvent = useCallback((isTyping: boolean) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
+    if (isCurrentlyTypingRef.current === isTyping) return
+    isCurrentlyTypingRef.current = isTyping
+    try {
+      wsRef.current.send(JSON.stringify({
+        type: 'typing',
+        is_typing: isTyping,
+        is_anonymous: sendAsAnonymous,
+      }))
+    } catch {
+      // ws send error ignored
+    }
+  }, [sendAsAnonymous])
+
+  function handleComposerInput(val: string) {
+    setMessageText(val)
+    if (val.trim()) {
+      sendTypingEvent(true)
+      if (typingTimeoutRef.current) {
+        window.clearTimeout(typingTimeoutRef.current)
+      }
+      typingTimeoutRef.current = window.setTimeout(() => {
+        sendTypingEvent(false)
+      }, 2500)
+    } else {
+      if (typingTimeoutRef.current) {
+        window.clearTimeout(typingTimeoutRef.current)
+      }
+      sendTypingEvent(false)
+    }
+  }
+
+  // Connect group WebSocket for real-time typing indicators and instant messages
+  useEffect(() => {
+    if (!activeGroup) {
+      if (wsRef.current) {
+        wsRef.current.close()
+        wsRef.current = null
+      }
+      setTypingUsers({})
+      return
+    }
+    let active = true
+    let reconnectTimer: number | null = null
+
+    function connect() {
+      if (!active || !activeGroup) return
+      const wsUrl = getWebSocketUrl(`/api/groups/${activeGroup.id}/ws`, token)
+      const ws = new WebSocket(wsUrl)
+      wsRef.current = ws
+
+      ws.onmessage = event => {
+        try {
+          const data = JSON.parse(event.data)
+          if (data.type === 'typing') {
+            const { user_id, name, avatar_url, is_typing, is_anonymous } = data
+            setTypingUsers(current => {
+              const next = { ...current }
+              if (is_typing) {
+                next[user_id] = { name, avatar_url, is_anonymous, lastActive: Date.now() }
+              } else {
+                delete next[user_id]
+              }
+              return next
+            })
+          } else if (data.type === 'new_message') {
+            const newMsg = data.message as Message
+            setMessages(current => {
+              if (current.some(m => m.id === newMsg.id)) return current
+              return [...current, newMsg]
+            })
+            setTypingUsers(current => {
+              if (!current[newMsg.sender_id]) return current
+              const next = { ...current }
+              delete next[newMsg.sender_id]
+              return next
+            })
+          }
+        } catch (err) {
+          console.error('WS message error:', err)
+        }
+      }
+
+      ws.onclose = () => {
+        if (!active) return
+        reconnectTimer = window.setTimeout(connect, 2500)
+      }
+    }
+
+    connect()
+
+    return () => {
+      active = false
+      if (reconnectTimer) window.clearTimeout(reconnectTimer)
+      if (wsRef.current) {
+        wsRef.current.close()
+        wsRef.current = null
+      }
+      setTypingUsers({})
+      isCurrentlyTypingRef.current = false
+      if (typingTimeoutRef.current) window.clearTimeout(typingTimeoutRef.current)
+    }
+  }, [activeGroup?.id, token])
+
+  // Periodic cleanup for expired typing indicators (if user closes browser without blur)
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const now = Date.now()
+      setTypingUsers(current => {
+        let changed = false
+        const next = { ...current }
+        for (const [idStr, info] of Object.entries(next)) {
+          if (now - info.lastActive > 4000) {
+            delete next[Number(idStr)]
+            changed = true
+          }
+        }
+        return changed ? next : current
+      })
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  const typingCount = Object.keys(typingUsers).length
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [messages.length, activeGroup?.id, typingCount])
 
   async function createGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -256,18 +387,22 @@ export function ChatHome({
     if (!activeGroup || busy) return
     const body = messageText.trim()
     if (!body && !attachedImage) return
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current)
+    }
+    sendTypingEvent(false)
     setBusy(true)
     setChatError('')
     try {
       if (attachedImage) {
         const uploadRes = await api.uploadGroupImage(token, activeGroup.id, attachedImage)
         const sent = await api.sendImage(token, activeGroup.id, uploadRes.image_url, body || undefined, sendAsAnonymous)
-        setMessages(current => [...current, sent])
+        setMessages(current => current.some(m => m.id === sent.id) ? current : [...current, sent])
         clearAttachedImage()
         setMessageText('')
       } else {
         const sent = await api.sendText(token, activeGroup.id, body, sendAsAnonymous)
-        setMessages(current => [...current, sent])
+        setMessages(current => current.some(m => m.id === sent.id) ? current : [...current, sent])
         setMessageText('')
       }
     } catch (cause) {
@@ -521,6 +656,31 @@ export function ChatHome({
                     {messages.map(message => (
                       <MessageBubble key={message.id} message={message} own={message.sender_id === user.id} />
                     ))}
+                    {Object.keys(typingUsers).length > 0 && (
+                      <div className="typing-indicator-container">
+                        {Object.entries(typingUsers).map(([idStr, tUser]) => (
+                          <article className="message-row typing-row" key={idStr}>
+                            <div className={`message-avatar ${tUser.is_anonymous ? 'avatar-anon-bubble' : ''}`}>
+                              {tUser.is_anonymous ? (
+                                '🎭'
+                              ) : (
+                                <UserAvatar avatarUrl={tUser.avatar_url} fallback={tUser.name} />
+                              )}
+                            </div>
+                            <div className="message-content">
+                              <div className="typing-bubble" title={`${tUser.name} is typing…`}>
+                                <span className="typing-dot" />
+                                <span className="typing-dot" />
+                                <span className="typing-dot" />
+                              </div>
+                              <span className="typing-status-text">
+                                {tUser.name} is typing…
+                              </span>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    )}
                     <div ref={bottomRef} />
                   </div>
                 )}
@@ -572,7 +732,8 @@ export function ChatHome({
                 <textarea
                   rows={1}
                   value={messageText}
-                  onChange={e => setMessageText(e.target.value)}
+                  onChange={e => handleComposerInput(e.target.value)}
+                  onBlur={() => sendTypingEvent(false)}
                   onKeyDown={onComposerKeyDown}
                   placeholder={
                     attachedImage

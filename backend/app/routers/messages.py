@@ -1,11 +1,15 @@
 from pathlib import Path
 import secrets
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect, status
+from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.dependencies import get_current_user
-from app.db.session import get_db
+from app.core.security import ALGORITHM
+from app.core.ws_manager import manager
+from app.db.session import SessionLocal, get_db
 from app.models.message import Message
 from app.models.membership import Membership
 from app.models.notification import Notification
@@ -113,7 +117,7 @@ async def upload_group_image(
 
 
 @router.post("/{group_id}/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
-def create_message(
+async def create_message(
     group_id: int,
     payload: MessageCreate,
     db: Session = Depends(get_db),
@@ -154,7 +158,7 @@ def create_message(
     is_anon = message.is_anonymous
     sender_name = "Anonymous" if is_anon else (membership.nickname or _display_name(user))
     sender_avatar = None if is_anon else user.avatar_url
-    return MessageResponse(
+    response = MessageResponse(
         id=message.id,
         group_id=group_id,
         sender_id=user.id,
@@ -167,6 +171,115 @@ def create_message(
         is_anonymous=is_anon,
         created_at=message.created_at,
     )
+
+    # Broadcast new message and clear typing status
+    msg_dict = {
+        "id": response.id,
+        "group_id": group_id,
+        "sender_id": response.sender_id,
+        "sender_name": response.sender_name,
+        "sender_username": response.sender_username,
+        "sender_avatar_url": response.sender_avatar_url,
+        "message_type": response.message_type,
+        "body": response.body,
+        "image_url": response.image_url,
+        "is_anonymous": response.is_anonymous,
+        "created_at": response.created_at.isoformat() if response.created_at else "",
+    }
+    await manager.broadcast_to_group(group_id, {
+        "type": "new_message",
+        "message": msg_dict,
+    })
+    await manager.broadcast_to_group(group_id, {
+        "type": "typing",
+        "user_id": user.id if not is_anon else 0,
+        "is_typing": False,
+    })
+
+    return response
+
+
+def _get_user_from_token(token: str, db: Session) -> User | None:
+    try:
+        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[ALGORITHM])
+        user_id = int(payload["sub"])
+    except (JWTError, KeyError, ValueError):
+        return None
+    return db.get(User, user_id)
+
+
+@router.websocket("/{group_id}/ws")
+async def group_websocket(
+    websocket: WebSocket,
+    group_id: int,
+    token: str = Query(...),
+):
+    with SessionLocal() as db:
+        user = _get_user_from_token(token, db)
+        if user is None:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+        try:
+            active_membership(db, group_id, user.id)
+        except Exception:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        membership = db.scalar(
+            select(Membership).where(
+                Membership.group_id == group_id,
+                Membership.user_id == user.id,
+            )
+        )
+        display_name = (membership.nickname if membership and membership.nickname else None) or _display_name(user)
+        user_info = {
+            "user_id": user.id,
+            "username": user.username,
+            "name": display_name,
+            "avatar_url": user.avatar_url,
+        }
+
+    await manager.connect(websocket, group_id, user_info)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            event_type = data.get("type")
+            if event_type == "typing":
+                is_typing = bool(data.get("is_typing", False))
+                is_anon = bool(data.get("is_anonymous", False))
+                if is_anon:
+                    typing_name = "Anonymous"
+                    typing_user_id = 0
+                    typing_avatar = None
+                else:
+                    typing_name = user_info["name"]
+                    typing_user_id = user_info["user_id"]
+                    typing_avatar = user_info["avatar_url"]
+
+                await manager.broadcast_to_group(
+                    group_id,
+                    {
+                        "type": "typing",
+                        "user_id": typing_user_id,
+                        "name": typing_name,
+                        "avatar_url": typing_avatar,
+                        "is_typing": is_typing,
+                        "is_anonymous": is_anon,
+                    },
+                    exclude=websocket,
+                )
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, group_id)
+        await manager.broadcast_to_group(
+            group_id,
+            {
+                "type": "typing",
+                "user_id": user_info["user_id"],
+                "is_typing": False,
+            },
+        )
+    except Exception:
+        manager.disconnect(websocket, group_id)
 
 
 def _display_name(user: User) -> str:
