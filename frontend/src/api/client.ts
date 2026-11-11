@@ -56,6 +56,7 @@ export type Group = {
   invite_code: string
   owner_id: number
   join_policy: 'open' | 'approval'
+  avatar_url?: string | null
 }
 
 export type Member = {
@@ -145,7 +146,13 @@ export const api = {
   removeAvatar: (token: string) => request<AuthUser>('/api/auth/avatar', { method: 'DELETE' }, token),
   groups: (token: string) => request<Group[]>('/api/groups', {}, token),
   createGroup: (token: string, name: string, join_policy: Group['join_policy']) => request<Group>('/api/groups', { method: 'POST', body: JSON.stringify({ name, join_policy }) }, token),
-  updateGroup: (token: string, groupId: number, data: { name?: string; join_policy?: Group['join_policy'] }) => request<Group>(`/api/groups/${groupId}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
+  updateGroup: (token: string, groupId: number, data: { name?: string; join_policy?: Group['join_policy']; avatar_url?: string | null }) => request<Group>(`/api/groups/${groupId}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
+  uploadGroupAvatar: (token: string, groupId: number, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request<Group>(`/api/groups/${groupId}/avatar`, { method: 'POST', body: formData }, token)
+  },
+  removeGroupAvatar: (token: string, groupId: number) => request<Group>(`/api/groups/${groupId}/avatar`, { method: 'DELETE' }, token),
   joinGroup: (token: string, inviteCode: string) => request<{ status: string }>(`/api/groups/join/${encodeURIComponent(inviteCode)}`, { method: 'POST' }, token),
   messages: (token: string, groupId: number) => request<Message[]>(`/api/groups/${groupId}/messages?limit=100`, {}, token),
   sendText: (token: string, groupId: number, body: string, is_anonymous = false) => request<Message>(`/api/groups/${groupId}/messages`, { method: 'POST', body: JSON.stringify({ message_type: 'text', body, is_anonymous }) }, token),

@@ -293,3 +293,20 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 :root[data-theme="dark"] .preset-avatar-option.preset-avatar-selected{border-color:#65c280;box-shadow:0 0 0 2px rgba(101,194,128,0.4)}
 :root[data-theme="dark"] .preset-avatar-check{background:#1a251d;color:#7ee29d}
 
+/* Group Avatar Styles & Photo Upload */
+.group-avatar{overflow:hidden;position:relative}
+.group-avatar-img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
+.group-avatar-wrapper{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.group-avatar-change-btn{position:absolute;bottom:-4px;right:-4px;width:20px;height:20px;border-radius:50%;background:#3e7250;color:#fff;border:2px solid #fff;display:grid;place-items:center;font-size:10px;cursor:pointer;padding:0;box-shadow:0 2px 4px rgba(0,0,0,0.15);transition:transform .15s,background .15s}
+.group-avatar-change-btn:hover{transform:scale(1.12);background:#2b543a}
+.header-group-avatar{width:42px;height:42px;border-radius:12px}
+.group-photo-card{display:flex;align-items:center;gap:16px;padding:12px;background:#f9fbf9;border:1px solid #e5eee7;border-radius:10px;margin-bottom:12px}
+.group-photo-preview{width:58px;height:58px;border-radius:14px;overflow:hidden;background:#e2eee4;border:1px solid #ccdccf;display:grid;place-items:center;flex:none}
+.group-photo-actions{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.group-photo-actions .group-photo-btn-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.group-photo-hint{font-size:10px;color:#8c988e}
+:root[data-theme="dark"] .group-photo-card{background:#18221a;border-color:#2e3e31}
+:root[data-theme="dark"] .group-photo-preview{background:#233125;border-color:#384d3b}
+:root[data-theme="dark"] .group-avatar-change-btn{border-color:#19221b;background:#478c5c}
+
+

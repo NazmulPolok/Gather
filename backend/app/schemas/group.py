@@ -19,6 +19,7 @@ class GroupCreate(BaseModel):
 class GroupUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     join_policy: Literal["open", "approval"] | None = None
+    avatar_url: str | None = None
 
     @field_validator("name")
     @classmethod
@@ -45,4 +46,5 @@ class GroupResponse(BaseModel):
     invite_code: str
     owner_id: int
     join_policy: Literal["open", "approval"]
+    avatar_url: str | None = None
     model_config = {"from_attributes": True}

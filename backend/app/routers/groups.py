@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from pathlib import Path
 import secrets
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,6 +13,18 @@ from app.schemas.group import GroupCreate, GroupResponse, GroupUpdate
 from app.services.permissions import active_membership, admin_membership
 
 router = APIRouter()
+
+UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
+GROUPS_DIR = UPLOAD_DIR / "groups"
+GROUPS_DIR.mkdir(parents=True, exist_ok=True)
+
+ALLOWED_IMAGE_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
+MAX_FILE_SIZE = 10 * 1024 * 1024
 
 
 @router.post("", response_model=GroupResponse, status_code=status.HTTP_201_CREATED)
@@ -61,3 +74,56 @@ def update_group(
     db.commit()
     db.refresh(group)
     return group
+
+
+@router.post("/{group_id}/avatar", response_model=GroupResponse)
+async def upload_group_avatar(
+    group_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Group:
+    admin_membership(db, group_id, user.id)
+    group = db.get(Group, group_id)
+    if group is None:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    content_type = file.content_type or ""
+    if content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported image format. Please upload JPEG, PNG, WebP, or GIF.",
+        )
+    ext = ALLOWED_IMAGE_TYPES[content_type]
+    contents = await file.read()
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail="File size too large. Maximum size is 10MB.",
+        )
+    filename = f"{secrets.token_hex(16)}{ext}"
+    dest = GROUPS_DIR / filename
+    dest.write_bytes(contents)
+
+    group.avatar_url = f"/uploads/groups/{filename}"
+    db.commit()
+    db.refresh(group)
+    return group
+
+
+@router.delete("/{group_id}/avatar", response_model=GroupResponse)
+def delete_group_avatar(
+    group_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Group:
+    admin_membership(db, group_id, user.id)
+    group = db.get(Group, group_id)
+    if group is None:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    group.avatar_url = None
+    db.commit()
+    db.refresh(group)
+    return group
+

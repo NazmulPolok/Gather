@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { api, getMediaUrl, type AuthUser, type Group, type Member, type Message, type NotificationItem } from '../api/client'
+import { GroupAvatar } from '../components/GroupAvatar'
 import { UserAvatar } from '../components/UserAvatar'
 
 export function ChatHome({
@@ -40,6 +41,8 @@ export function ChatHome({
   const [isEditingName, setIsEditingName] = useState(false)
   const [editName, setEditName] = useState('')
   const [renameBusy, setRenameBusy] = useState(false)
+  const groupFileInputRef = useRef<HTMLInputElement | null>(null)
+  const [savingGroupPhoto, setSavingGroupPhoto] = useState(false)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [chatError, setChatError] = useState('')
@@ -137,6 +140,42 @@ export function ChatHome({
       throw cause
     } finally {
       setRenameBusy(false)
+    }
+  }
+
+  async function uploadGroupPhoto(file: File) {
+    if (!activeGroup || !token) return
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Group photo cannot exceed 10MB.')
+      return
+    }
+    setSavingGroupPhoto(true)
+    setError('')
+    try {
+      const updated = await api.uploadGroupAvatar(token, activeGroup.id, file)
+      setActiveGroup(updated)
+      setGroups(current => current.map(item => item.id === updated.id ? updated : item))
+      setNotice('Group photo updated successfully!')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not upload group photo')
+    } finally {
+      setSavingGroupPhoto(false)
+    }
+  }
+
+  async function removeGroupPhoto() {
+    if (!activeGroup || !token) return
+    setSavingGroupPhoto(true)
+    setError('')
+    try {
+      const updated = await api.removeGroupAvatar(token, activeGroup.id)
+      setActiveGroup(updated)
+      setGroups(current => current.map(item => item.id === updated.id ? updated : item))
+      setNotice('Group photo removed.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not remove group photo')
+    } finally {
+      setSavingGroupPhoto(false)
     }
   }
 
@@ -313,7 +352,38 @@ export function ChatHome({
         {notice && <div className="toast toast-success" role="status"><span>✓</span>{notice}<button onClick={() => setNotice('')} aria-label="Dismiss">×</button></div>}
         {activeGroup ? <>
           <header className="chat-header">
-            <div className="group-avatar tone-1 header-group-avatar">{activeGroup.name.slice(0, 1).toUpperCase()}</div>
+            <div className="group-avatar-wrapper">
+              <div className="group-avatar tone-1 header-group-avatar">
+                <GroupAvatar avatarUrl={activeGroup.avatar_url} name={activeGroup.name} />
+              </div>
+              {isAdmin && (
+                <>
+                  <input
+                    ref={groupFileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        e.target.value = ''
+                        void uploadGroupPhoto(file)
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="group-avatar-change-btn"
+                    onClick={() => groupFileInputRef.current?.click()}
+                    title="Change group photo from your PC"
+                    aria-label="Change group photo from your PC"
+                    disabled={savingGroupPhoto}
+                  >
+                    {savingGroupPhoto ? '…' : '📷'}
+                  </button>
+                </>
+              )}
+            </div>
             <div className="chat-heading">
               {isEditingName ? (
                 <form className="inline-rename-form" onSubmit={e => { e.preventDefault(); void updateGroupSettings(editName) }}>
@@ -366,6 +436,9 @@ export function ChatHome({
                 onLeave={leaveGroup}
                 onUpdateGroup={updateGroupSettings}
                 onUpdateNickname={updateMemberNickname}
+                onUploadPhoto={uploadGroupPhoto}
+                onRemovePhoto={removeGroupPhoto}
+                photoBusy={savingGroupPhoto}
               />
             ) : (
               <>
@@ -546,6 +619,9 @@ function MemberPanel({
   onLeave,
   onUpdateGroup,
   onUpdateNickname,
+  onUploadPhoto,
+  onRemovePhoto,
+  photoBusy,
 }: {
   group: Group
   members: Member[]
@@ -555,6 +631,9 @@ function MemberPanel({
   onLeave: () => void
   onUpdateGroup: (name: string, policy?: Group['join_policy']) => Promise<void>
   onUpdateNickname: (member: Member, nickname: string | null) => Promise<void>
+  onUploadPhoto?: (file: File) => Promise<void>
+  onRemovePhoto?: () => Promise<void>
+  photoBusy?: boolean
 }) {
   const activeMembers = members.filter(member => member.status === 'active')
   const pending = members.filter(member => member.status === 'pending')
@@ -567,6 +646,7 @@ function MemberPanel({
   const [editingNickUserId, setEditingNickUserId] = useState<number | null>(null)
   const [nicknameInput, setNicknameInput] = useState('')
   const [nickBusy, setNickBusy] = useState(false)
+  const panelFileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     setPanelName(group.name)
@@ -616,6 +696,50 @@ function MemberPanel({
       {isAdmin && (
         <section className="group-settings-section">
           <div className="member-section-label">GROUP SETTINGS (ADMIN)</div>
+          <div className="settings-field">
+            <label>Group photo</label>
+            <div className="group-photo-card">
+              <div className="group-photo-preview">
+                <GroupAvatar avatarUrl={group.avatar_url} name={group.name} size={58} />
+              </div>
+              <div className="group-photo-actions">
+                <input
+                  ref={panelFileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  style={{ display: 'none' }}
+                  onChange={e => {
+                    const file = e.target.files?.[0]
+                    if (file && onUploadPhoto) {
+                      e.target.value = ''
+                      void onUploadPhoto(file)
+                    }
+                  }}
+                />
+                <div className="group-photo-btn-row">
+                  <button
+                    type="button"
+                    className="button button-primary button-sm"
+                    onClick={() => panelFileInputRef.current?.click()}
+                    disabled={photoBusy}
+                  >
+                    📷 {photoBusy ? 'Uploading…' : 'Choose photo from PC'}
+                  </button>
+                  {group.avatar_url && onRemovePhoto && (
+                    <button
+                      type="button"
+                      className="outline-button button-sm"
+                      onClick={() => void onRemovePhoto()}
+                      disabled={photoBusy}
+                    >
+                      Remove photo
+                    </button>
+                  )}
+                </div>
+                <span className="group-photo-hint">Admins can upload any JPG, PNG, WebP or GIF from their PC (up to 10MB).</span>
+              </div>
+            </div>
+          </div>
           <form className="rename-group-form" onSubmit={handleSaveSettings}>
             <div className="settings-field">
               <label htmlFor="member-panel-group-name">Group name</label>
@@ -769,6 +893,6 @@ function MemberPanel({
 function WelcomePanel({ groups, unreadGroups, loadingGroups, onSelectGroup }: { groups: Group[]; unreadGroups: Record<number, number>; loadingGroups: boolean; onSelectGroup: (group: Group) => void }) {
   return <div className="dashboard"><div className="dashboard-heading"><div><p className="eyebrow">A PLACE FOR YOUR PEOPLE</p><h1>Your groups</h1><p>Pick up a conversation or bring your people together.</p></div></div>
     <div className="dashboard-section-title"><h2>My groups</h2><span>{groups.length}</span></div>
-    {loadingGroups ? <div className="dashboard-empty"><span className="spinner" />Loading groups…</div> : groups.length ? <div className="dashboard-group-grid">{groups.map((group, index) => <button key={group.id} className={`dashboard-group-card tone-card-${index % 5} ${unreadGroups[group.id] ? 'group-unread' : ''}`} onClick={() => onSelectGroup(group)}><span className={`group-avatar tone-${index % 5}`}>{group.name.slice(0, 1).toUpperCase()}</span><span className="dashboard-group-info"><strong>{group.name}</strong><small>Invite code · <b>{group.invite_code}</b></small><small>{group.join_policy === 'open' ? 'Open group' : 'Admin approval'}</small></span>{unreadGroups[group.id] ? <span className="group-unread-count">{unreadGroups[group.id] > 99 ? '99+' : unreadGroups[group.id]}</span> : <span className="dashboard-card-arrow">↗</span>}</button>)}</div> : <div className="dashboard-empty"><span className="empty-mark">✳</span><strong>No groups yet</strong><p>Create your first group or join one with an invite code.</p></div>}
+    {loadingGroups ? <div className="dashboard-empty"><span className="spinner" />Loading groups…</div> : groups.length ? <div className="dashboard-group-grid">{groups.map((group, index) => <button key={group.id} className={`dashboard-group-card tone-card-${index % 5} ${unreadGroups[group.id] ? 'group-unread' : ''}`} onClick={() => onSelectGroup(group)}><span className={`group-avatar tone-${index % 5}`}><GroupAvatar avatarUrl={group.avatar_url} name={group.name} /></span><span className="dashboard-group-info"><strong>{group.name}</strong><small>Invite code · <b>{group.invite_code}</b></small><small>{group.join_policy === 'open' ? 'Open group' : 'Admin approval'}</small></span>{unreadGroups[group.id] ? <span className="group-unread-count">{unreadGroups[group.id] > 99 ? '99+' : unreadGroups[group.id]}</span> : <span className="dashboard-card-arrow">↗</span>}</button>)}</div> : <div className="dashboard-empty"><span className="empty-mark">✳</span><strong>No groups yet</strong><p>Create your first group or join one with an invite code.</p></div>}
   </div>
 }
