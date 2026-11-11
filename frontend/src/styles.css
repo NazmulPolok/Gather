@@ -309,4 +309,34 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 :root[data-theme="dark"] .group-photo-preview{background:#233125;border-color:#384d3b}
 :root[data-theme="dark"] .group-avatar-change-btn{border-color:#19221b;background:#478c5c}
 
+/* Photo Save / Pending Action Styles */
+.save-photo-btn{background:#2b7a4b!important;border-color:#24673f!important;color:#fff!important;font-weight:700;box-shadow:0 2px 6px rgba(43,122,75,0.35);transition:transform .15s,background .15s}
+.save-photo-btn:hover{background:#23633d!important;transform:translateY(-1px)}
+.pending-photo-alert{margin-top:8px;padding:8px 11px;background:#eef6f0;border:1px solid #cce3d2;border-radius:8px;font-size:11px;color:#275d38}
+.pending-photo-hint{font-size:11px;color:#2b7a4b;font-weight:500}
+.pending-photo-hint strong{color:#1a4d2b}
+
+/* Modal Dialog for Group Photo Confirmation */
+.modal-backdrop{position:fixed;inset:0;background:rgba(18,28,20,0.55);backdrop-filter:blur(3px);z-index:1000;display:grid;place-items:center;padding:16px}
+.photo-confirm-dialog{background:#fff;border-radius:16px;padding:22px;max-width:360px;width:100%;box-shadow:0 16px 40px rgba(0,0,0,0.22);display:flex;flex-direction:column;gap:12px}
+.photo-confirm-header{display:flex;justify-content:space-between;align-items:center}
+.photo-confirm-header h3{margin:0;font-size:16px;font-weight:700;color:#243527}
+.photo-confirm-close{background:transparent;border:0;font-size:20px;color:#7b8c7e;cursor:pointer;padding:0 4px;line-height:1}
+.photo-confirm-close:hover{color:#243527}
+.photo-confirm-copy{margin:0;font-size:12px;color:#637566}
+.photo-confirm-preview-wrap{width:100%;height:180px;border-radius:12px;overflow:hidden;background:#eef4f0;display:grid;place-items:center;border:1px solid #dce8df}
+.photo-confirm-preview-img{width:100%;height:100%;object-fit:cover}
+.photo-confirm-file-info{font-size:11px;color:#798d7c;word-break:break-all}
+.photo-confirm-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:6px}
+
+:root[data-theme="dark"] .pending-photo-alert{background:#1c2b20;border-color:#2b4a33;color:#8edaa2}
+:root[data-theme="dark"] .pending-photo-hint{color:#7ece94}
+:root[data-theme="dark"] .pending-photo-hint strong{color:#a7f0ba}
+:root[data-theme="dark"] .photo-confirm-dialog{background:#1b261d;color:#e5eee7;border:1px solid #334636}
+:root[data-theme="dark"] .photo-confirm-header h3{color:#e5eee7}
+:root[data-theme="dark"] .photo-confirm-copy{color:#9ab09d}
+:root[data-theme="dark"] .photo-confirm-preview-wrap{background:#141d16;border-color:#2e4132}
+:root[data-theme="dark"] .photo-confirm-file-info{color:#8ea391}
+
+
 

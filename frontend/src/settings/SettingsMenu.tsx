@@ -23,6 +23,9 @@ export function SettingsMenu({
   const [nickname, setNickname] = useState(user?.nickname || '')
   const [savingNick, setSavingNick] = useState(false)
   const [savingAvatar, setSavingAvatar] = useState(false)
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null)
+  const [pendingAvatarPreview, setPendingAvatarPreview] = useState<string | null>(null)
+  const [pendingPresetId, setPendingPresetId] = useState<string | null>(null)
   const [profileNotice, setProfileNotice] = useState('')
   const [profileError, setProfileError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -38,11 +41,14 @@ export function SettingsMenu({
       setPage('main')
       setProfileNotice('')
       setProfileError('')
+      setPendingAvatarFile(null)
+      setPendingAvatarPreview(null)
+      setPendingPresetId(null)
     }
     setOpen(value => !value)
   }
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !token) return
     e.target.value = ''
@@ -50,34 +56,53 @@ export function SettingsMenu({
       setProfileError('Image cannot exceed 10MB.')
       return
     }
+    setProfileError('')
+    setProfileNotice('')
+    setPendingAvatarFile(file)
+    setPendingPresetId(null)
+    setPendingAvatarPreview(URL.createObjectURL(file))
+  }
+
+  function handleSelectPresetAvatar(presetId: string) {
+    if (!token) return
+    setProfileError('')
+    setProfileNotice('')
+    setPendingAvatarFile(null)
+    setPendingAvatarPreview(null)
+    setPendingPresetId(presetId)
+  }
+
+  async function handleSaveAvatar() {
+    if (!token) return
+    if (!pendingAvatarFile && !pendingPresetId) return
+
     setSavingAvatar(true)
     setProfileError('')
     setProfileNotice('')
     try {
-      const updated = await api.updateAvatar(token, file)
+      let updated: AuthUser
+      if (pendingAvatarFile) {
+        updated = await api.updateAvatar(token, pendingAvatarFile)
+      } else {
+        updated = await api.updateProfile(token, { avatar_url: pendingPresetId })
+      }
       onUserUpdated?.(updated)
-      setProfileNotice('Profile picture uploaded successfully!')
+      setPendingAvatarFile(null)
+      setPendingAvatarPreview(null)
+      setPendingPresetId(null)
+      setProfileNotice('Profile picture saved successfully!')
     } catch (err) {
-      setProfileError(err instanceof Error ? err.message : 'Could not upload photo')
+      setProfileError(err instanceof Error ? err.message : 'Could not save photo')
     } finally {
       setSavingAvatar(false)
     }
   }
 
-  async function handleSelectPresetAvatar(presetId: string) {
-    if (!token) return
-    setSavingAvatar(true)
+  function handleCancelPendingAvatar() {
+    setPendingAvatarFile(null)
+    setPendingAvatarPreview(null)
+    setPendingPresetId(null)
     setProfileError('')
-    setProfileNotice('')
-    try {
-      const updated = await api.updateProfile(token, { avatar_url: presetId })
-      onUserUpdated?.(updated)
-      setProfileNotice('Avatar selected successfully!')
-    } catch (err) {
-      setProfileError(err instanceof Error ? err.message : 'Could not set avatar')
-    } finally {
-      setSavingAvatar(false)
-    }
   }
 
   async function handleRemoveAvatar() {
@@ -85,6 +110,9 @@ export function SettingsMenu({
     setSavingAvatar(true)
     setProfileError('')
     setProfileNotice('')
+    setPendingAvatarFile(null)
+    setPendingAvatarPreview(null)
+    setPendingPresetId(null)
     try {
       const updated = await api.updateProfile(token, { avatar_url: null })
       onUserUpdated?.(updated)
@@ -217,68 +245,108 @@ export function SettingsMenu({
                     </div>
 
                     {/* 2. Profile Picture or Avatar */}
-                    <div className="settings-field-group">
-                      <span className="settings-section-title">PROFILE PICTURE OR AVATAR</span>
-                      <div className="settings-avatar-row">
-                        <div className="settings-avatar-display">
-                          <UserAvatar
-                            avatarUrl={user?.avatar_url}
-                            fallback={user?.nickname || user?.first_name || user?.username || 'U'}
-                            size={56}
-                          />
-                        </div>
-                        <div className="settings-avatar-buttons">
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp,image/gif"
-                            style={{ display: 'none' }}
-                            onChange={handleFileChange}
-                          />
-                          <button
-                            type="button"
-                            className="button button-primary button-sm"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={savingAvatar}
-                          >
-                            📷 {savingAvatar ? 'Uploading…' : 'Upload Custom Photo'}
-                          </button>
-                          {user?.avatar_url && (
-                            <button
-                              type="button"
-                              className="outline-button button-sm"
-                              onClick={handleRemoveAvatar}
-                              disabled={savingAvatar}
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                    {(() => {
+                      const hasPending = Boolean(pendingAvatarFile || pendingPresetId)
+                      const displayAvatarUrl = pendingAvatarPreview || pendingPresetId || user?.avatar_url
+                      return (
+                        <div className="settings-field-group">
+                          <span className="settings-section-title">PROFILE PICTURE OR AVATAR</span>
+                          <div className="settings-avatar-row">
+                            <div className="settings-avatar-display">
+                              <UserAvatar
+                                avatarUrl={displayAvatarUrl}
+                                fallback={user?.nickname || user?.first_name || user?.username || 'U'}
+                                size={56}
+                              />
+                            </div>
+                            <div className="settings-avatar-buttons">
+                              <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,image/gif"
+                                style={{ display: 'none' }}
+                                onChange={handleFileChange}
+                              />
+                              {hasPending ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="button button-primary button-sm save-photo-btn"
+                                    onClick={() => void handleSaveAvatar()}
+                                    disabled={savingAvatar}
+                                  >
+                                    💾 {savingAvatar ? 'Saving…' : 'Save'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="outline-button button-sm"
+                                    onClick={handleCancelPendingAvatar}
+                                    disabled={savingAvatar}
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="button button-primary button-sm"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={savingAvatar}
+                                  >
+                                    📷 Choose Photo from PC
+                                  </button>
+                                  {user?.avatar_url && (
+                                    <button
+                                      type="button"
+                                      className="outline-button button-sm"
+                                      onClick={handleRemoveAvatar}
+                                      disabled={savingAvatar}
+                                    >
+                                      Remove
+                                    </button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </div>
 
-                      {/* 2b. Preset Avatars Grid */}
-                      <div className="preset-avatar-subheading">Choose a fun avatar character:</div>
-                      <div className="preset-avatar-grid">
-                        {PRESET_AVATARS.map(preset => {
-                          const isSelected = user?.avatar_url === preset.id
-                          return (
-                            <button
-                              key={preset.id}
-                              type="button"
-                              className={`preset-avatar-option ${isSelected ? 'preset-avatar-selected' : ''}`}
-                              style={{ backgroundColor: preset.bg, color: preset.color }}
-                              onClick={() => void handleSelectPresetAvatar(preset.id)}
-                              title={`Set as ${preset.label}`}
-                              disabled={savingAvatar}
-                            >
-                              <span className="preset-avatar-emoji">{preset.emoji}</span>
-                              <span className="preset-avatar-name">{preset.label}</span>
-                              {isSelected && <span className="preset-avatar-check">✓</span>}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
+                          {pendingAvatarFile && (
+                            <div className="pending-photo-alert">
+                              <span>Photo selected: <strong>{pendingAvatarFile.name}</strong>. Click <b>Save</b> to apply.</span>
+                            </div>
+                          )}
+                          {pendingPresetId && (
+                            <div className="pending-photo-alert">
+                              <span>Avatar selected. Click <b>Save</b> to apply.</span>
+                            </div>
+                          )}
+
+                          {/* 2b. Preset Avatars Grid */}
+                          <div className="preset-avatar-subheading">Choose a fun avatar character:</div>
+                          <div className="preset-avatar-grid">
+                            {PRESET_AVATARS.map(preset => {
+                              const isSelected = pendingPresetId ? pendingPresetId === preset.id : (!pendingAvatarFile && user?.avatar_url === preset.id)
+                              return (
+                                <button
+                                  key={preset.id}
+                                  type="button"
+                                  className={`preset-avatar-option ${isSelected ? 'preset-avatar-selected' : ''}`}
+                                  style={{ backgroundColor: preset.bg, color: preset.color }}
+                                  onClick={() => handleSelectPresetAvatar(preset.id)}
+                                  title={`Select ${preset.label} (Click Save to apply)`}
+                                  disabled={savingAvatar}
+                                >
+                                  <span className="preset-avatar-emoji">{preset.emoji}</span>
+                                  <span className="preset-avatar-name">{preset.label}</span>
+                                  {isSelected && <span className="preset-avatar-check">✓</span>}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })()}
 
                     {/* 3. Nickname */}
                     <form className="settings-field-group" onSubmit={handleSaveNickname}>

@@ -43,6 +43,8 @@ export function ChatHome({
   const [renameBusy, setRenameBusy] = useState(false)
   const groupFileInputRef = useRef<HTMLInputElement | null>(null)
   const [savingGroupPhoto, setSavingGroupPhoto] = useState(false)
+  const [pendingHeaderPhoto, setPendingHeaderPhoto] = useState<File | null>(null)
+  const [pendingHeaderPreview, setPendingHeaderPreview] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [chatError, setChatError] = useState('')
@@ -161,6 +163,18 @@ export function ChatHome({
     } finally {
       setSavingGroupPhoto(false)
     }
+  }
+
+  async function handleSaveHeaderPhoto() {
+    if (!pendingHeaderPhoto) return
+    await uploadGroupPhoto(pendingHeaderPhoto)
+    setPendingHeaderPhoto(null)
+    setPendingHeaderPreview(null)
+  }
+
+  function handleCancelHeaderPhoto() {
+    setPendingHeaderPhoto(null)
+    setPendingHeaderPreview(null)
   }
 
   async function removeGroupPhoto() {
@@ -367,7 +381,12 @@ export function ChatHome({
                       const file = e.target.files?.[0]
                       if (file) {
                         e.target.value = ''
-                        void uploadGroupPhoto(file)
+                        if (file.size > 10 * 1024 * 1024) {
+                          setError('Group photo cannot exceed 10MB.')
+                          return
+                        }
+                        setPendingHeaderPhoto(file)
+                        setPendingHeaderPreview(URL.createObjectURL(file))
                       }
                     }}
                   />
@@ -384,6 +403,50 @@ export function ChatHome({
                 </>
               )}
             </div>
+            {pendingHeaderPhoto && (
+              <div className="modal-backdrop" onClick={handleCancelHeaderPhoto}>
+                <div className="photo-confirm-dialog" onClick={e => e.stopPropagation()}>
+                  <div className="photo-confirm-header">
+                    <h3>Change Group Photo</h3>
+                    <button
+                      type="button"
+                      className="photo-confirm-close"
+                      onClick={handleCancelHeaderPhoto}
+                      aria-label="Close"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <p className="photo-confirm-copy">
+                    Preview of selected photo for <strong>{activeGroup.name}</strong>:
+                  </p>
+                  <div className="photo-confirm-preview-wrap">
+                    <img src={pendingHeaderPreview!} alt="Selected Preview" className="photo-confirm-preview-img" />
+                  </div>
+                  <div className="photo-confirm-file-info">
+                    <span>File: <strong>{pendingHeaderPhoto.name}</strong> ({Math.round(pendingHeaderPhoto.size / 1024)} KB)</span>
+                  </div>
+                  <div className="photo-confirm-actions">
+                    <button
+                      type="button"
+                      className="button button-primary save-photo-btn"
+                      onClick={() => void handleSaveHeaderPhoto()}
+                      disabled={savingGroupPhoto}
+                    >
+                      💾 {savingGroupPhoto ? 'Saving…' : 'Save'}
+                    </button>
+                    <button
+                      type="button"
+                      className="outline-button"
+                      onClick={handleCancelHeaderPhoto}
+                      disabled={savingGroupPhoto}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="chat-heading">
               {isEditingName ? (
                 <form className="inline-rename-form" onSubmit={e => { e.preventDefault(); void updateGroupSettings(editName) }}>
@@ -646,7 +709,37 @@ function MemberPanel({
   const [editingNickUserId, setEditingNickUserId] = useState<number | null>(null)
   const [nicknameInput, setNicknameInput] = useState('')
   const [nickBusy, setNickBusy] = useState(false)
+  const [pendingPanelFile, setPendingPanelFile] = useState<File | null>(null)
+  const [pendingPanelPreview, setPendingPanelPreview] = useState<string | null>(null)
   const panelFileInputRef = useRef<HTMLInputElement | null>(null)
+
+  function handlePanelFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Group photo cannot exceed 10MB.')
+      return
+    }
+    setPendingPanelFile(file)
+    setPendingPanelPreview(URL.createObjectURL(file))
+  }
+
+  async function handleSavePanelPhoto() {
+    if (!pendingPanelFile || !onUploadPhoto) return
+    try {
+      await onUploadPhoto(pendingPanelFile)
+      setPendingPanelFile(null)
+      setPendingPanelPreview(null)
+    } catch {
+      // error handled upstream
+    }
+  }
+
+  function handleCancelPanelPhoto() {
+    setPendingPanelFile(null)
+    setPendingPanelPreview(null)
+  }
 
   useEffect(() => {
     setPanelName(group.name)
@@ -700,7 +793,7 @@ function MemberPanel({
             <label>Group photo</label>
             <div className="group-photo-card">
               <div className="group-photo-preview">
-                <GroupAvatar avatarUrl={group.avatar_url} name={group.name} size={58} />
+                <GroupAvatar avatarUrl={pendingPanelPreview || group.avatar_url} name={group.name} size={58} />
               </div>
               <div className="group-photo-actions">
                 <input
@@ -708,35 +801,57 @@ function MemberPanel({
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/gif"
                   style={{ display: 'none' }}
-                  onChange={e => {
-                    const file = e.target.files?.[0]
-                    if (file && onUploadPhoto) {
-                      e.target.value = ''
-                      void onUploadPhoto(file)
-                    }
-                  }}
+                  onChange={handlePanelFileChange}
                 />
-                <div className="group-photo-btn-row">
-                  <button
-                    type="button"
-                    className="button button-primary button-sm"
-                    onClick={() => panelFileInputRef.current?.click()}
-                    disabled={photoBusy}
-                  >
-                    📷 {photoBusy ? 'Uploading…' : 'Choose photo from PC'}
-                  </button>
-                  {group.avatar_url && onRemovePhoto && (
-                    <button
-                      type="button"
-                      className="outline-button button-sm"
-                      onClick={() => void onRemovePhoto()}
-                      disabled={photoBusy}
-                    >
-                      Remove photo
-                    </button>
-                  )}
-                </div>
-                <span className="group-photo-hint">Admins can upload any JPG, PNG, WebP or GIF from their PC (up to 10MB).</span>
+                {pendingPanelFile ? (
+                  <>
+                    <div className="group-photo-btn-row">
+                      <button
+                        type="button"
+                        className="button button-primary button-sm save-photo-btn"
+                        onClick={() => void handleSavePanelPhoto()}
+                        disabled={photoBusy}
+                      >
+                        💾 {photoBusy ? 'Saving…' : 'Save'}
+                      </button>
+                      <button
+                        type="button"
+                        className="outline-button button-sm"
+                        onClick={handleCancelPanelPhoto}
+                        disabled={photoBusy}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <span className="pending-photo-hint">
+                      Photo selected: <strong>{pendingPanelFile.name}</strong>. Click <b>Save</b> to apply.
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <div className="group-photo-btn-row">
+                      <button
+                        type="button"
+                        className="button button-primary button-sm"
+                        onClick={() => panelFileInputRef.current?.click()}
+                        disabled={photoBusy}
+                      >
+                        📷 Choose photo from PC
+                      </button>
+                      {group.avatar_url && onRemovePhoto && (
+                        <button
+                          type="button"
+                          className="outline-button button-sm"
+                          onClick={() => void onRemovePhoto()}
+                          disabled={photoBusy}
+                        >
+                          Remove photo
+                        </button>
+                      )}
+                    </div>
+                    <span className="group-photo-hint">Admins can upload any JPG, PNG, WebP or GIF from their PC (up to 10MB).</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
