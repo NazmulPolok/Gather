@@ -1,7 +1,32 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { api, formatLastSeen, getMediaUrl, getWebSocketUrl, type AuthUser, type Group, type Member, type Message, type NotificationItem } from '../api/client'
 import { GroupAvatar } from '../components/GroupAvatar'
 import { UserAvatar } from '../components/UserAvatar'
+
+function formatChatDateDivider(dateStr: string): string {
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return ''
+  const now = new Date()
+
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const msgStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const diffDays = Math.round((todayStart - msgStart) / (1000 * 60 * 60 * 24))
+
+  if (diffDays <= 0) return 'Today'
+  if (diffDays === 1) return 'Yesterday'
+
+  if (d.getFullYear() === now.getFullYear()) {
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  }
+
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function getMessageDateKey(dateStr: string): string {
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return ''
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+}
 
 export function ChatHome({
   token,
@@ -849,7 +874,6 @@ export function ChatHome({
                   <div className="intro-mark">✳</div>
                   <h2>You’re in {activeGroup.name}</h2>
                   <p>Start the conversation. Everything shared here stays with the group.</p>
-                  <span className="date-divider">TODAY</span>
                 </div>
                 {loadingMessages && messages.length === 0 ? (
                   <div className="chat-loading">
@@ -858,15 +882,28 @@ export function ChatHome({
                   </div>
                 ) : (
                   <div className="message-list">
-                    {messages.map(message => (
-                      <MessageBubble
-                        key={message.id}
-                        message={message}
-                        own={message.sender_id === user.id}
-                        canDelete={message.sender_id === user.id || isAdmin}
-                        onDelete={setMessageToDelete}
-                      />
-                    ))}
+                    {messages.map((message, index) => {
+                      const prevMessage = index > 0 ? messages[index - 1] : null
+                      const showDateDivider =
+                        !prevMessage ||
+                        getMessageDateKey(message.created_at) !== getMessageDateKey(prevMessage.created_at)
+
+                      return (
+                        <Fragment key={message.id}>
+                          {showDateDivider && (
+                            <div className="date-divider" role="separator" aria-label={formatChatDateDivider(message.created_at)}>
+                              <span>{formatChatDateDivider(message.created_at)}</span>
+                            </div>
+                          )}
+                          <MessageBubble
+                            message={message}
+                            own={message.sender_id === user.id}
+                            canDelete={message.sender_id === user.id || isAdmin}
+                            onDelete={setMessageToDelete}
+                          />
+                        </Fragment>
+                      )
+                    })}
                     {Object.keys(typingUsers).length > 0 && (
                       <div className="typing-indicator-container">
                         {Object.entries(typingUsers).map(([idStr, tUser]) => (
