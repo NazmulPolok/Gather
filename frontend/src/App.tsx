@@ -3,6 +3,7 @@ import { ApiError, api, getMediaUrl } from './api/client'
 import type { AuthResponse, AuthUser, NotificationItem } from './api/client'
 import { AuthForm } from './auth/AuthForm'
 import { ChatHome } from './chat/ChatHome'
+import { NewsFeed } from './feed/NewsFeed'
 import { NotificationCenter } from './notifications/NotificationCenter'
 import { SettingsMenu } from './settings/SettingsMenu'
 import { UserAvatar } from './components/UserAvatar'
@@ -21,6 +22,7 @@ export default function App() {
   const [notificationTarget, setNotificationTarget] = useState<NotificationItem | null>(null)
   const [unreadGroups, setUnreadGroups] = useState<Record<number, number>>({})
   const [theme, setTheme] = useState<Theme>(() => localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light')
+  const [currentView, setCurrentView] = useState<'chat' | 'feed'>('chat')
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -78,7 +80,27 @@ export default function App() {
   return (
     <div className="app-frame">
       <header className="site-header">
-        <a className="wordmark" href="/" aria-label="Gather home"><span className="brand-mark">g</span>gather</a>
+        <div className="header-left">
+          <a className="wordmark" href="/" aria-label="Gather home"><span className="brand-mark">g</span>gather</a>
+          {token && user && (
+            <nav className="header-tabs-nav">
+              <button
+                type="button"
+                className={`header-tab-pill ${currentView === 'chat' ? 'active' : ''}`}
+                onClick={() => setCurrentView('chat')}
+              >
+                <span>💬</span> Chat
+              </button>
+              <button
+                type="button"
+                className={`header-tab-pill ${currentView === 'feed' ? 'active' : ''}`}
+                onClick={() => setCurrentView('feed')}
+              >
+                <span>📰</span> News Feed
+              </button>
+            </nav>
+          )}
+        </div>
         <div className="header-right">
           <span className={`connection ${apiReady === false ? 'offline' : ''}`}><span className="connection-dot" />{apiReady === null ? 'Connecting' : apiReady ? 'All systems ready' : 'Server unavailable'}</span>
           {token && user && <NotificationCenter token={token} onSelect={handleNotificationSelect} onUnreadGroups={handleUnreadGroups} />}
@@ -86,7 +108,19 @@ export default function App() {
           {user && <div className="account-chip"><span className="avatar avatar-small"><UserAvatar avatarUrl={user.avatar_url} fallback={user.nickname || user.first_name || user.username} /></span><span>{(user.nickname ? `${user.nickname} (${user.first_name})` : [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)} <small>@{user.username}</small></span><button className="header-logout" onClick={signOut}>Log out</button></div>}
         </div>
       </header>
-      {checkingSession ? <div className="loading-screen"><span className="spinner" />Restoring your session…</div> : token && sessionError ? <div className="loading-screen"><div className="session-recovery"><strong>Can’t reach your account right now</strong><p>{sessionError}</p><button className="button button-primary" onClick={() => setSessionAttempt(value => value + 1)}>Try again</button><button className="recovery-signout" onClick={signOut}>Sign out</button></div></div> : token && user ? <ChatHome token={token} user={user} onUserUpdated={setUser} notificationTarget={notificationTarget} onNotificationHandled={handleNotificationHandled} unreadGroups={unreadGroups} onUnreadGroups={handleUnreadGroups} /> : <AuthForm onSignedIn={signedIn} />}
+      {checkingSession ? (
+        <div className="loading-screen"><span className="spinner" />Restoring your session…</div>
+      ) : token && sessionError ? (
+        <div className="loading-screen"><div className="session-recovery"><strong>Can’t reach your account right now</strong><p>{sessionError}</p><button className="button button-primary" onClick={() => setSessionAttempt(value => value + 1)}>Try again</button><button className="recovery-signout" onClick={signOut}>Sign out</button></div></div>
+      ) : token && user ? (
+        currentView === 'feed' ? (
+          <NewsFeed token={token} user={user} />
+        ) : (
+          <ChatHome token={token} user={user} onUserUpdated={setUser} notificationTarget={notificationTarget} onNotificationHandled={handleNotificationHandled} unreadGroups={unreadGroups} onUnreadGroups={handleUnreadGroups} />
+        )
+      ) : (
+        <AuthForm onSignedIn={signedIn} />
+      )}
       <footer className="site-footer"><span>Gather · good conversations, together.</span><span>Made for your group</span></footer>
     </div>
   )

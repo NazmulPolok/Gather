@@ -21,6 +21,10 @@ class NicknameUpdate(BaseModel):
     nickname: str | None = Field(default=None, max_length=64)
 
 
+class RoleUpdate(BaseModel):
+    role: str
+
+
 @router.post("/join/{invite_code}")
 def join_group(invite_code: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> dict[str, str]:
     if len(invite_code) != 8 or not invite_code.isalnum():
@@ -79,7 +83,7 @@ def list_members(
 ) -> list[dict[str, object]]:
     requester = active_membership(db, group_id, user.id)
     query = select(Membership, User).join(User).where(Membership.group_id == group_id)
-    if requester.role != "admin":
+    if requester.role not in ("admin", "moderator"):
         query = query.where(Membership.status == "active")
     query = query.order_by(Membership.status, User.email)
     rows = db.execute(query).all()
@@ -126,6 +130,40 @@ def update_member_nickname(
     return {"status": "ok", "user_id": target_user_id, "nickname": clean_nick}
 
 
+@router.patch("/{group_id}/members/{target_user_id}/role")
+def update_member_role(
+    group_id: int,
+    target_user_id: int,
+    payload: RoleUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, object]:
+    admin_membership(db, group_id, user.id)
+    if payload.role not in ("admin", "moderator", "contributor", "member"):
+        raise HTTPException(status_code=400, detail="Invalid role. Must be admin, moderator, contributor, or member.")
+
+    group = db.get(Group, group_id)
+    if group is None:
+        raise HTTPException(status_code=404, detail="Group not found")
+
+    if target_user_id == group.owner_id and payload.role != "admin":
+        raise HTTPException(status_code=400, detail="The group owner's role cannot be changed from admin.")
+
+    target = db.scalar(
+        select(Membership).where(
+            Membership.group_id == group_id,
+            Membership.user_id == target_user_id,
+            Membership.status == "active",
+        )
+    )
+    if target is None:
+        raise HTTPException(status_code=404, detail="Active member not found")
+
+    target.role = payload.role
+    db.commit()
+    return {"status": "ok", "user_id": target_user_id, "role": target.role}
+
+
 @router.post("/{group_id}/members/{user_id}/approve")
 def approve_member(
     group_id: int,
@@ -133,7 +171,9 @@ def approve_member(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict[str, str]:
-    admin_membership(db, group_id, user.id)
+    requester = active_membership(db, group_id, user.id)
+    if requester.role not in ("admin", "moderator"):
+        raise HTTPException(status_code=403, detail="Admin or moderator privileges required")
     pending = db.scalar(
         select(Membership).where(
             Membership.group_id == group_id,

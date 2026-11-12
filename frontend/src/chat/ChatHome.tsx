@@ -625,6 +625,19 @@ export function ChatHome({
     } catch (cause) { setChatError(cause instanceof Error ? cause.message : 'Could not remove member') }
   }
 
+  async function updateMemberRole(member: Member, role: Member['role']) {
+    if (!activeGroup) return
+    try {
+      await api.updateMemberRole(token, activeGroup.id, member.user_id, role)
+      setMembers(current => current.map(item => item.user_id === member.user_id ? { ...item, role } : item))
+      const targetName = [member.first_name, member.last_name].filter(Boolean).join(' ') || member.username
+      setNotice(`${targetName} role updated to ${role.toUpperCase()}.`)
+      setChatError('')
+    } catch (cause) {
+      setChatError(cause instanceof Error ? cause.message : 'Could not update role')
+    }
+  }
+
   async function updateMemberNickname(member: Member, nickname: string | null) {
     if (!activeGroup) return
     try {
@@ -887,6 +900,7 @@ export function ChatHome({
                 onLeave={leaveGroup}
                 onUpdateGroup={updateGroupSettings}
                 onUpdateNickname={updateMemberNickname}
+                onUpdateRole={updateMemberRole}
                 onUploadPhoto={uploadGroupPhoto}
                 onRemovePhoto={removeGroupPhoto}
                 photoBusy={savingGroupPhoto}
@@ -1340,6 +1354,7 @@ function MemberPanel({
   onLeave,
   onUpdateGroup,
   onUpdateNickname,
+  onUpdateRole,
   onUploadPhoto,
   onRemovePhoto,
   photoBusy,
@@ -1353,6 +1368,7 @@ function MemberPanel({
   onLeave: () => void
   onUpdateGroup: (name: string, policy?: Group['join_policy']) => Promise<void>
   onUpdateNickname: (member: Member, nickname: string | null) => Promise<void>
+  onUpdateRole?: (member: Member, role: Member['role']) => Promise<void>
   onUploadPhoto?: (file: File) => Promise<void>
   onRemovePhoto?: () => Promise<void>
   photoBusy?: boolean
@@ -1601,12 +1617,14 @@ function MemberPanel({
                     </span>
                   )}
                   {hasNickname && <span className="nickname-tag">Nickname</span>}
-                  {member.role === 'admin' && <span className="admin-pill">ADMIN</span>}
+                  {member.role === 'admin' && <span className="admin-pill" title="Group Admin">ADMIN</span>}
+                  {member.role === 'moderator' && <span className="mod-pill" title="Group Moderator">MODERATOR</span>}
+                  {member.role === 'contributor' && <span className="contrib-pill" title="Contributor">CONTRIBUTOR</span>}
                   {isSelf && <span className="you-pill">YOU</span>}
                 </div>
                 <small>
                   {hasNickname ? `${displayName(member)} (@${member.username})` : `@${member.username}`}
-                  {` · ${member.role === 'admin' ? 'Group admin' : 'Member'}`}
+                  {` · ${member.role === 'admin' ? 'Group admin' : member.role === 'moderator' ? 'Group moderator' : member.role === 'contributor' ? 'Contributor' : 'Member'}`}
                 </small>
 
                 {isEditingThis && (
@@ -1654,6 +1672,19 @@ function MemberPanel({
 
               {!isEditingThis && (
                 <div className="member-line-actions">
+                  {isAdmin && onUpdateRole && !isSelf && member.user_id !== group.owner_id && (
+                    <select
+                      className="member-role-select"
+                      value={member.role}
+                      onChange={e => onUpdateRole(member, e.target.value as Member['role'])}
+                      title="Assign group role"
+                    >
+                      <option value="admin">🛡️ Admin</option>
+                      <option value="moderator">⚔️ Moderator</option>
+                      <option value="contributor">⭐ Contributor</option>
+                      <option value="member">👤 Member</option>
+                    </select>
+                  )}
                   <button
                     type="button"
                     className="nickname-action-button"

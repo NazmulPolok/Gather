@@ -8,7 +8,7 @@ class Membership(Base):
     __tablename__ = "memberships"
     __table_args__ = (
         UniqueConstraint("group_id", "user_id", name="uq_membership_group_user"),
-        CheckConstraint("role IN ('admin', 'member')", name="ck_memberships_role"),
+        CheckConstraint("role IN ('admin', 'moderator', 'contributor', 'member')", name="ck_memberships_role"),
         CheckConstraint("status IN ('active', 'pending', 'rejected')", name="ck_memberships_status"),
     )
 
