@@ -199,14 +199,24 @@ export function ChatHome({
   }
 
   useEffect(() => {
-    if (!activeGroup || !unreadGroups[activeGroup.id]) return
+    if (!activeGroup) return
     const groupId = activeGroup.id
     void api.markGroupMessagesRead(token, groupId).then(() => {
-      const next = { ...unreadGroups }
-      delete next[groupId]
-      onUnreadGroups(next)
+      if (unreadGroups[groupId]) {
+        const next = { ...unreadGroups }
+        delete next[groupId]
+        onUnreadGroups(next)
+      }
     }).catch(() => undefined)
-  }, [activeGroup?.id, token, unreadGroups, onUnreadGroups])
+
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify({ type: 'mark_read' }))
+      } catch {
+        // ws send error ignored
+      }
+    }
+  }, [activeGroup?.id, messages.length, token, unreadGroups, onUnreadGroups])
 
   const sendTypingEvent = useCallback((isTyping: boolean) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
@@ -305,7 +315,10 @@ export function ChatHome({
           } else if (data.type === 'new_message') {
             const newMsg = data.message as Message
             setMessages(current => {
-              if (current.some(m => m.id === newMsg.id)) return current
+              const existingIdx = current.findIndex(m => m.id === newMsg.id)
+              if (existingIdx !== -1) {
+                return current.map(m => (m.id === newMsg.id ? newMsg : m))
+              }
               return [...current, newMsg]
             })
             setTypingUsers(current => {
@@ -314,6 +327,33 @@ export function ChatHome({
               delete next[newMsg.sender_id]
               return next
             })
+          } else if (data.type === 'messages_delivered') {
+            const { user_id: deliveredUserId } = data
+            if (deliveredUserId !== user.id) {
+              setMessages(current =>
+                current.map(m =>
+                  m.sender_id === user.id && (!m.status || m.status === 'sent')
+                    ? { ...m, status: 'delivered' }
+                    : m
+                )
+              )
+            }
+          } else if (data.type === 'messages_read') {
+            const { user_id: readerId, name, username, avatar_url, read_at } = data
+            if (readerId !== user.id) {
+              setMessages(current =>
+                current.map(m => {
+                  if (m.sender_id === user.id) {
+                    const existing = m.seen_by || []
+                    const updatedSeen = existing.some(s => s.user_id === readerId)
+                      ? existing
+                      : [...existing, { user_id: readerId, name, username, avatar_url, read_at }]
+                    return { ...m, status: 'seen', seen_by: updatedSeen }
+                  }
+                  return m
+                })
+              )
+            }
           }
         } catch (err) {
           console.error('WS message error:', err)
@@ -422,19 +462,39 @@ export function ChatHome({
     sendTypingEvent(false)
     setBusy(true)
     setChatError('')
+
+    const tempId = -Date.now()
+    const optimisticMsg: Message = {
+      id: tempId,
+      group_id: activeGroup.id,
+      sender_id: user.id,
+      sender_name: sendAsAnonymous ? 'Anonymous' : (activeNickname || user.nickname || [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username),
+      sender_username: sendAsAnonymous ? 'anonymous' : user.username,
+      sender_avatar_url: sendAsAnonymous ? null : user.avatar_url,
+      message_type: attachedImage ? 'image' : 'text',
+      body: body || null,
+      image_url: attachedPreview || null,
+      is_anonymous: sendAsAnonymous,
+      created_at: new Date().toISOString(),
+      status: 'sending',
+      seen_by: [],
+    }
+    setMessages(current => [...current, optimisticMsg])
+
     try {
       if (attachedImage) {
         const uploadRes = await api.uploadGroupImage(token, activeGroup.id, attachedImage)
         const sent = await api.sendImage(token, activeGroup.id, uploadRes.image_url, body || undefined, sendAsAnonymous)
-        setMessages(current => current.some(m => m.id === sent.id) ? current : [...current, sent])
+        setMessages(current => current.map(m => m.id === tempId ? sent : m))
         clearAttachedImage()
         setMessageText('')
       } else {
         const sent = await api.sendText(token, activeGroup.id, body, sendAsAnonymous)
-        setMessages(current => current.some(m => m.id === sent.id) ? current : [...current, sent])
+        setMessages(current => current.map(m => m.id === tempId ? sent : m))
         setMessageText('')
       }
     } catch (cause) {
+      setMessages(current => current.filter(m => m.id !== tempId))
       setChatError(cause instanceof Error ? cause.message : 'Message could not be sent')
     } finally {
       setBusy(false)
@@ -829,8 +889,20 @@ export function ChatHome({
 }
 
 function MessageBubble({ message, own }: { message: Message; own: boolean }) {
+  const [showStatusDetails, setShowStatusDetails] = useState(false)
   const time = new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   const isAnon = Boolean(message.is_anonymous)
+  const status = message.status || 'sent'
+  const seenUsers = message.seen_by || []
+
+  const seenText =
+    seenUsers.length > 0
+      ? `Seen by ${seenUsers.map(u => u.name).join(', ')}`
+      : status === 'delivered'
+      ? 'Delivered'
+      : status === 'sent'
+      ? 'Sent'
+      : 'Sending…'
 
   return (
     <article className={`message-row ${own ? 'message-own' : ''} ${isAnon ? 'message-anon' : ''}`}>
@@ -853,20 +925,99 @@ function MessageBubble({ message, own }: { message: Message; own: boolean }) {
           {isAnon && <span className="anon-tag">Anonymous</span>}
           <time>{time}</time>
         </div>
-        <div className={`message-bubble ${own ? 'bubble-own' : ''} ${isAnon ? 'bubble-anon' : ''}`}>
+        <div
+          className={`message-bubble ${own ? 'bubble-own' : ''} ${isAnon ? 'bubble-anon' : ''}`}
+          onClick={() => own && setShowStatusDetails(v => !v)}
+          title={own ? `Click to toggle status: ${seenText}` : undefined}
+          style={{ cursor: own ? 'pointer' : 'default' }}
+        >
           {message.message_type === 'image' && message.image_url && (
             <div className="message-image-wrap">
               <img
                 src={getMediaUrl(message.image_url)}
                 alt="Shared attachment"
                 className="message-shared-image"
-                onClick={() => window.open(getMediaUrl(message.image_url), '_blank')}
+                onClick={e => {
+                  e.stopPropagation()
+                  window.open(getMediaUrl(message.image_url), '_blank')
+                }}
                 title="Click to view full image"
               />
             </div>
           )}
           {message.body && <div className="message-text-body">{message.body}</div>}
         </div>
+
+        {own && (
+          <div
+            className="message-delivery-footer"
+            onClick={() => setShowStatusDetails(v => !v)}
+            title={seenText}
+          >
+            {showStatusDetails && (
+              <span className="delivery-status-text">
+                {status === 'sending' && 'Sending…'}
+                {status === 'sent' && 'Sent'}
+                {status === 'delivered' && 'Delivered'}
+                {status === 'seen' && (
+                  seenUsers.length === 1
+                    ? `Seen by ${seenUsers[0].name}`
+                    : `Seen by ${seenUsers.length} members`
+                )}
+              </span>
+            )}
+
+            {/* Messenger-style status icons */}
+            {status === 'sending' && (
+              <span className="messenger-status-icon messenger-sending" aria-label="Sending" title="Sending…">
+                <svg viewBox="0 0 16 16" width="13" height="13">
+                  <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4" strokeDasharray="3 2" fill="none" />
+                </svg>
+              </span>
+            )}
+
+            {status === 'sent' && (
+              <span className="messenger-status-icon messenger-sent" aria-label="Sent" title="Sent">
+                <svg viewBox="0 0 16 16" width="13" height="13">
+                  <circle cx="8" cy="8" r="6.25" stroke="currentColor" strokeWidth="1.3" fill="none" />
+                  <path d="M4.6 8.2l2.3 2.3 4.5-4.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                </svg>
+              </span>
+            )}
+
+            {status === 'delivered' && (
+              <span className="messenger-status-icon messenger-delivered" aria-label="Delivered" title="Delivered">
+                <svg viewBox="0 0 16 16" width="13" height="13">
+                  <circle cx="8" cy="8" r="7" fill="#3a82f7" />
+                  <path d="M4.6 8.2l2.3 2.3 4.5-4.6" stroke="#ffffff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                </svg>
+              </span>
+            )}
+
+            {status === 'seen' && (
+              <span className="messenger-seen-avatars" title={seenText}>
+                {seenUsers.slice(0, 3).map((u, i) => (
+                  <span
+                    key={u.user_id}
+                    className="messenger-mini-avatar"
+                    style={{ zIndex: 3 - i }}
+                    title={`${u.name} seen`}
+                  >
+                    <UserAvatar avatarUrl={u.avatar_url} fallback={u.name} size={14} />
+                  </span>
+                ))}
+                {seenUsers.length === 0 && (
+                  <span className="messenger-status-icon messenger-delivered" title="Seen">
+                    <svg viewBox="0 0 16 16" width="13" height="13">
+                      <circle cx="8" cy="8" r="7" fill="#31a24c" />
+                      <path d="M4.6 8.2l2.3 2.3 4.5-4.6" stroke="#ffffff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    </svg>
+                  </span>
+                )}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </article>
   )

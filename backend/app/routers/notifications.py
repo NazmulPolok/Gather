@@ -128,11 +128,12 @@ def mark_all_read(
 
 
 @router.patch("/groups/{group_id}/read")
-def mark_group_messages_read(
+async def mark_group_messages_read(
     group_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict[str, str]:
+    now = datetime.now(timezone.utc)
     db.execute(
         update(Notification)
         .where(
@@ -141,9 +142,32 @@ def mark_group_messages_read(
             Notification.notification_type == "message",
             Notification.read_at.is_(None),
         )
-        .values(read_at=datetime.now(timezone.utc))
+        .values(read_at=now)
     )
     db.commit()
+
+    try:
+        from app.core.ws_manager import manager
+        membership = db.scalar(
+            select(Membership).where(Membership.group_id == group_id, Membership.user_id == user.id)
+        )
+        display_name = (membership.nickname if membership and membership.nickname else None) or (
+            " ".join(p for p in (user.first_name, user.last_name) if p).strip() or user.username
+        )
+        await manager.broadcast_to_group(
+            group_id,
+            {
+                "type": "messages_read",
+                "user_id": user.id,
+                "name": display_name,
+                "username": user.username,
+                "avatar_url": user.avatar_url,
+                "read_at": now.isoformat(),
+            },
+        )
+    except Exception:
+        pass
+
     return {"status": "read"}
 
 

@@ -115,6 +115,14 @@ export function formatLastSeen(lastSeenAt?: string | null): string {
   }
 }
 
+export type SeenUser = {
+  user_id: number
+  name: string
+  username: string
+  avatar_url?: string | null
+  read_at?: string | null
+}
+
 export type Message = {
   id: number
   group_id: number
@@ -127,6 +135,8 @@ export type Message = {
   image_url?: string | null
   is_anonymous?: boolean
   created_at: string
+  status?: 'sending' | 'sent' | 'delivered' | 'seen'
+  seen_by?: SeenUser[]
 }
 
 export type NotificationItem = {

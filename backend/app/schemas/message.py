@@ -35,6 +35,14 @@ class MessageCreate(BaseModel):
         return self
 
 
+class SeenUser(BaseModel):
+    user_id: int
+    name: str
+    username: str
+    avatar_url: str | None = None
+    read_at: datetime | None = None
+
+
 class MessageResponse(BaseModel):
     id: int
     group_id: int
@@ -47,5 +55,7 @@ class MessageResponse(BaseModel):
     image_url: str | None = None
     is_anonymous: bool = False
     created_at: datetime
+    status: Literal["sending", "sent", "delivered", "seen"] = "sent"
+    seen_by: list[SeenUser] = []
 
     model_config = {"from_attributes": True}
