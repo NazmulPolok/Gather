@@ -112,7 +112,19 @@ export function ChatHome({
     if (!quiet) setLoadingMessages(true)
     try {
       const result = await api.messages(token, groupId)
-      setMessages(result)
+      setMessages(current => {
+        // Keep any pending optimistic messages currently in-flight
+        const pending = current.filter(m => m.id < 0)
+        const seenIds = new Set<number>()
+        const uniqueResult: Message[] = []
+        for (const m of result) {
+          if (!seenIds.has(m.id)) {
+            seenIds.add(m.id)
+            uniqueResult.push(m)
+          }
+        }
+        return [...uniqueResult, ...pending]
+      })
       setChatError('')
     } catch (cause) {
       if (!quiet) setChatError(cause instanceof Error ? cause.message : 'Could not load messages')
@@ -333,10 +345,23 @@ export function ChatHome({
           } else if (data.type === 'new_message') {
             const newMsg = data.message as Message
             setMessages(current => {
-              const existingIdx = current.findIndex(m => m.id === newMsg.id)
-              if (existingIdx !== -1) {
+              // 1. If this exact message ID is already present, update it
+              if (current.some(m => m.id === newMsg.id)) {
                 return current.map(m => (m.id === newMsg.id ? newMsg : m))
               }
+              // 2. If sent by current user, replace matching pending optimistic message (negative ID)
+              if (newMsg.sender_id === user.id) {
+                const pendingIdx = current.findIndex(
+                  m => m.id < 0 && (
+                    (newMsg.message_type === 'text' && m.body === newMsg.body) ||
+                    (newMsg.message_type === 'image' && (m.image_url === newMsg.image_url || m.body === newMsg.body))
+                  )
+                )
+                if (pendingIdx !== -1) {
+                  return current.map((m, idx) => (idx === pendingIdx ? newMsg : m))
+                }
+              }
+              // 3. Otherwise append new message
               return [...current, newMsg]
             })
             setTypingUsers(current => {
@@ -506,12 +531,24 @@ export function ChatHome({
       if (attachedImage) {
         const uploadRes = await api.uploadGroupImage(token, activeGroup.id, attachedImage)
         const sent = await api.sendImage(token, activeGroup.id, uploadRes.image_url, body || undefined, sendAsAnonymous)
-        setMessages(current => current.map(m => m.id === tempId ? sent : m))
+        setMessages(current => {
+          // If WebSocket broadcast already arrived and added/reconciled this message:
+          if (current.some(m => m.id === sent.id)) {
+            return current.filter(m => m.id !== tempId).map(m => m.id === sent.id ? sent : m)
+          }
+          return current.map(m => (m.id === tempId ? sent : m))
+        })
         clearAttachedImage()
         setMessageText('')
       } else {
         const sent = await api.sendText(token, activeGroup.id, body, sendAsAnonymous)
-        setMessages(current => current.map(m => m.id === tempId ? sent : m))
+        setMessages(current => {
+          // If WebSocket broadcast already arrived and added/reconciled this message:
+          if (current.some(m => m.id === sent.id)) {
+            return current.filter(m => m.id !== tempId).map(m => m.id === sent.id ? sent : m)
+          }
+          return current.map(m => (m.id === tempId ? sent : m))
+        })
         setMessageText('')
       }
     } catch (cause) {
