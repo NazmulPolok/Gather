@@ -3,18 +3,39 @@ import { api, getMediaUrl, type AuthUser, type Group, type PostItem, type Commen
 import { UserAvatar } from '../components/UserAvatar'
 import { GroupAvatar } from '../components/GroupAvatar'
 
+function formatRelativeTime(dateStr: string): string {
+  try {
+    const date = new Date(dateStr)
+    const now = Date.now()
+    const diffSec = Math.floor((now - date.getTime()) / 1000)
+    if (diffSec < 45) return 'Just now'
+    const diffMin = Math.floor(diffSec / 60)
+    if (diffMin < 60) return `${diffMin}m ago`
+    const diffHours = Math.floor(diffMin / 60)
+    if (diffHours < 24) return `${diffHours}h ago`
+    const diffDays = Math.floor(diffHours / 24)
+    if (diffDays === 1) return 'Yesterday'
+    if (diffDays < 7) return `${diffDays}d ago`
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+  } catch {
+    return 'Recently'
+  }
+}
+
 export function NewsFeed({
   token,
   user,
   groups: initialGroups,
   selectedGroupId,
   onSelectGroup,
+  onOpenGroupChat,
 }: {
   token: string
   user: AuthUser
   groups?: Group[]
   selectedGroupId?: number | null
   onSelectGroup?: (groupId: number | null) => void
+  onOpenGroupChat?: (group: Group) => void
 }) {
   const [groups, setGroups] = useState<Group[]>(initialGroups || [])
   const [posts, setPosts] = useState<PostItem[]>([])
@@ -22,12 +43,6 @@ export function NewsFeed({
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [activeGroupFilter, setActiveGroupFilter] = useState<number | null>(selectedGroupId ?? null)
-
-  useEffect(() => {
-    if (!initialGroups || initialGroups.length === 0) {
-      api.groups(token).then(setGroups).catch(() => setGroups([]))
-    }
-  }, [token, initialGroups])
 
   // Create post state
   const [postText, setPostText] = useState('')
@@ -42,6 +57,12 @@ export function NewsFeed({
 
   // Full image preview modal
   const [fullImageUrl, setFullImageUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!initialGroups || initialGroups.length === 0) {
+      api.groups(token).then(setGroups).catch(() => setGroups([]))
+    }
+  }, [token, initialGroups])
 
   useEffect(() => {
     if (selectedGroupId !== undefined) {
@@ -124,7 +145,7 @@ export function NewsFeed({
       setPosts(current => [newPost, ...current])
       setPostText('')
       clearImage()
-      setNotice('Post shared to group feed!')
+      setNotice('Post shared successfully!')
       setTimeout(() => setNotice(''), 4000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create post')
@@ -212,71 +233,76 @@ export function NewsFeed({
     )
   }
 
+  const activeGroupObj = groups.find(g => g.id === (activeGroupFilter || targetGroupId))
+
   return (
-    <main className="feed-layout">
-      {/* Feed Sidebar / Group filter */}
-      <aside className="feed-sidebar">
-        <div className="feed-sidebar-header">
-          <h3>FEEDS & GROUPS</h3>
-        </div>
-        <div className="feed-nav-list">
+    <main className="feed-layout-container">
+      {/* Left Sidebar: Communities & Feeds */}
+      <aside className="feed-left-sidebar">
+        <div className="feed-sidebar-title">FEEDS & COMMUNITIES</div>
+        <div className="feed-filter-menu">
           <button
-            className={`feed-nav-item ${activeGroupFilter === null ? 'active' : ''}`}
+            type="button"
+            className={`feed-filter-btn ${activeGroupFilter === null ? 'active' : ''}`}
             onClick={() => handleFilterChange(null)}
           >
-            <span className="feed-nav-icon">🌐</span>
-            <div className="feed-nav-copy">
-              <strong>All Joined Groups</strong>
-              <small>Combined news feed</small>
+            <span className="feed-filter-icon">🌐</span>
+            <div className="feed-filter-copy">
+              <strong>All Joined Feeds</strong>
+              <small>Combined updates</small>
             </div>
           </button>
 
-          <div className="feed-nav-divider">YOUR GROUPS</div>
+          <div className="feed-filter-sublabel">MY GROUPS ({groups.length})</div>
 
           {groups.map(g => (
             <button
               key={g.id}
-              className={`feed-nav-item ${activeGroupFilter === g.id ? 'active' : ''}`}
+              type="button"
+              className={`feed-filter-btn ${activeGroupFilter === g.id ? 'active' : ''}`}
               onClick={() => handleFilterChange(g.id)}
             >
-              <span className="avatar avatar-small">
-                <GroupAvatar avatarUrl={g.avatar_url} name={g.name} />
-              </span>
-              <div className="feed-nav-copy">
+              <GroupAvatar avatarUrl={g.avatar_url} name={g.name} size={30} />
+              <div className="feed-filter-copy">
                 <strong>{g.name}</strong>
-                <small>{g.join_policy === 'approval' ? '🔒 Private' : '🌐 Public'}</small>
+                <small>{g.join_policy === 'approval' ? '🔒 Approval required' : '🌐 Open'}</small>
               </div>
             </button>
           ))}
         </div>
       </aside>
 
-      {/* Main Stream Area */}
-      <section className="feed-stream-area">
+      {/* Main Stream Column */}
+      <div className="feed-main-stream">
         {notice && (
-          <div className="toast toast-success feed-toast">
+          <div className="feed-banner-notice">
             <span>✓</span> {notice}
           </div>
         )}
         {error && (
-          <div className="toast toast-error feed-toast">
+          <div className="feed-banner-error">
             <span>⚠</span> {error}
-            <button onClick={() => setError('')}>×</button>
+            <button type="button" onClick={() => setError('')}>✕</button>
           </div>
         )}
 
-        {/* Create Post Box (Facebook-style) */}
-        <div className="feed-composer-card">
-          <div className="feed-composer-header">
-            <UserAvatar avatarUrl={user.avatar_url} fallback={user.nickname || user.first_name || user.username} />
-            <div className="feed-composer-meta">
+        {/* Facebook-style Create Post Card */}
+        <section className="premium-composer-card">
+          <div className="composer-user-row">
+            <UserAvatar
+              avatarUrl={user.avatar_url}
+              fallback={user.nickname || user.first_name || user.username}
+              size={42}
+            />
+            <div className="composer-user-details">
               <strong>{user.first_name} {user.last_name || ''}</strong>
-              <div className="composer-group-select">
-                <span>Posting in:</span>
+              <div className="composer-group-badge">
+                <span>Posting in</span>
                 <select
                   value={targetGroupId}
                   onChange={e => setTargetGroupId(Number(e.target.value))}
                   disabled={submittingPost}
+                  className="composer-group-dropdown"
                 >
                   {groups.map(g => (
                     <option key={g.id} value={g.id}>
@@ -288,7 +314,7 @@ export function NewsFeed({
             </div>
           </div>
 
-          <form onSubmit={handleCreatePost} className="feed-composer-form">
+          <form onSubmit={handleCreatePost} className="composer-inner-form">
             <textarea
               value={postText}
               onChange={e => setPostText(e.target.value)}
@@ -296,23 +322,24 @@ export function NewsFeed({
               rows={3}
               maxLength={10000}
               disabled={submittingPost}
+              className="composer-textarea"
             />
 
             {attachedPreview && (
-              <div className="feed-attached-preview">
-                <img src={attachedPreview} alt="Post attachment preview" />
+              <div className="composer-attachment-card">
+                <img src={attachedPreview} alt="Upload preview" className="composer-attachment-img" />
                 <button
                   type="button"
-                  className="preview-remove-btn"
+                  className="attachment-close-pill"
                   onClick={clearImage}
-                  title="Remove image"
+                  title="Remove photo"
                 >
-                  ✕
+                  ✕ Remove
                 </button>
               </div>
             )}
 
-            <div className="feed-composer-actions">
+            <div className="composer-bottom-bar">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -322,41 +349,41 @@ export function NewsFeed({
               />
               <button
                 type="button"
-                className="attach-photo-button"
+                className="composer-photo-btn"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={submittingPost}
               >
-                <span>📷</span> Photo
+                <span className="photo-icon-svg">📸</span> Photo / Image
               </button>
 
               <button
                 type="submit"
-                className="button button-primary feed-submit-btn"
+                className="composer-submit-btn"
                 disabled={submittingPost || (!postText.trim() && !attachedImage)}
               >
                 {submittingPost ? 'Posting…' : 'Share Post'}
               </button>
             </div>
           </form>
-        </div>
+        </section>
 
         {/* Post Stream */}
         {loading ? (
-          <div className="feed-loading">
+          <div className="feed-spinner-container">
             <span className="spinner" /> Loading news feed…
           </div>
         ) : posts.length === 0 ? (
-          <div className="feed-empty-state">
-            <div className="empty-icon">📰</div>
-            <h3>No posts yet</h3>
+          <div className="feed-empty-container">
+            <div className="empty-bubble-icon">📰</div>
+            <h3>No posts yet in this feed</h3>
             <p>
               {activeGroupFilter
-                ? 'Be the first to share a post or photo in this group!'
+                ? 'Be the first member to share an update, thought, or photo in this group!'
                 : 'Share an update or photo in any of your groups to see it here.'}
             </p>
           </div>
         ) : (
-          <div className="feed-posts-list">
+          <div className="feed-cards-stack">
             {posts.map(post => (
               <PostCard
                 key={post.id}
@@ -370,20 +397,82 @@ export function NewsFeed({
                 onCommentAdded={newComment => handleCommentAdded(post.id, newComment)}
                 onCommentDeleted={commentId => handleCommentDeleted(post.id, commentId)}
                 onViewFullImage={url => setFullImageUrl(url)}
+                currentUser={user}
               />
             ))}
           </div>
         )}
-      </section>
+      </div>
 
-      {/* Full Image Modal */}
+      {/* Right Sidebar: Community / Group Info */}
+      <aside className="feed-right-sidebar">
+        {activeGroupObj ? (
+          <div className="community-info-card">
+            <div className="community-info-header">
+              <GroupAvatar avatarUrl={activeGroupObj.avatar_url} name={activeGroupObj.name} size={48} />
+              <div className="community-info-title">
+                <h4>{activeGroupObj.name}</h4>
+                <span className="community-policy-badge">
+                  {activeGroupObj.join_policy === 'approval' ? '🔒 Private · Approval required' : '🌐 Open community'}
+                </span>
+              </div>
+            </div>
+            <div className="community-code-box">
+              <label>INVITE CODE</label>
+              <div className="code-copy-row">
+                <code>{activeGroupObj.invite_code}</code>
+                <button
+                  type="button"
+                  className="code-copy-btn"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(activeGroupObj.invite_code)
+                    setNotice('Invite code copied!')
+                    setTimeout(() => setNotice(''), 3000)
+                  }}
+                  title="Copy invite code"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+            {onOpenGroupChat && (
+              <button
+                type="button"
+                className="switch-to-chat-btn"
+                onClick={() => onOpenGroupChat(activeGroupObj)}
+              >
+                💬 Open Group Chat
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="community-info-card">
+            <h4>Gather Feed</h4>
+            <p className="community-about-copy">
+              Welcome to your Gather News Feed! Here you can discover posts, thoughts, and photos shared across all your groups.
+            </p>
+            <div className="community-stats-row">
+              <div className="stat-item">
+                <strong>{groups.length}</strong>
+                <small>Joined Groups</small>
+              </div>
+              <div className="stat-item">
+                <strong>{posts.length}</strong>
+                <small>Feed Posts</small>
+              </div>
+            </div>
+          </div>
+        )}
+      </aside>
+
+      {/* Lightbox Fullscreen Image Modal */}
       {fullImageUrl && (
-        <div className="modal-backdrop" onClick={() => setFullImageUrl(null)}>
-          <div className="full-image-dialog" onClick={e => e.stopPropagation()}>
-            <button className="full-image-close" onClick={() => setFullImageUrl(null)}>
+        <div className="lightbox-overlay" onClick={() => setFullImageUrl(null)}>
+          <div className="lightbox-content" onClick={e => e.stopPropagation()}>
+            <button type="button" className="lightbox-close-btn" onClick={() => setFullImageUrl(null)}>
               ✕
             </button>
-            <img src={fullImageUrl} alt="Full view" />
+            <img src={fullImageUrl} alt="Full resolution view" />
           </div>
         </div>
       )}
@@ -393,13 +482,13 @@ export function NewsFeed({
 
 function RoleBadge({ role }: { role: string }) {
   if (role === 'admin') {
-    return <span className="feed-role-badge badge-admin" title="Group Admin">🛡️ Admin</span>
+    return <span className="premium-role-badge role-admin" title="Group Admin">🛡️ Admin</span>
   }
   if (role === 'moderator') {
-    return <span className="feed-role-badge badge-mod" title="Group Moderator">⚔️ Moderator</span>
+    return <span className="premium-role-badge role-mod" title="Group Moderator">⚔️ Mod</span>
   }
   if (role === 'contributor') {
-    return <span className="feed-role-badge badge-contrib" title="Group Contributor">⭐ Contributor</span>
+    return <span className="premium-role-badge role-contrib" title="Contributor">⭐ Contributor</span>
   }
   return null
 }
@@ -415,6 +504,7 @@ function PostCard({
   onCommentAdded,
   onCommentDeleted,
   onViewFullImage,
+  currentUser,
 }: {
   post: PostItem
   currentUserId: number
@@ -426,6 +516,7 @@ function PostCard({
   onCommentAdded: (comment: CommentItem) => void
   onCommentDeleted: (commentId: number) => void
   onViewFullImage: (url: string) => void
+  currentUser: AuthUser
 }) {
   const [newCommentText, setNewCommentText] = useState('')
   const [submittingComment, setSubmittingComment] = useState(false)
@@ -433,13 +524,6 @@ function PostCard({
 
   const isAuthor = post.author.user_id === currentUserId
   const canDelete = isAuthor || post.author.role === 'admin' || post.author.role === 'moderator'
-
-  const formattedDate = new Date(post.created_at).toLocaleString([], {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
 
   async function handleAddComment(e: FormEvent) {
     e.preventDefault()
@@ -476,25 +560,31 @@ function PostCard({
   }
 
   return (
-    <article className="feed-post-card">
-      {/* Header */}
-      <div className="post-card-header">
-        <UserAvatar avatarUrl={post.author.avatar_url} fallback={post.author.name} />
-        <div className="post-header-info">
-          <div className="post-author-row">
-            <strong>{post.author.name}</strong>
+    <article className="premium-post-card">
+      {/* Post Header */}
+      <header className="post-header-top">
+        <UserAvatar avatarUrl={post.author.avatar_url} fallback={post.author.name} size={40} />
+        <div className="post-header-text">
+          <div className="post-title-line">
+            <strong className="post-author-name">{post.author.name}</strong>
             <RoleBadge role={post.author.role} />
-            <span className="post-group-tag">
+            <span className="post-in-group">
               in <strong>{post.group.name}</strong>
             </span>
           </div>
-          <small className="post-timestamp">@{post.author.username} · {formattedDate}</small>
+          <div className="post-subtitle-line">
+            <span className="post-author-username">@{post.author.username}</span>
+            <span className="dot-divider">·</span>
+            <time className="post-relative-time" title={new Date(post.created_at).toLocaleString()}>
+              {formatRelativeTime(post.created_at)}
+            </time>
+          </div>
         </div>
 
         {canDelete && (
           <button
             type="button"
-            className="post-delete-btn"
+            className="post-card-delete-btn"
             onClick={onDeletePost}
             title="Delete post"
             aria-label="Delete post"
@@ -502,63 +592,77 @@ function PostCard({
             🗑
           </button>
         )}
-      </div>
+      </header>
 
-      {/* Body Content */}
-      {post.content && <p className="post-text-content">{post.content}</p>}
+      {/* Post Text Content */}
+      {post.content && <p className="post-body-text">{post.content}</p>}
 
-      {/* Attached Image */}
+      {/* Post Image Container */}
       {post.image_url && (
-        <div className="post-image-container" onClick={() => onViewFullImage(getMediaUrl(post.image_url!))}>
-          <img src={getMediaUrl(post.image_url)} alt="Post visual content" loading="lazy" />
+        <div className="post-media-frame" onClick={() => onViewFullImage(getMediaUrl(post.image_url!))}>
+          <img src={getMediaUrl(post.image_url)} alt="Attached visual" loading="lazy" />
+          <span className="media-zoom-hint">🔍 Click to zoom</span>
         </div>
       )}
 
-      {/* Reddit-style Upvote & Comments Footer */}
-      <div className="post-card-footer">
-        {/* Reddit-style Upvote Button */}
+      {/* Reddit & Facebook style Action Pills Footer */}
+      <footer className="post-actions-toolbar">
+        {/* Reddit-style Upvote Pill */}
         <button
           type="button"
-          className={`reddit-upvote-btn ${post.has_upvoted ? 'upvoted' : ''}`}
+          className={`reddit-vote-pill ${post.has_upvoted ? 'active-upvoted' : ''}`}
           onClick={onToggleUpvote}
           title={post.has_upvoted ? 'Remove upvote' : 'Upvote post'}
         >
-          <span className="upvote-arrow">▲</span>
-          <span className="upvote-count">{post.upvote_count}</span>
+          <span className="vote-arrow-glyph">▲</span>
+          <span className="vote-number-count">{post.upvote_count}</span>
         </button>
 
-        {/* Comment toggle button */}
+        {/* Comment toggle pill */}
         <button
           type="button"
-          className={`post-comment-btn ${isCommentsOpen ? 'active' : ''}`}
+          className={`reddit-comment-pill ${isCommentsOpen ? 'active' : ''}`}
           onClick={onToggleComments}
         >
-          <span>💬</span>
+          <span className="comment-icon-glyph">💬</span>
           <span>{post.comment_count} {post.comment_count === 1 ? 'Comment' : 'Comments'}</span>
         </button>
-      </div>
+
+        {/* Share pill */}
+        <button
+          type="button"
+          className="reddit-share-pill"
+          onClick={() => {
+            void navigator.clipboard?.writeText(window.location.href)
+            alert('Post link copied to clipboard!')
+          }}
+          title="Share post"
+        >
+          <span>⧉</span> Share
+        </button>
+      </footer>
 
       {/* Comments Section */}
       {isCommentsOpen && (
-        <div className="post-comments-section">
-          {commentError && <div className="comment-error">{commentError}</div>}
+        <div className="post-comments-drawer">
+          {commentError && <div className="comment-error-alert">{commentError}</div>}
 
           {post.comments.length > 0 ? (
-            <div className="comments-stream">
+            <div className="comments-thread-list">
               {post.comments.map(c => {
                 const isCommentAuthor = c.author.user_id === currentUserId
                 return (
-                  <div key={c.id} className="comment-row">
-                    <UserAvatar avatarUrl={c.author.avatar_url} fallback={c.author.name} />
-                    <div className="comment-bubble">
-                      <div className="comment-meta">
-                        <strong>{c.author.name}</strong>
+                  <div key={c.id} className="comment-thread-item">
+                    <UserAvatar avatarUrl={c.author.avatar_url} fallback={c.author.name} size={32} />
+                    <div className="comment-speech-bubble">
+                      <div className="comment-header-row">
+                        <strong className="comment-author-title">{c.author.name}</strong>
                         <RoleBadge role={c.author.role} />
-                        <small>{new Date(c.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</small>
+                        <span className="comment-timestamp">{formatRelativeTime(c.created_at)}</span>
                         {isCommentAuthor && (
                           <button
                             type="button"
-                            className="comment-delete-btn"
+                            className="comment-inline-delete"
                             onClick={() => handleDeleteComment(c.id)}
                             title="Delete comment"
                           >
@@ -566,18 +670,19 @@ function PostCard({
                           </button>
                         )}
                       </div>
-                      <p className="comment-text">{c.content}</p>
+                      <p className="comment-text-body">{c.content}</p>
                     </div>
                   </div>
                 )
               })}
             </div>
           ) : (
-            <div className="comments-empty">No comments yet. Start the discussion!</div>
+            <div className="comments-blank-note">No comments yet. Be the first to start the conversation!</div>
           )}
 
-          {/* Add Comment Input */}
-          <form onSubmit={handleAddComment} className="comment-form">
+          {/* Add Comment Input Bar */}
+          <form onSubmit={handleAddComment} className="comment-composer-bar">
+            <UserAvatar avatarUrl={currentUser.avatar_url} fallback={currentUser.first_name} size={30} />
             <input
               type="text"
               value={newCommentText}
@@ -586,10 +691,11 @@ function PostCard({
               placeholder="Write a comment…"
               maxLength={5000}
               disabled={submittingComment}
+              className="comment-text-input"
             />
             <button
               type="submit"
-              className="comment-submit-btn"
+              className="comment-submit-action"
               disabled={submittingComment || !newCommentText.trim()}
             >
               Post

@@ -114,7 +114,7 @@ export default function App() {
         <div className="loading-screen"><div className="session-recovery"><strong>Can’t reach your account right now</strong><p>{sessionError}</p><button className="button button-primary" onClick={() => setSessionAttempt(value => value + 1)}>Try again</button><button className="recovery-signout" onClick={signOut}>Sign out</button></div></div>
       ) : token && user ? (
         currentView === 'feed' ? (
-          <NewsFeed token={token} user={user} />
+          <NewsFeed token={token} user={user} onOpenGroupChat={() => setCurrentView('chat')} />
         ) : (
           <ChatHome token={token} user={user} onUserUpdated={setUser} notificationTarget={notificationTarget} onNotificationHandled={handleNotificationHandled} unreadGroups={unreadGroups} onUnreadGroups={handleUnreadGroups} />
         )
