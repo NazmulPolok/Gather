@@ -134,6 +134,8 @@ export type Message = {
   body?: string | null
   image_url?: string | null
   is_anonymous?: boolean
+  is_edited?: boolean
+  edited_at?: string | null
   created_at: string
   status?: 'sending' | 'sent' | 'delivered' | 'seen'
   seen_by?: SeenUser[]
@@ -211,6 +213,11 @@ export const api = {
   messages: (token: string, groupId: number) => request<Message[]>(`/api/groups/${groupId}/messages?limit=100`, {}, token),
   deleteMessage: (token: string, groupId: number, messageId: number) =>
     request<{ status: string; message_id: number }>(`/api/groups/${groupId}/messages/${messageId}`, { method: 'DELETE' }, token),
+  editMessage: (token: string, groupId: number, messageId: number, body: string) =>
+    request<Message>(`/api/groups/${groupId}/messages/${messageId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ body }),
+    }, token),
   sendText: (token: string, groupId: number, body: string, is_anonymous = false) => request<Message>(`/api/groups/${groupId}/messages`, { method: 'POST', body: JSON.stringify({ message_type: 'text', body, is_anonymous }) }, token),
   uploadGroupImage: (token: string, groupId: number, file: File) => {
     const formData = new FormData()

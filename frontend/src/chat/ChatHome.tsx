@@ -100,6 +100,20 @@ export function ChatHome({
     }
   }
 
+  async function handleEditMessage(messageId: number, newBody: string) {
+    if (!activeGroup) return
+    try {
+      const updated = await api.editMessage(token, activeGroup.id, messageId, newBody)
+      setMessages(current => current.map(m => m.id === messageId ? updated : m))
+      setNotice('Message edited.')
+      setChatError('')
+    } catch (cause) {
+      const msg = cause instanceof Error ? cause.message : 'Could not edit message'
+      setChatError(msg)
+      throw cause
+    }
+  }
+
   const refreshGroups = useCallback(async (): Promise<Group[]> => {
     setLoadingGroups(true)
     try {
@@ -425,6 +439,15 @@ export function ChatHome({
           } else if (data.type === 'delete_message') {
             const deletedId = data.message_id as number
             setMessages(current => current.filter(m => m.id !== deletedId))
+          } else if (data.type === 'edit_message') {
+            const { message_id, body, is_edited, edited_at } = data
+            setMessages(current =>
+              current.map(m =>
+                m.id === message_id
+                  ? { ...m, body, is_edited: Boolean(is_edited), edited_at }
+                  : m
+              )
+            )
           }
         } catch (err) {
           console.error('WS message error:', err)
@@ -900,6 +923,7 @@ export function ChatHome({
                             own={message.sender_id === user.id}
                             canDelete={message.sender_id === user.id || isAdmin}
                             onDelete={setMessageToDelete}
+                            onEdit={handleEditMessage}
                           />
                         </Fragment>
                       )
@@ -1043,17 +1067,58 @@ function MessageBubble({
   own,
   canDelete,
   onDelete,
+  onEdit,
 }: {
   message: Message
   own: boolean
   canDelete?: boolean
   onDelete?: (message: Message) => void
+  onEdit?: (messageId: number, newBody: string) => Promise<void>
 }) {
   const [showStatusDetails, setShowStatusDetails] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editDraft, setEditDraft] = useState(message.body || '')
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+  const [editError, setEditError] = useState('')
+
   const time = new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   const isAnon = Boolean(message.is_anonymous)
   const status = message.status || 'sent'
   const seenUsers = message.seen_by || []
+
+  // Messenger-style recent edit window (15 minutes)
+  const messageAgeMinutes = (Date.now() - new Date(message.created_at).getTime()) / (1000 * 60)
+  const canEdit = own && message.message_type === 'text' && message.id > 0 && messageAgeMinutes <= 15
+
+  async function handleSaveEdit() {
+    const trimmed = editDraft.trim()
+    if (!trimmed || trimmed === message.body || !onEdit) {
+      setIsEditing(false)
+      return
+    }
+    setIsSavingEdit(true)
+    setEditError('')
+    try {
+      await onEdit(message.id, trimmed)
+      setIsEditing(false)
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setIsSavingEdit(false)
+    }
+  }
+
+  function handleEditKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      void handleSaveEdit()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      setIsEditing(false)
+      setEditDraft(message.body || '')
+      setEditError('')
+    }
+  }
 
   const seenText =
     seenUsers.length > 0
@@ -1084,44 +1149,109 @@ function MessageBubble({
           <small>{isAnon ? '@anonymous' : (!own ? `@${message.sender_username}` : '')}</small>
           {isAnon && <span className="anon-tag">Anonymous</span>}
           <time>{time}</time>
+          {message.is_edited && (
+            <span
+              className="edited-tag"
+              title={message.edited_at ? `Edited at ${new Date(message.edited_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Edited'}
+            >
+              · Edited
+            </span>
+          )}
         </div>
         <div className="message-bubble-wrap">
-          <div
-            className={`message-bubble ${own ? 'bubble-own' : ''} ${isAnon ? 'bubble-anon' : ''}`}
-            onClick={() => own && setShowStatusDetails(v => !v)}
-            title={own ? `Click to toggle status: ${seenText}` : undefined}
-            style={{ cursor: own ? 'pointer' : 'default' }}
-          >
-            {message.message_type === 'image' && message.image_url && (
-              <div className="message-image-wrap">
-                <img
-                  src={getMediaUrl(message.image_url)}
-                  alt="Shared attachment"
-                  className="message-shared-image"
+          {isEditing ? (
+            <div className="message-edit-box">
+              <textarea
+                value={editDraft}
+                onChange={e => setEditDraft(e.target.value)}
+                onKeyDown={handleEditKeyDown}
+                className="message-edit-input"
+                autoFocus
+                disabled={isSavingEdit}
+                rows={Math.max(1, Math.min(6, editDraft.split('\n').length))}
+              />
+              {editError && <span className="edit-error-text">{editError}</span>}
+              <div className="message-edit-actions">
+                <button
+                  type="button"
+                  className="edit-cancel-btn"
+                  onClick={() => {
+                    setIsEditing(false)
+                    setEditDraft(message.body || '')
+                    setEditError('')
+                  }}
+                  disabled={isSavingEdit}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="edit-save-btn"
+                  onClick={handleSaveEdit}
+                  disabled={isSavingEdit || !editDraft.trim() || editDraft.trim() === message.body}
+                >
+                  {isSavingEdit ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div
+              className={`message-bubble ${own ? 'bubble-own' : ''} ${isAnon ? 'bubble-anon' : ''}`}
+              onClick={() => own && setShowStatusDetails(v => !v)}
+              title={own ? `Click to toggle status: ${seenText}` : undefined}
+              style={{ cursor: own ? 'pointer' : 'default' }}
+            >
+              {message.message_type === 'image' && message.image_url && (
+                <div className="message-image-wrap">
+                  <img
+                    src={getMediaUrl(message.image_url)}
+                    alt="Shared attachment"
+                    className="message-shared-image"
+                    onClick={e => {
+                      e.stopPropagation()
+                      window.open(getMediaUrl(message.image_url), '_blank')
+                    }}
+                    title="Click to view full image"
+                  />
+                </div>
+              )}
+              {message.body && <div className="message-text-body">{message.body}</div>}
+            </div>
+          )}
+
+          {!isEditing && (
+            <div className="msg-actions-group">
+              {canEdit && (
+                <button
+                  type="button"
+                  className="msg-action-btn msg-edit-action-btn"
                   onClick={e => {
                     e.stopPropagation()
-                    window.open(getMediaUrl(message.image_url), '_blank')
+                    setIsEditing(true)
+                    setEditDraft(message.body || '')
+                    setEditError('')
                   }}
-                  title="Click to view full image"
-                />
-              </div>
-            )}
-            {message.body && <div className="message-text-body">{message.body}</div>}
-          </div>
-
-          {canDelete && onDelete && message.id > 0 && (
-            <button
-              type="button"
-              className="msg-delete-action-btn"
-              onClick={e => {
-                e.stopPropagation()
-                onDelete(message)
-              }}
-              title="Delete message for everyone"
-              aria-label="Delete message for everyone"
-            >
-              🗑
-            </button>
+                  title="Edit message (within 15 min)"
+                  aria-label="Edit message"
+                >
+                  ✎
+                </button>
+              )}
+              {canDelete && onDelete && message.id > 0 && (
+                <button
+                  type="button"
+                  className="msg-action-btn msg-delete-action-btn"
+                  onClick={e => {
+                    e.stopPropagation()
+                    onDelete(message)
+                  }}
+                  title="Delete message for everyone"
+                  aria-label="Delete message for everyone"
+                >
+                  🗑
+                </button>
+              )}
+            </div>
           )}
         </div>
 

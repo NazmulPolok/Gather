@@ -15,7 +15,7 @@ from app.models.message import Message
 from app.models.membership import Membership
 from app.models.notification import Notification
 from app.models.user import User
-from app.schemas.message import MessageCreate, MessageResponse, SeenUser
+from app.schemas.message import MessageCreate, MessageResponse, MessageUpdate, SeenUser
 from app.services.permissions import active_membership
 
 router = APIRouter()
@@ -197,6 +197,8 @@ def list_messages(
                 body=message.body,
                 image_url=message.image_url,
                 is_anonymous=is_anon,
+                is_edited=getattr(message, "is_edited", False),
+                edited_at=getattr(message, "edited_at", None),
                 created_at=message.created_at,
                 status=msg_status,
                 seen_by=seen_users,
@@ -290,6 +292,8 @@ async def create_message(
         body=message.body,
         image_url=message.image_url,
         is_anonymous=is_anon,
+        is_edited=False,
+        edited_at=None,
         created_at=message.created_at,
         status=msg_status,
         seen_by=seen_users,
@@ -307,6 +311,8 @@ async def create_message(
         "body": response.body,
         "image_url": response.image_url,
         "is_anonymous": response.is_anonymous,
+        "is_edited": False,
+        "edited_at": None,
         "created_at": response.created_at.isoformat() if response.created_at else "",
         "status": msg_status,
         "seen_by": [s.model_dump() if hasattr(s, "model_dump") else s for s in seen_users],
@@ -370,6 +376,90 @@ async def delete_message(
     )
 
     return {"status": "deleted", "message_id": message_id}
+
+
+EDIT_WINDOW_MINUTES = 15  # Messenger-style 15-minute edit window
+
+
+@router.patch("/{group_id}/messages/{message_id}", response_model=MessageResponse)
+async def edit_message(
+    group_id: int,
+    message_id: int,
+    payload: MessageUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> MessageResponse:
+    membership = active_membership(db, group_id, user.id)
+    message = db.scalar(
+        select(Message).where(Message.id == message_id, Message.group_id == group_id)
+    )
+    if message is None:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    if message.sender_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only edit messages that you sent",
+        )
+
+    if message.message_type != "text":
+        raise HTTPException(
+            status_code=400,
+            detail="Only text messages can be edited",
+        )
+
+    created_utc = _to_utc(message.created_at)
+    now_utc = datetime.now(timezone.utc)
+    if (now_utc - created_utc).total_seconds() > EDIT_WINDOW_MINUTES * 60:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Messages can only be edited within {EDIT_WINDOW_MINUTES} minutes of sending.",
+        )
+
+    message.body = payload.body
+    message.is_edited = True
+    message.edited_at = now_utc
+    db.commit()
+    db.refresh(message)
+
+    is_anon = message.is_anonymous
+    sender_name = "Anonymous" if is_anon else (membership.nickname or _display_name(user))
+    sender_avatar = None if is_anon else user.avatar_url
+
+    status_map = _compute_message_statuses(db, group_id, [message], user.id)
+    msg_status, seen_users = status_map.get(message.id, ("sent", []))
+
+    response = MessageResponse(
+        id=message.id,
+        group_id=group_id,
+        sender_id=user.id,
+        sender_name=sender_name,
+        sender_username="anonymous" if is_anon else user.username,
+        sender_avatar_url=sender_avatar,
+        message_type=message.message_type,
+        body=message.body,
+        image_url=message.image_url,
+        is_anonymous=is_anon,
+        is_edited=message.is_edited,
+        edited_at=message.edited_at,
+        created_at=message.created_at,
+        status=msg_status,
+        seen_by=seen_users,
+    )
+
+    await manager.broadcast_to_group(
+        group_id,
+        {
+            "type": "edit_message",
+            "message_id": message.id,
+            "group_id": group_id,
+            "body": message.body,
+            "is_edited": True,
+            "edited_at": message.edited_at.isoformat() if message.edited_at else "",
+        },
+    )
+
+    return response
 
 
 def _get_user_from_token(token: str, db: Session) -> User | None:

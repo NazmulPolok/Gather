@@ -455,16 +455,25 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 .message-own .message-bubble-wrap {
   flex-direction: row-reverse;
 }
-.msg-delete-action-btn {
+.msg-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.15s ease, visibility 0.15s, transform 0.15s ease;
+  transition: opacity 0.15s ease, visibility 0.15s;
+}
+.message-row:hover .msg-actions-group {
+  opacity: 1;
+  visibility: visible;
+}
+.msg-action-btn {
   width: 24px;
   height: 24px;
   border-radius: 50%;
   border: 1px solid #e0e5df;
   background: #fff;
-  color: #a4534a;
   display: grid;
   place-items: center;
   font-size: 11px;
@@ -472,26 +481,140 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
   flex: none;
   padding: 0;
   box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.message-row:hover .msg-delete-action-btn {
-  opacity: 1;
-  visibility: visible;
+.msg-action-btn:hover {
+  transform: scale(1.1);
+}
+.msg-edit-action-btn {
+  color: #3b744e;
+}
+.msg-edit-action-btn:hover {
+  background: #f1f7f2;
+  border-color: #a4c9ad;
+  color: #245834;
+}
+.msg-delete-action-btn {
+  color: #a4534a;
 }
 .msg-delete-action-btn:hover {
   background: #fff3f1;
   border-color: #d89e96;
   color: #bf3428;
-  transform: scale(1.1);
 }
-:root[data-theme="dark"] .msg-delete-action-btn {
+:root[data-theme="dark"] .msg-action-btn {
   background: #232c25;
   border-color: #38483b;
+}
+:root[data-theme="dark"] .msg-edit-action-btn {
+  color: #79c58e;
+}
+:root[data-theme="dark"] .msg-edit-action-btn:hover {
+  background: #1b2f21;
+  border-color: #356740;
+  color: #a3e7b4;
+}
+:root[data-theme="dark"] .msg-delete-action-btn {
   color: #e5877c;
 }
 :root[data-theme="dark"] .msg-delete-action-btn:hover {
   background: #362222;
   border-color: #5c3232;
   color: #fca5a5;
+}
+
+/* Edited tag in message-meta */
+.edited-tag {
+  color: #8c968d;
+  font-size: 9px;
+  font-weight: 500;
+  cursor: default;
+  user-select: none;
+}
+:root[data-theme="dark"] .edited-tag {
+  color: #78877a;
+}
+
+/* Inline Edit Box */
+.message-edit-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 200px;
+  max-width: 100%;
+}
+.message-edit-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #38764a;
+  border-radius: 8px;
+  background: #fff;
+  color: #2e3830;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  box-shadow: 0 0 0 2px #47815c22;
+}
+:root[data-theme="dark"] .message-edit-input {
+  background: #1b241d;
+  color: #e8eee8;
+  border-color: #4b8b5e;
+  box-shadow: 0 0 0 2px #47815c33;
+}
+.edit-error-text {
+  color: #dc2626;
+  font-size: 10px;
+}
+.message-edit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.edit-cancel-btn {
+  padding: 4px 9px;
+  border: 1px solid #dbe2da;
+  border-radius: 6px;
+  background: #fff;
+  color: #647065;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.edit-cancel-btn:hover:not(:disabled) {
+  background: #f3f5f3;
+  color: #354037;
+}
+:root[data-theme="dark"] .edit-cancel-btn {
+  background: #232c25;
+  border-color: #3b4b3d;
+  color: #a4b3a6;
+}
+:root[data-theme="dark"] .edit-cancel-btn:hover:not(:disabled) {
+  background: #2b362e;
+  color: #e3ece4;
+}
+.edit-save-btn {
+  padding: 4px 11px;
+  border: 1px solid #2e6640;
+  border-radius: 6px;
+  background: #2e6640;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.edit-save-btn:hover:not(:disabled) {
+  background: #225132;
+}
+.edit-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Delete confirmation modal additions */

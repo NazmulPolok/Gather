@@ -35,6 +35,18 @@ class MessageCreate(BaseModel):
         return self
 
 
+class MessageUpdate(BaseModel):
+    body: str = Field(min_length=1, max_length=10000)
+
+    @field_validator("body")
+    @classmethod
+    def trim_body(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Message body cannot be empty")
+        return value
+
+
 class SeenUser(BaseModel):
     user_id: int
     name: str
@@ -54,6 +66,8 @@ class MessageResponse(BaseModel):
     body: str | None = None
     image_url: str | None = None
     is_anonymous: bool = False
+    is_edited: bool = False
+    edited_at: datetime | None = None
     created_at: datetime
     status: Literal["sending", "sent", "delivered", "seen"] = "sent"
     seen_by: list[SeenUser] = []
