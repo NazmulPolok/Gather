@@ -443,3 +443,92 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 :root[data-theme="dark"] .messenger-mini-avatar {
   border-color: #1b231c;
 }
+
+/* Message Bubble Wrapper and Delete Action */
+.message-bubble-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+.message-own .message-bubble-wrap {
+  flex-direction: row-reverse;
+}
+.msg-delete-action-btn {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s, transform 0.15s ease;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #e0e5df;
+  background: #fff;
+  color: #a4534a;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  cursor: pointer;
+  flex: none;
+  padding: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.message-row:hover .msg-delete-action-btn {
+  opacity: 1;
+  visibility: visible;
+}
+.msg-delete-action-btn:hover {
+  background: #fff3f1;
+  border-color: #d89e96;
+  color: #bf3428;
+  transform: scale(1.1);
+}
+:root[data-theme="dark"] .msg-delete-action-btn {
+  background: #232c25;
+  border-color: #38483b;
+  color: #e5877c;
+}
+:root[data-theme="dark"] .msg-delete-action-btn:hover {
+  background: #362222;
+  border-color: #5c3232;
+  color: #fca5a5;
+}
+
+/* Delete confirmation modal additions */
+.button-danger {
+  background: #dc2626 !important;
+  border-color: #b91c1c !important;
+  color: #fff !important;
+}
+.button-danger:hover {
+  background: #b91c1c !important;
+}
+.delete-message-preview {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f4f6f4;
+  border: 1px solid #e2e8e2;
+  font-size: 12px;
+  color: #3b473d;
+  font-style: italic;
+  max-height: 80px;
+  overflow-y: auto;
+  word-break: break-word;
+}
+:root[data-theme="dark"] .delete-message-preview {
+  background: #172019;
+  border-color: #2b392d;
+  color: #d1ddd3;
+}
+.delete-message-img-preview {
+  max-width: 140px;
+  max-height: 100px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e0e6e0;
+}
+.delete-message-img-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

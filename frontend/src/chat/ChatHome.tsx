@@ -53,9 +53,27 @@ export function ChatHome({
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [chatError, setChatError] = useState('')
+  const [messageToDelete, setMessageToDelete] = useState<Message | null>(null)
+  const [deletingMessage, setDeletingMessage] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const chatImageInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleDeleteMessage(msg: Message) {
+    if (!activeGroup || deletingMessage) return
+    setDeletingMessage(true)
+    setError('')
+    try {
+      await api.deleteMessage(token, activeGroup.id, msg.id)
+      setMessages(current => current.filter(m => m.id !== msg.id))
+      setMessageToDelete(null)
+      setNotice('Message deleted for everyone.')
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not delete message')
+    } finally {
+      setDeletingMessage(false)
+    }
+  }
 
   const refreshGroups = useCallback(async (): Promise<Group[]> => {
     setLoadingGroups(true)
@@ -354,6 +372,9 @@ export function ChatHome({
                 })
               )
             }
+          } else if (data.type === 'delete_message') {
+            const deletedId = data.message_id as number
+            setMessages(current => current.filter(m => m.id !== deletedId))
           }
         } catch (err) {
           console.error('WS message error:', err)
@@ -671,6 +692,55 @@ export function ChatHome({
                 </div>
               </div>
             )}
+            {messageToDelete && (
+              <div className="modal-backdrop" onClick={() => !deletingMessage && setMessageToDelete(null)}>
+                <div className="photo-confirm-dialog" onClick={e => e.stopPropagation()}>
+                  <div className="photo-confirm-header">
+                    <h3>Delete message for everyone</h3>
+                    <button
+                      type="button"
+                      className="photo-confirm-close"
+                      onClick={() => setMessageToDelete(null)}
+                      aria-label="Close"
+                      disabled={deletingMessage}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <p className="photo-confirm-copy">
+                    Are you sure you want to permanently delete this message? It will be removed for everyone in <strong>{activeGroup.name}</strong>.
+                  </p>
+                  {messageToDelete.body && (
+                    <div className="delete-message-preview">
+                      “{messageToDelete.body.length > 140 ? messageToDelete.body.slice(0, 140) + '…' : messageToDelete.body}”
+                    </div>
+                  )}
+                  {messageToDelete.image_url && (
+                    <div className="delete-message-img-preview">
+                      <img src={getMediaUrl(messageToDelete.image_url)} alt="Attachment preview" />
+                    </div>
+                  )}
+                  <div className="photo-confirm-actions">
+                    <button
+                      type="button"
+                      className="button button-danger delete-confirm-btn"
+                      onClick={() => void handleDeleteMessage(messageToDelete)}
+                      disabled={deletingMessage}
+                    >
+                      {deletingMessage ? 'Deleting…' : '🗑 Delete for everyone'}
+                    </button>
+                    <button
+                      type="button"
+                      className="outline-button"
+                      onClick={() => setMessageToDelete(null)}
+                      disabled={deletingMessage}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="chat-heading">
               {isEditingName ? (
                 <form className="inline-rename-form" onSubmit={e => { e.preventDefault(); void updateGroupSettings(editName) }}>
@@ -752,7 +822,13 @@ export function ChatHome({
                 ) : (
                   <div className="message-list">
                     {messages.map(message => (
-                      <MessageBubble key={message.id} message={message} own={message.sender_id === user.id} />
+                      <MessageBubble
+                        key={message.id}
+                        message={message}
+                        own={message.sender_id === user.id}
+                        canDelete={message.sender_id === user.id || isAdmin}
+                        onDelete={setMessageToDelete}
+                      />
                     ))}
                     {Object.keys(typingUsers).length > 0 && (
                       <div className="typing-indicator-container">
@@ -888,7 +964,17 @@ export function ChatHome({
   )
 }
 
-function MessageBubble({ message, own }: { message: Message; own: boolean }) {
+function MessageBubble({
+  message,
+  own,
+  canDelete,
+  onDelete,
+}: {
+  message: Message
+  own: boolean
+  canDelete?: boolean
+  onDelete?: (message: Message) => void
+}) {
   const [showStatusDetails, setShowStatusDetails] = useState(false)
   const time = new Date(message.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   const isAnon = Boolean(message.is_anonymous)
@@ -925,27 +1011,44 @@ function MessageBubble({ message, own }: { message: Message; own: boolean }) {
           {isAnon && <span className="anon-tag">Anonymous</span>}
           <time>{time}</time>
         </div>
-        <div
-          className={`message-bubble ${own ? 'bubble-own' : ''} ${isAnon ? 'bubble-anon' : ''}`}
-          onClick={() => own && setShowStatusDetails(v => !v)}
-          title={own ? `Click to toggle status: ${seenText}` : undefined}
-          style={{ cursor: own ? 'pointer' : 'default' }}
-        >
-          {message.message_type === 'image' && message.image_url && (
-            <div className="message-image-wrap">
-              <img
-                src={getMediaUrl(message.image_url)}
-                alt="Shared attachment"
-                className="message-shared-image"
-                onClick={e => {
-                  e.stopPropagation()
-                  window.open(getMediaUrl(message.image_url), '_blank')
-                }}
-                title="Click to view full image"
-              />
-            </div>
+        <div className="message-bubble-wrap">
+          <div
+            className={`message-bubble ${own ? 'bubble-own' : ''} ${isAnon ? 'bubble-anon' : ''}`}
+            onClick={() => own && setShowStatusDetails(v => !v)}
+            title={own ? `Click to toggle status: ${seenText}` : undefined}
+            style={{ cursor: own ? 'pointer' : 'default' }}
+          >
+            {message.message_type === 'image' && message.image_url && (
+              <div className="message-image-wrap">
+                <img
+                  src={getMediaUrl(message.image_url)}
+                  alt="Shared attachment"
+                  className="message-shared-image"
+                  onClick={e => {
+                    e.stopPropagation()
+                    window.open(getMediaUrl(message.image_url), '_blank')
+                  }}
+                  title="Click to view full image"
+                />
+              </div>
+            )}
+            {message.body && <div className="message-text-body">{message.body}</div>}
+          </div>
+
+          {canDelete && onDelete && message.id > 0 && (
+            <button
+              type="button"
+              className="msg-delete-action-btn"
+              onClick={e => {
+                e.stopPropagation()
+                onDelete(message)
+              }}
+              title="Delete message for everyone"
+              aria-label="Delete message for everyone"
+            >
+              🗑
+            </button>
           )}
-          {message.body && <div className="message-text-body">{message.body}</div>}
         </div>
 
         {own && (

@@ -209,6 +209,8 @@ export const api = {
   removeGroupAvatar: (token: string, groupId: number) => request<Group>(`/api/groups/${groupId}/avatar`, { method: 'DELETE' }, token),
   joinGroup: (token: string, inviteCode: string) => request<{ status: string }>(`/api/groups/join/${encodeURIComponent(inviteCode)}`, { method: 'POST' }, token),
   messages: (token: string, groupId: number) => request<Message[]>(`/api/groups/${groupId}/messages?limit=100`, {}, token),
+  deleteMessage: (token: string, groupId: number, messageId: number) =>
+    request<{ status: string; message_id: number }>(`/api/groups/${groupId}/messages/${messageId}`, { method: 'DELETE' }, token),
   sendText: (token: string, groupId: number, body: string, is_anonymous = false) => request<Message>(`/api/groups/${groupId}/messages`, { method: 'POST', body: JSON.stringify({ message_type: 'text', body, is_anonymous }) }, token),
   uploadGroupImage: (token: string, groupId: number, file: File) => {
     const formData = new FormData()

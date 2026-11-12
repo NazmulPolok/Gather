@@ -324,6 +324,54 @@ async def create_message(
     return response
 
 
+@router.delete("/{group_id}/messages/{message_id}")
+async def delete_message(
+    group_id: int,
+    message_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, object]:
+    membership = active_membership(db, group_id, user.id)
+    message = db.scalar(
+        select(Message).where(Message.id == message_id, Message.group_id == group_id)
+    )
+    if message is None:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    is_sender = (message.sender_id == user.id)
+    is_admin = (membership.role == "admin" or (message.group and message.group.owner_id == user.id))
+    if not is_sender and not is_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only delete messages that you sent",
+        )
+
+    # Clean up uploaded image file if present
+    if message.image_url and message.image_url.startswith("/uploads/messages/"):
+        try:
+            rel_name = message.image_url.removeprefix("/uploads/messages/")
+            img_file = MESSAGES_DIR / rel_name
+            if img_file.is_file():
+                img_file.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    db.delete(message)
+    db.commit()
+
+    # Broadcast to all connected members in the group so it disappears instantly
+    await manager.broadcast_to_group(
+        group_id,
+        {
+            "type": "delete_message",
+            "message_id": message_id,
+            "group_id": group_id,
+        },
+    )
+
+    return {"status": "deleted", "message_id": message_id}
+
+
 def _get_user_from_token(token: str, db: Session) -> User | None:
     try:
         payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[ALGORITHM])
