@@ -199,6 +199,18 @@ export function NewsFeed({
     }
   }
 
+  async function handleEditPost(postId: number, newContent: string) {
+    try {
+      const updatedPost = await api.editPost(token, postId, newContent)
+      setPosts(current => current.map(p => (p.id === postId ? updatedPost : p)))
+      setNotice('Post updated successfully!')
+      setTimeout(() => setNotice(''), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not edit post')
+      throw err
+    }
+  }
+
   function toggleComments(postId: number) {
     setExpandedComments(current => ({ ...current, [postId]: !current[postId] }))
   }
@@ -392,6 +404,7 @@ export function NewsFeed({
                 token={token}
                 onToggleUpvote={() => handleToggleUpvote(post.id)}
                 onDeletePost={() => handleDeletePost(post.id)}
+                onEditPost={handleEditPost}
                 isCommentsOpen={Boolean(expandedComments[post.id])}
                 onToggleComments={() => toggleComments(post.id)}
                 onCommentAdded={newComment => handleCommentAdded(post.id, newComment)}
@@ -499,6 +512,7 @@ function PostCard({
   token,
   onToggleUpvote,
   onDeletePost,
+  onEditPost,
   isCommentsOpen,
   onToggleComments,
   onCommentAdded,
@@ -511,6 +525,7 @@ function PostCard({
   token: string
   onToggleUpvote: () => void
   onDeletePost: () => void
+  onEditPost: (postId: number, newContent: string) => Promise<void>
   isCommentsOpen: boolean
   onToggleComments: () => void
   onCommentAdded: (comment: CommentItem) => void
@@ -522,7 +537,13 @@ function PostCard({
   const [submittingComment, setSubmittingComment] = useState(false)
   const [commentError, setCommentError] = useState('')
 
+  const [isEditing, setIsEditing] = useState(false)
+  const [editContent, setEditContent] = useState(post.content || '')
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+  const [editError, setEditError] = useState('')
+
   const isAuthor = post.author.user_id === currentUserId
+  const canEdit = isAuthor
   const canDelete = isAuthor || post.author.role === 'admin' || post.author.role === 'moderator'
 
   async function handleAddComment(e: FormEvent) {
@@ -578,24 +599,98 @@ function PostCard({
             <time className="post-relative-time" title={new Date(post.created_at).toLocaleString()}>
               {formatRelativeTime(post.created_at)}
             </time>
+            {post.updated_at && (
+              <span className="post-edited-badge" title={`Edited on ${new Date(post.updated_at).toLocaleString()}`}>
+                {' '}· Edited
+              </span>
+            )}
           </div>
         </div>
 
-        {canDelete && (
-          <button
-            type="button"
-            className="post-card-delete-btn"
-            onClick={onDeletePost}
-            title="Delete post"
-            aria-label="Delete post"
-          >
-            🗑
-          </button>
-        )}
+        <div className="post-header-actions">
+          {canEdit && !isEditing && (
+            <button
+              type="button"
+              className="post-card-edit-btn"
+              onClick={() => {
+                setEditContent(post.content || '')
+                setIsEditing(true)
+                setEditError('')
+              }}
+              title="Edit post"
+              aria-label="Edit post"
+            >
+              ✎ Edit
+            </button>
+          )}
+          {canDelete && !isEditing && (
+            <button
+              type="button"
+              className="post-card-delete-btn"
+              onClick={onDeletePost}
+              title="Delete post"
+              aria-label="Delete post"
+            >
+              🗑 Delete
+            </button>
+          )}
+        </div>
       </header>
 
-      {/* Post Text Content */}
-      {post.content && <p className="post-body-text">{post.content}</p>}
+      {/* Post Text Content or Inline Editor */}
+      {isEditing ? (
+        <div className="post-inline-editor">
+          {editError && <div className="post-edit-error">{editError}</div>}
+          <textarea
+            className="post-inline-edit-textarea"
+            value={editContent}
+            onChange={e => setEditContent(e.target.value)}
+            rows={3}
+            placeholder="Edit your post..."
+            disabled={isSavingEdit}
+            autoFocus
+          />
+          <div className="post-inline-edit-actions">
+            <button
+              type="button"
+              className="post-edit-cancel-btn"
+              onClick={() => {
+                setIsEditing(false)
+                setEditContent(post.content || '')
+                setEditError('')
+              }}
+              disabled={isSavingEdit}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="post-edit-save-btn"
+              onClick={async () => {
+                if (!editContent.trim() && !post.image_url) {
+                  setEditError('Post content cannot be empty.')
+                  return
+                }
+                setIsSavingEdit(true)
+                setEditError('')
+                try {
+                  await onEditPost(post.id, editContent)
+                  setIsEditing(false)
+                } catch (err) {
+                  setEditError(err instanceof Error ? err.message : 'Could not save post edit')
+                } finally {
+                  setIsSavingEdit(false)
+                }
+              }}
+              disabled={isSavingEdit}
+            >
+              {isSavingEdit ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        post.content && <p className="post-body-text">{post.content}</p>
+      )}
 
       {/* Post Image Container */}
       {post.image_url && (

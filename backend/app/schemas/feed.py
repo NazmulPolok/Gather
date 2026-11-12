@@ -70,6 +70,18 @@ class PostCreate(BaseModel):
         return self
 
 
+class PostUpdate(BaseModel):
+    content: str | None = Field(default=None, max_length=10000)
+
+    @field_validator("content")
+    @classmethod
+    def trim_content(cls, value: str | None) -> str | None:
+        if value is not None:
+            value = value.strip()
+            return value if value else None
+        return None
+
+
 class PostResponse(BaseModel):
     id: int
     group: GroupSummary
@@ -80,6 +92,7 @@ class PostResponse(BaseModel):
     has_upvoted: bool = False
     comment_count: int = 0
     created_at: datetime
+    updated_at: datetime | None = None
     comments: list[CommentResponse] = []
 
     model_config = {"from_attributes": True}

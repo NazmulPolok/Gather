@@ -189,6 +189,7 @@ export type PostItem = {
   has_upvoted: boolean
   comment_count: number
   created_at: string
+  updated_at?: string | null
   comments: CommentItem[]
 }
 
@@ -291,6 +292,11 @@ export const api = {
   },
   deletePost: (token: string, postId: number) =>
     request<{ status: string; post_id: number }>(`/api/posts/${postId}`, { method: 'DELETE' }, token),
+  editPost: (token: string, postId: number, content: string) =>
+    request<PostItem>(`/api/posts/${postId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ content }),
+    }, token),
   togglePostReact: (token: string, postId: number) =>
     request<{ status: string; post_id: number; has_upvoted: boolean; upvote_count: number }>(`/api/posts/${postId}/react`, { method: 'POST' }, token),
   getPostComments: (token: string, postId: number) =>

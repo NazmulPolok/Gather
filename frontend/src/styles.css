@@ -1119,21 +1119,148 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 .dot-divider {
   font-weight: 700;
 }
+.post-edited-badge {
+  color: #7b8e7d;
+  font-size: 11px;
+  font-style: italic;
+}
+.post-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.post-card-edit-btn {
+  border: 1px solid rgba(46, 125, 50, 0.25);
+  background: rgba(46, 125, 50, 0.08);
+  font-size: 12px;
+  color: #2e7d32;
+  cursor: pointer;
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+.post-card-edit-btn:hover {
+  background: rgba(46, 125, 50, 0.18);
+  transform: translateY(-1px);
+}
+:root[data-theme="dark"] .post-card-edit-btn {
+  border-color: rgba(92, 179, 102, 0.35);
+  background: rgba(92, 179, 102, 0.12);
+  color: #72cf81;
+}
+:root[data-theme="dark"] .post-card-edit-btn:hover {
+  background: rgba(92, 179, 102, 0.22);
+}
 .post-card-delete-btn {
-  border: none;
-  background: transparent;
-  font-size: 13px;
+  border: 1px solid rgba(170, 80, 70, 0.25);
+  background: rgba(170, 80, 70, 0.08);
+  font-size: 12px;
   color: #aa5046;
   cursor: pointer;
-  padding: 4px 6px;
+  padding: 4px 9px;
   border-radius: 6px;
-  transition: background 0.15s;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
 }
 .post-card-delete-btn:hover {
   background: #fdf1ef;
+  transform: translateY(-1px);
+}
+:root[data-theme="dark"] .post-card-delete-btn {
+  border-color: rgba(220, 100, 90, 0.3);
+  background: rgba(220, 100, 90, 0.12);
+  color: #e57373;
 }
 :root[data-theme="dark"] .post-card-delete-btn:hover {
   background: #361f1f;
+}
+
+/* Post Inline Editor */
+.post-inline-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+:root[data-theme="dark"] .post-inline-editor {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.post-inline-edit-textarea {
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--bg-card, #ffffff);
+  color: var(--text-color, #1a1a1a);
+  resize: vertical;
+  min-height: 70px;
+}
+:root[data-theme="dark"] .post-inline-edit-textarea {
+  background: #1e2520;
+  border-color: #334436;
+  color: #e0e8e2;
+}
+.post-inline-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.post-edit-cancel-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+:root[data-theme="dark"] .post-edit-cancel-btn {
+  border-color: #445546;
+}
+.post-edit-save-btn {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: none;
+  background: #2e7d32;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.post-edit-save-btn:hover {
+  opacity: 0.9;
+}
+.post-edit-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.post-edit-error {
+  color: #d32f2f;
+  font-size: 12px;
+  padding: 4px 8px;
+  background: #ffebee;
+  border-radius: 4px;
+}
+:root[data-theme="dark"] .post-edit-error {
+  background: #3b1d1d;
+  color: #ef9a9a;
 }
 
 /* Premium Role Badges */

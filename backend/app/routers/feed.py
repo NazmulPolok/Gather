@@ -18,6 +18,7 @@ from app.schemas.feed import (
     GroupSummary,
     PostCreate,
     PostResponse,
+    PostUpdate,
 )
 from app.services.permissions import active_membership
 
@@ -112,6 +113,7 @@ def _build_post_response(post: Post, current_user_id: int, db: Session) -> PostR
         has_upvoted=has_upvoted,
         comment_count=len(comment_responses),
         created_at=post.created_at,
+        updated_at=post.updated_at,
         comments=comment_responses,
     )
 
@@ -204,6 +206,32 @@ def create_group_post(
         image_url=payload.image_url,
     )
     db.add(post)
+    db.commit()
+    db.refresh(post)
+
+    return _build_post_response(post, user.id, db)
+
+
+@router.patch("/posts/{post_id}", response_model=PostResponse)
+def edit_post(
+    post_id: int,
+    payload: PostUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> PostResponse:
+    post = db.scalar(select(Post).where(Post.id == post_id))
+    if post is None:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    if post.author_id != user.id:
+        raise HTTPException(status_code=403, detail="You can only edit your own posts")
+
+    clean_content = payload.content.strip() if payload.content else None
+    if not clean_content and not post.image_url:
+        raise HTTPException(status_code=400, detail="Post content cannot be empty")
+
+    post.content = clean_content
+    post.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(post)
 
