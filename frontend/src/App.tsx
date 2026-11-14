@@ -121,7 +121,7 @@ export default function App() {
       ) : (
         <AuthForm onSignedIn={signedIn} />
       )}
-      <footer className="site-footer"><span>Gather · good conversations, together.</span><span>Made for your group</span></footer>
+      {!user && <footer className="site-footer"><span>Gather · good conversations, together.</span><span>Made for your group</span></footer>}
     </div>
   )
 }
