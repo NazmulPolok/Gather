@@ -87,7 +87,7 @@ export default function App() {
         </div>
       </header>
       {checkingSession ? <div className="loading-screen"><span className="spinner" />Restoring your session…</div> : token && sessionError ? <div className="loading-screen"><div className="session-recovery"><strong>Can’t reach your account right now</strong><p>{sessionError}</p><button className="button button-primary" onClick={() => setSessionAttempt(value => value + 1)}>Try again</button><button className="recovery-signout" onClick={signOut}>Sign out</button></div></div> : token && user ? <ChatHome token={token} user={user} onUserUpdated={setUser} notificationTarget={notificationTarget} onNotificationHandled={handleNotificationHandled} unreadGroups={unreadGroups} onUnreadGroups={handleUnreadGroups} /> : <AuthForm onSignedIn={signedIn} />}
-      <footer className="site-footer"><span>Gather · good conversations, together.</span><span>Made for your group</span></footer>
+      {!user && <footer className="site-footer"><span>Gather · good conversations, together.</span><span>Made for your group</span></footer>}
     </div>
   )
 }

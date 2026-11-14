@@ -87,6 +87,7 @@ export function ChatHome({
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [mentionIndex, setMentionIndex] = useState(0)
   const [mentionRange, setMentionRange] = useState<{ start: number; end: number } | null>(null)
+  const [showGroupSwitcher, setShowGroupSwitcher] = useState(false)
 
   async function handleDeleteMessage(msg: Message) {
     if (!activeGroup || deletingMessage) return
@@ -929,6 +930,16 @@ export function ChatHome({
                       ✎
                     </button>
                   )}
+                  {groups.length > 1 && (
+                    <button
+                      type="button"
+                      className="header-quick-switch-trigger"
+                      onClick={() => setShowGroupSwitcher(true)}
+                      title="Switch to another group"
+                    >
+                      ⇄ Switch group ▾
+                    </button>
+                  )}
                 </div>
               )}
               <p>
@@ -1080,6 +1091,31 @@ export function ChatHome({
                   })}
                 </div>
               )}
+              <div className="composer-quick-nav-bar">
+                <div className="composer-nav-left">
+                  <button
+                    type="button"
+                    className="composer-nav-btn"
+                    onClick={() => { setActiveGroup(null); setShowMembers(false); setNotice('') }}
+                    title="Exit chat and view all groups"
+                  >
+                    ‹ All Groups
+                  </button>
+                  {groups.length > 1 && (
+                    <button
+                      type="button"
+                      className="composer-nav-btn"
+                      onClick={() => setShowGroupSwitcher(true)}
+                      title="Switch directly to another group"
+                    >
+                      ⇄ Switch Group ({groups.length - 1})
+                    </button>
+                  )}
+                </div>
+                {sendAsAnonymous && (
+                  <span style={{ fontSize: '10px', color: '#888', fontWeight: 600 }}>🎭 Anonymous</span>
+                )}
+              </div>
               <div className="composer-main-row">
                 <input
                   ref={chatImageInputRef}
@@ -1162,6 +1198,62 @@ export function ChatHome({
           )}
         </> : <WelcomePanel groups={groups} unreadGroups={unreadGroups} loadingGroups={loadingGroups} onSelectGroup={group => { setActiveGroup(group); setShowMembers(false); setNotice('') }} />}
       </section>
+
+      {showGroupSwitcher && (
+        <div className="quick-switcher-overlay" onClick={() => setShowGroupSwitcher(false)}>
+          <div className="quick-switcher-dialog" onClick={e => e.stopPropagation()}>
+            <div className="quick-switcher-header">
+              <h3><span>⇄</span> Switch Group</h3>
+              <button
+                type="button"
+                className="quick-switcher-close"
+                onClick={() => setShowGroupSwitcher(false)}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="quick-switcher-list">
+              {groups.map(g => {
+                const isCurrent = activeGroup && g.id === activeGroup.id
+                const unread = unreadGroups[g.id] || 0
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    className={`quick-switch-item ${isCurrent ? 'current-group' : ''}`}
+                    onClick={() => {
+                      setActiveGroup(g)
+                      setShowMembers(false)
+                      setShowGroupSwitcher(false)
+                      setNotice('')
+                    }}
+                  >
+                    <GroupAvatar avatarUrl={g.avatar_url} name={g.name} size={34} />
+                    <span className="quick-switch-name">{g.name}</span>
+                    {unread > 0 && <span className="quick-switch-badge">{unread} unread</span>}
+                    {isCurrent && <span className="quick-switch-current-tag">Active</span>}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="quick-switcher-footer">
+              <button
+                type="button"
+                className="quick-switcher-exit-btn"
+                onClick={() => {
+                  setActiveGroup(null)
+                  setShowMembers(false)
+                  setShowGroupSwitcher(false)
+                  setNotice('')
+                }}
+              >
+                ‹ Exit to Groups Overview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
