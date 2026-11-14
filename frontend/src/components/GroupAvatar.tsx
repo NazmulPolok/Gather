@@ -4,7 +4,7 @@ export function GroupAvatar({
   avatarUrl,
   name,
   className = '',
-  size,
+  size = 38,
 }: {
   avatarUrl?: string | null
   name: string
@@ -20,7 +20,15 @@ export function GroupAvatar({
         style={{
           backgroundColor: preset.bg,
           color: preset.color,
-          ...(size ? { width: size, height: size, fontSize: size * 0.52 } : {}),
+          width: size,
+          height: size,
+          minWidth: size,
+          minHeight: size,
+          fontSize: size * 0.52,
+          flex: 'none',
+          borderRadius: Math.round(size * 0.28),
+          display: 'inline-grid',
+          placeItems: 'center',
         }}
         title={preset.label}
       >
@@ -35,10 +43,40 @@ export function GroupAvatar({
         src={getMediaUrl(avatarUrl)}
         alt={name}
         className={`group-avatar-img ${className}`}
-        style={size ? { width: size, height: size } : undefined}
+        style={{
+          width: size,
+          height: size,
+          minWidth: size,
+          minHeight: size,
+          objectFit: 'cover',
+          borderRadius: Math.round(size * 0.28),
+          flex: 'none',
+          display: 'block',
+          aspectRatio: '1/1',
+        }}
       />
     )
   }
 
-  return <span>{(name.slice(0, 1) || 'G').toUpperCase()}</span>
+  return (
+    <span
+      className={`group-avatar-fallback ${className}`}
+      style={{
+        width: size,
+        height: size,
+        minWidth: size,
+        minHeight: size,
+        borderRadius: Math.round(size * 0.28),
+        display: 'inline-grid',
+        placeItems: 'center',
+        flex: 'none',
+        fontSize: size * 0.44,
+        fontWeight: 700,
+        background: '#e0eee1',
+        color: '#346d46',
+      }}
+    >
+      {(name.slice(0, 1) || 'G').toUpperCase()}
+    </span>
+  )
 }
