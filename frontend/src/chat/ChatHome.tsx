@@ -1105,31 +1105,6 @@ export function ChatHome({
                   })}
                 </div>
               )}
-              <div className="composer-quick-nav-bar">
-                <div className="composer-nav-left">
-                  <button
-                    type="button"
-                    className="composer-nav-btn"
-                    onClick={() => { setActiveGroup(null); setShowMembers(false); setNotice('') }}
-                    title="Exit chat and view all groups"
-                  >
-                    ‹ All Groups
-                  </button>
-                  {groups.length > 1 && (
-                    <button
-                      type="button"
-                      className="composer-nav-btn"
-                      onClick={() => setShowGroupSwitcher(true)}
-                      title="Switch directly to another group"
-                    >
-                      ⇄ Switch Group ({groups.length - 1})
-                    </button>
-                  )}
-                </div>
-                {sendAsAnonymous && (
-                  <span style={{ fontSize: '10px', color: '#888', fontWeight: 600 }}>🎭 Anonymous</span>
-                )}
-              </div>
               <div className="composer-main-row">
                 <input
                   ref={chatImageInputRef}
