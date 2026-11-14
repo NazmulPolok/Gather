@@ -27,7 +27,7 @@ export function NotificationCenter({ token, onSelect, onUnreadGroups }: { token:
       loadedOnce.current = true
       setFeed(next)
       const unreadGroups: Record<number, number> = {}
-      next.items.filter(item => item.read_at === null && item.notification_type === 'message').forEach(item => { unreadGroups[item.group_id] = (unreadGroups[item.group_id] ?? 0) + 1 })
+      next.items.filter(item => item.read_at === null && (item.notification_type === 'message' || item.notification_type === 'mention')).forEach(item => { unreadGroups[item.group_id] = (unreadGroups[item.group_id] ?? 0) + 1 })
       onUnreadGroups(unreadGroups)
       setProblem('')
     } catch (error) {
@@ -106,14 +106,35 @@ export function NotificationCenter({ token, onSelect, onUnreadGroups }: { token:
         {problem && <p className="notification-problem" role="alert">{problem}</p>}
         <div className="notification-list">{feed.items.length ? feed.items.map(item => <article key={item.id} className={`notification-item ${item.read_at === null ? 'notification-unread' : ''}`}>
           <button className="notification-main" onClick={() => void selectNotification(item)}>
-            <span className={`notification-symbol ${item.notification_type === 'join_request' ? 'request-symbol' : 'message-symbol'}`}>{item.notification_type === 'join_request' ? '♙' : '↗'}</span>
-            <span className="notification-copy"><strong>{item.notification_type === 'join_request' ? 'Join request' : 'New message'}</strong><span>{item.actor_name} (@{item.actor_username}) {item.notification_type === 'join_request' ? 'asked to join' : 'sent a message in'} <b>{item.group_name}</b></span><small>{new Date(item.created_at).toLocaleString()}</small></span>
+            <span className={`notification-symbol ${item.notification_type === 'mention' ? 'mention-symbol' : item.notification_type === 'join_request' ? 'request-symbol' : 'message-symbol'}`}>
+              {item.notification_type === 'mention' ? '@' : item.notification_type === 'join_request' ? '♙' : '↗'}
+            </span>
+            <span className="notification-copy">
+              <strong>{item.notification_type === 'mention' ? 'Mentioned you' : item.notification_type === 'join_request' ? 'Join request' : 'New message'}</strong>
+              <span>
+                {item.notification_type === 'mention'
+                  ? `${item.actor_name} (@${item.actor_username}) mentioned you in`
+                  : item.notification_type === 'join_request'
+                    ? `${item.actor_name} (@${item.actor_username}) asked to join`
+                    : `${item.actor_name} (@${item.actor_username}) sent a message in`} <b>{item.group_name}</b>
+              </span>
+              <small>{new Date(item.created_at).toLocaleString()}</small>
+            </span>
             {item.read_at === null && <i className="unread-dot" />}
           </button>
           {item.notification_type === 'join_request' && <div className="join-request-actions">{item.resolution === null ? <><button className="request-accept-button" disabled={respondingId === item.id} onClick={() => void respondToRequest(item, 'accept')}>{respondingId === item.id ? 'Saving…' : 'Accept'}</button><button className="request-decline-button" disabled={respondingId === item.id} onClick={() => void respondToRequest(item, 'decline')}>Decline</button></> : <span className={`request-resolution ${item.resolution}`}>{item.resolution === 'accepted' ? 'Accepted' : 'Declined'}</span>}</div>}
-        </article>) : <div className="notifications-empty"><span>🔔</span><strong>No notifications yet</strong><p>Join requests and new group messages will show up here.</p></div>}</div>
+        </article>) : <div className="notifications-empty"><span>🔔</span><strong>No notifications yet</strong><p>Join requests, mentions, and new messages will show up here.</p></div>}</div>
       </section>
     </>, document.body)}
-    {liveAlert && <button className="notification-toast" onClick={() => void selectNotification(liveAlert)}><span className="toast-notification-icon">{liveAlert.notification_type === 'join_request' ? '♙' : '↗'}</span><span><strong>{liveAlert.notification_type === 'join_request' ? 'New join request' : 'New message'}</strong><small>{liveAlert.actor_name} (@{liveAlert.actor_username}) · {liveAlert.group_name}</small></span><span className="toast-close" onClick={event => { event.stopPropagation(); setLiveAlert(null) }}>×</span></button>}
+    {liveAlert && (
+      <button className="notification-toast" onClick={() => void selectNotification(liveAlert)}>
+        <span className="toast-notification-icon">{liveAlert.notification_type === 'mention' ? '@' : liveAlert.notification_type === 'join_request' ? '♙' : '↗'}</span>
+        <span>
+          <strong>{liveAlert.notification_type === 'mention' ? 'Mentioned you' : liveAlert.notification_type === 'join_request' ? 'New join request' : 'New message'}</strong>
+          <small>{liveAlert.actor_name} (@{liveAlert.actor_username}) · {liveAlert.group_name}</small>
+        </span>
+        <span className="toast-close" onClick={event => { event.stopPropagation(); setLiveAlert(null) }}>×</span>
+      </button>
+    )}
   </div>
 }

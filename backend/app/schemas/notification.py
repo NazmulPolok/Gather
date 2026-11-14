@@ -12,7 +12,7 @@ class NotificationItem(BaseModel):
     actor_id: int
     actor_name: str
     actor_username: str
-    notification_type: Literal["join_request", "message"]
+    notification_type: Literal["join_request", "message", "mention"]
     resolution: Literal["accepted", "declined"] | None
     message_id: int | None
     read_at: datetime | None

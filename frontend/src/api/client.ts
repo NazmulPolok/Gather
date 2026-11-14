@@ -148,7 +148,7 @@ export type NotificationItem = {
   actor_id: number
   actor_name: string
   actor_username: string
-  notification_type: 'join_request' | 'message'
+  notification_type: 'join_request' | 'message' | 'mention'
   resolution: 'accepted' | 'declined' | null
   message_id: number | null
   read_at: string | null

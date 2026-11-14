@@ -83,6 +83,10 @@ export function ChatHome({
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const chatImageInputRef = useRef<HTMLInputElement>(null)
+  const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [mentionIndex, setMentionIndex] = useState(0)
+  const [mentionRange, setMentionRange] = useState<{ start: number; end: number } | null>(null)
 
   async function handleDeleteMessage(msg: Message) {
     if (!activeGroup || deletingMessage) return
@@ -302,8 +306,26 @@ export function ChatHome({
     }
   }, [sendAsAnonymous])
 
+  function checkMentionTrigger(text: string) {
+    const textarea = composerTextareaRef.current
+    const cursor = textarea ? textarea.selectionStart : text.length
+    const textBefore = text.slice(0, cursor)
+    const match = /(?:^|\s)@([a-zA-Z0-9_.-]*)$/.exec(textBefore)
+    if (match) {
+      const q = match[1]
+      const matchIndex = match.index + (match[0].startsWith(' ') ? 1 : 0)
+      setMentionQuery(q)
+      setMentionRange({ start: matchIndex, end: cursor })
+      setMentionIndex(0)
+    } else {
+      setMentionQuery(null)
+      setMentionRange(null)
+    }
+  }
+
   function handleComposerInput(val: string) {
     setMessageText(val)
+    checkMentionTrigger(val)
     if (val.trim()) {
       sendTypingEvent(true)
       if (typingTimeoutRef.current) {
@@ -649,7 +671,57 @@ export function ChatHome({
     } catch (cause) { setChatError(cause instanceof Error ? cause.message : 'Could not leave group') }
   }
 
+  const activeMembersForMention = members.filter(m => m.status === 'active' && m.user_id !== user.id)
+  const mentionCandidates = mentionQuery === null ? [] : activeMembersForMention.filter(m => {
+    if (!mentionQuery) return true
+    const q = mentionQuery.toLowerCase()
+    const name = (m.nickname || `${m.first_name || ''} ${m.last_name || ''}`.trim() || m.username).toLowerCase()
+    return m.username.toLowerCase().includes(q) || name.includes(q)
+  })
+
+  function insertMention(candidate: Member) {
+    if (!mentionRange) return
+    const before = messageText.slice(0, mentionRange.start)
+    const after = messageText.slice(mentionRange.end)
+    const insertion = `@${candidate.username} `
+    const nextText = `${before}${insertion}${after}`
+    setMessageText(nextText)
+    setMentionQuery(null)
+    setMentionRange(null)
+    setTimeout(() => {
+      if (composerTextareaRef.current) {
+        composerTextareaRef.current.focus()
+        const newCursor = before.length + insertion.length
+        composerTextareaRef.current.setSelectionRange(newCursor, newCursor)
+      }
+    }, 0)
+  }
+
   function onComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (mentionQuery !== null && mentionCandidates.length > 0) {
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        setMentionIndex(i => (i + 1) % mentionCandidates.length)
+        return
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        setMentionIndex(i => (i - 1 + mentionCandidates.length) % mentionCandidates.length)
+        return
+      }
+      if (event.key === 'Enter' || event.key === 'Tab') {
+        event.preventDefault()
+        insertMention(mentionCandidates[mentionIndex])
+        return
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setMentionQuery(null)
+        setMentionRange(null)
+        return
+      }
+    }
+
     if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit() }
   }
 
@@ -924,6 +996,7 @@ export function ChatHome({
                             canDelete={message.sender_id === user.id || isAdmin}
                             onDelete={setMessageToDelete}
                             onEdit={handleEditMessage}
+                            currentUsername={user.username}
                           />
                         </Fragment>
                       )
@@ -984,6 +1057,29 @@ export function ChatHome({
                   </button>
                 </div>
               )}
+              {mentionQuery !== null && mentionCandidates.length > 0 && (
+                <div className="mention-dropdown-menu" role="listbox">
+                  <div className="mention-dropdown-header">Group Members</div>
+                  {mentionCandidates.slice(0, 6).map((m, idx) => {
+                    const name = m.nickname || `${m.first_name || ''} ${m.last_name || ''}`.trim() || m.username
+                    return (
+                      <button
+                        key={m.user_id}
+                        type="button"
+                        className={`mention-candidate-item ${idx === mentionIndex ? 'active' : ''}`}
+                        onClick={() => insertMention(m)}
+                        onMouseEnter={() => setMentionIndex(idx)}
+                      >
+                        <UserAvatar avatarUrl={m.avatar_url} fallback={name} size={28} />
+                        <div className="mention-candidate-info">
+                          <span className="mention-candidate-name">{name}</span>
+                          <span className="mention-candidate-username">@{m.username}</span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
               <div className="composer-main-row">
                 <input
                   ref={chatImageInputRef}
@@ -1002,10 +1098,18 @@ export function ChatHome({
                   📷
                 </button>
                 <textarea
+                  ref={composerTextareaRef}
                   rows={1}
                   value={messageText}
                   onChange={e => handleComposerInput(e.target.value)}
-                  onBlur={() => sendTypingEvent(false)}
+                  onClick={() => checkMentionTrigger(messageText)}
+                  onKeyUp={() => checkMentionTrigger(messageText)}
+                  onBlur={() => {
+                    setTimeout(() => {
+                      setMentionQuery(null)
+                    }, 200)
+                    sendTypingEvent(false)
+                  }}
                   onKeyDown={onComposerKeyDown}
                   placeholder={
                     attachedImage
@@ -1062,18 +1166,40 @@ export function ChatHome({
   )
 }
 
+function renderFormattedBody(text: string, currentUsername: string) {
+  const parts = text.split(/(@[a-zA-Z0-9_.-]+)/g)
+  return parts.map((part, index) => {
+    if (part.startsWith('@')) {
+      const username = part.slice(1)
+      const isMe = username.toLowerCase() === currentUsername.toLowerCase()
+      return (
+        <span
+          key={index}
+          className={`mention-pill ${isMe ? 'mention-pill-me' : ''}`}
+          title={isMe ? 'You were mentioned' : `@${username}`}
+        >
+          {part}
+        </span>
+      )
+    }
+    return <Fragment key={index}>{part}</Fragment>
+  })
+}
+
 function MessageBubble({
   message,
   own,
   canDelete,
   onDelete,
   onEdit,
+  currentUsername = '',
 }: {
   message: Message
   own: boolean
   canDelete?: boolean
   onDelete?: (message: Message) => void
   onEdit?: (messageId: number, newBody: string) => Promise<void>
+  currentUsername?: string
 }) {
   const [showStatusDetails, setShowStatusDetails] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -1129,8 +1255,15 @@ function MessageBubble({
       ? 'Sent'
       : 'Sending…'
 
+  const isMentionedMe = Boolean(
+    !own &&
+    message.body &&
+    currentUsername &&
+    new RegExp(`@${currentUsername}\\b`, 'i').test(message.body)
+  )
+
   return (
-    <article className={`message-row ${own ? 'message-own' : ''} ${isAnon ? 'message-anon' : ''}`}>
+    <article className={`message-row ${own ? 'message-own' : ''} ${isAnon ? 'message-anon' : ''} ${isMentionedMe ? 'message-row-mentioned' : ''}`}>
       <div className={`message-avatar ${own ? 'my-message-avatar' : ''} ${isAnon ? 'avatar-anon-bubble' : ''}`}>
         {isAnon ? (
           '🎭'
@@ -1148,6 +1281,7 @@ function MessageBubble({
           </strong>
           <small>{isAnon ? '@anonymous' : (!own ? `@${message.sender_username}` : '')}</small>
           {isAnon && <span className="anon-tag">Anonymous</span>}
+          {isMentionedMe && <span className="mentioned-badge" title="You were mentioned in this message">@ Mentioned you</span>}
           <time>{time}</time>
           {message.is_edited && (
             <span
@@ -1215,7 +1349,11 @@ function MessageBubble({
                   />
                 </div>
               )}
-              {message.body && <div className="message-text-body">{message.body}</div>}
+              {message.body && (
+                <div className="message-text-body">
+                  {renderFormattedBody(message.body, currentUsername)}
+                </div>
+              )}
             </div>
           )}
 

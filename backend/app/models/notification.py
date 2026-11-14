@@ -9,7 +9,7 @@ from app.db.base import Base
 class Notification(Base):
     __tablename__ = "notifications"
     __table_args__ = (
-        CheckConstraint("notification_type IN ('join_request', 'message')", name="ck_notifications_type"),
+        CheckConstraint("notification_type IN ('join_request', 'message', 'mention')", name="ck_notifications_type"),
         Index("ix_notifications_user_unread_created", "user_id", "read_at", "created_at"),
     )
 

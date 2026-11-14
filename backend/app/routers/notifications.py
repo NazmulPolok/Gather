@@ -41,7 +41,7 @@ def list_notifications(
     ) or 0
     items: list[NotificationItem] = []
     for notification, group_name, first_name, last_name, username, msg_is_anon in rows:
-        if notification.notification_type == "message" and msg_is_anon:
+        if notification.notification_type in ("message", "mention") and msg_is_anon:
             act_id = 0
             act_name = "Anonymous"
             act_uname = "anonymous"
@@ -139,7 +139,7 @@ async def mark_group_messages_read(
         .where(
             Notification.user_id == user.id,
             Notification.group_id == group_id,
-            Notification.notification_type == "message",
+            Notification.notification_type.in_(["message", "mention"]),
             Notification.read_at.is_(None),
         )
         .values(read_at=now)

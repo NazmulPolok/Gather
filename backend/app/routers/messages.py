@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
 from pathlib import Path
+import re
 import secrets
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect, status
 from jose import JWTError, jwt
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -260,6 +261,25 @@ async def create_message(
             Membership.user_id != user.id,
         )
     ).all()
+
+    # Extract mentioned usernames from message body
+    mentioned_user_ids = set()
+    if payload.body:
+        raw_mentions = {m.lower() for m in re.findall(r"@([a-zA-Z0-9_.-]+)", payload.body)}
+        if raw_mentions:
+            mentioned_user_ids = set(
+                db.scalars(
+                    select(User.id)
+                    .join(Membership, Membership.user_id == User.id)
+                    .where(
+                        Membership.group_id == group_id,
+                        Membership.status == "active",
+                        func.lower(User.username).in_(raw_mentions),
+                        User.id != user.id,
+                    )
+                ).all()
+            )
+
     db.add_all(
         [
             Notification(
@@ -267,7 +287,7 @@ async def create_message(
                 group_id=group_id,
                 actor_id=user.id,
                 message_id=message.id,
-                notification_type="message",
+                notification_type="mention" if recipient_id in mentioned_user_ids else "message",
             )
             for recipient_id in recipient_ids
         ]
@@ -571,7 +591,7 @@ async def group_websocket(
                         .where(
                             Notification.user_id == user_info["user_id"],
                             Notification.group_id == group_id,
-                            Notification.notification_type == "message",
+                            Notification.notification_type.in_(["message", "mention"]),
                             Notification.read_at.is_(None),
                         )
                         .values(read_at=read_now)
