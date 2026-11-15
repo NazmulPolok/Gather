@@ -32,10 +32,12 @@ export function NewsFeed({
   token,
   user,
   onOpenGroupChat,
+  onOpenProfile,
 }: {
   token: string
   user: AuthUser
   onOpenGroupChat?: () => void
+  onOpenProfile?: (username: string) => void
 }) {
   const [communities, setCommunities] = useState<CommunitySummary[]>([])
   const [posts, setPosts] = useState<PostItem[]>([])
@@ -619,7 +621,12 @@ export function NewsFeed({
                       r/{post.community.slug}
                     </span>
                     <span>•</span>
-                    <span className="reddit-author-handle">
+                    <span
+                      className="reddit-author-handle"
+                      style={onOpenProfile ? { cursor: 'pointer', textDecoration: 'underline' } : undefined}
+                      onClick={() => onOpenProfile?.(post.author.username)}
+                      title={`View ${post.author.username}'s profile`}
+                    >
                       Posted by u/{post.author.username}
                     </span>
                     <span>•</span>
@@ -748,7 +755,12 @@ export function NewsFeed({
                             />
                             <div className="comment-speech-bubble">
                               <div className="comment-header-row">
-                                <span className="comment-author-title">
+                                <span
+                                  className="comment-author-title"
+                                  style={onOpenProfile ? { cursor: 'pointer', textDecoration: 'underline' } : undefined}
+                                  onClick={() => onOpenProfile?.(c.author.username)}
+                                  title={`View ${c.author.username}'s profile`}
+                                >
                                   u/{c.author.username}
                                 </span>
                                 <span className="comment-timestamp">

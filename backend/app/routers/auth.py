@@ -17,7 +17,9 @@ from app.core.dependencies import get_current_user
 from app.core.media import safe_delete_upload_file, validate_image_file
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.session import get_db
+from app.models.community import CommunityMember
 from app.models.password_reset_otp import PasswordResetOTP
+from app.models.post import Post, PostReaction
 from app.models.user import User
 from app.schemas.auth import (
     ForgotPasswordRequestOTP,
@@ -26,6 +28,7 @@ from app.schemas.auth import (
     ProfileUpdate,
     SignupRequest,
     TokenResponse,
+    UserProfileResponse,
     UserResponse,
 )
 
@@ -270,4 +273,35 @@ def update_profile(
     db.commit()
     db.refresh(user)
     return user
-    return user
+
+
+@router.get("/users/{username}/profile", response_model=UserProfileResponse)
+def get_user_profile(
+    username: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> UserProfileResponse:
+    target_user = db.scalar(select(User).where(func.lower(User.username) == username.lower()))
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    post_count = db.scalar(select(func.count(Post.id)).where(Post.author_id == target_user.id)) or 0
+    total_upvotes = db.scalar(
+        select(func.count(PostReaction.id)).join(Post, PostReaction.post_id == Post.id).where(Post.author_id == target_user.id)
+    ) or 0
+    community_count = db.scalar(
+        select(func.count(CommunityMember.id)).where(CommunityMember.user_id == target_user.id)
+    ) or 0
+
+    return UserProfileResponse(
+        id=target_user.id,
+        username=target_user.username,
+        first_name=target_user.first_name,
+        last_name=target_user.last_name,
+        nickname=target_user.nickname,
+        avatar_url=target_user.avatar_url,
+        created_at=target_user.created_at,
+        post_count=post_count,
+        total_upvotes=total_upvotes,
+        community_count=community_count,
+    )

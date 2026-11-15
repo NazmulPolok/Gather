@@ -54,6 +54,20 @@ export type AuthUser = {
   username: string
   avatar_url?: string | null
   nickname?: string | null
+  created_at?: string | null
+}
+
+export type UserProfile = {
+  id: number
+  username: string
+  first_name: string
+  last_name: string
+  nickname?: string | null
+  avatar_url?: string | null
+  created_at: string
+  post_count: number
+  total_upvotes: number
+  community_count: number
 }
 
 export type AuthResponse = {
@@ -298,10 +312,15 @@ export const api = {
     request<{ status: string; slug: string }>(`/api/communities/${slug}/join`, { method: 'POST' }, token),
   leaveCommunity: (token: string, slug: string) =>
     request<{ status: string; slug: string }>(`/api/communities/${slug}/leave`, { method: 'POST' }, token),
-  getNewsFeed: (token: string, params?: { feed_type?: string; community_slug?: string; sort?: string }) => {
+  getUserProfile: (token: string, username: string) =>
+    request<UserProfile>(`/api/auth/users/${encodeURIComponent(username)}/profile`, {}, token),
+  getUserPosts: (token: string, username: string) =>
+    request<PostItem[]>(`/api/feed/users/${encodeURIComponent(username)}/posts`, {}, token),
+  getNewsFeed: (token: string, params?: { feed_type?: string; community_slug?: string; author_username?: string; sort?: string }) => {
     const q = new URLSearchParams()
     if (params?.feed_type) q.set('feed_type', params.feed_type)
     if (params?.community_slug) q.set('community_slug', params.community_slug)
+    if (params?.author_username) q.set('author_username', params.author_username)
     if (params?.sort) q.set('sort', params.sort)
     const qs = q.toString()
     return request<PostItem[]>(qs ? `/api/feed?${qs}` : '/api/feed', {}, token)

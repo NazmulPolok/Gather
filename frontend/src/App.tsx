@@ -4,6 +4,7 @@ import type { AuthResponse, AuthUser, NotificationItem } from './api/client'
 import { AuthForm } from './auth/AuthForm'
 import { ChatHome } from './chat/ChatHome'
 import { NewsFeed } from './feed/NewsFeed'
+import { ProfileView } from './profile/ProfileView'
 import { NotificationCenter } from './notifications/NotificationCenter'
 import { SettingsMenu } from './settings/SettingsMenu'
 import { UserAvatar } from './components/UserAvatar'
@@ -22,7 +23,8 @@ export default function App() {
   const [notificationTarget, setNotificationTarget] = useState<NotificationItem | null>(null)
   const [unreadGroups, setUnreadGroups] = useState<Record<number, number>>({})
   const [theme, setTheme] = useState<Theme>(() => localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light')
-  const [currentView, setCurrentView] = useState<'chat' | 'feed'>('chat')
+  const [currentView, setCurrentView] = useState<'chat' | 'feed' | 'profile'>('chat')
+  const [profileUsername, setProfileUsername] = useState<string>('')
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -98,6 +100,16 @@ export default function App() {
               >
                 <span>📰</span> News Feed
               </button>
+              <button
+                type="button"
+                className={`header-tab-pill ${currentView === 'profile' && (!profileUsername || profileUsername === user.username) ? 'active' : ''}`}
+                onClick={() => {
+                  setProfileUsername(user.username)
+                  setCurrentView('profile')
+                }}
+              >
+                <span>👤</span> Profile
+              </button>
             </nav>
           )}
         </div>
@@ -105,7 +117,20 @@ export default function App() {
           <span className={`connection ${apiReady === false ? 'offline' : ''}`}><span className="connection-dot" />{apiReady === null ? 'Connecting' : apiReady ? 'All systems ready' : 'Server unavailable'}</span>
           {token && user && <NotificationCenter token={token} onSelect={handleNotificationSelect} onUnreadGroups={handleUnreadGroups} />}
           {user && <SettingsMenu theme={theme} onThemeChange={setTheme} user={user} token={token} onUserUpdated={setUser} onSignOut={signOut} />}
-          {user && <div className="account-chip"><span className="avatar avatar-small"><UserAvatar avatarUrl={user.avatar_url} fallback={user.nickname || user.first_name || user.username} /></span><span>{(user.nickname ? `${user.nickname} (${user.first_name})` : [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)} <small>@{user.username}</small></span></div>}
+          {user && (
+            <div
+              className="account-chip"
+              style={{ cursor: 'pointer' }}
+              title="View your profile"
+              onClick={() => {
+                setProfileUsername(user.username)
+                setCurrentView('profile')
+              }}
+            >
+              <span className="avatar avatar-small"><UserAvatar avatarUrl={user.avatar_url} fallback={user.nickname || user.first_name || user.username} /></span>
+              <span>{(user.nickname ? `${user.nickname} (${user.first_name})` : [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)} <small>@{user.username}</small></span>
+            </div>
+          )}
         </div>
       </header>
       {checkingSession ? (
@@ -114,7 +139,24 @@ export default function App() {
         <div className="loading-screen"><div className="session-recovery"><strong>Can’t reach your account right now</strong><p>{sessionError}</p><button className="button button-primary" onClick={() => setSessionAttempt(value => value + 1)}>Try again</button><button className="recovery-signout" onClick={signOut}>Sign out</button></div></div>
       ) : token && user ? (
         currentView === 'feed' ? (
-          <NewsFeed token={token} user={user} onOpenGroupChat={() => setCurrentView('chat')} />
+          <NewsFeed
+            token={token}
+            user={user}
+            onOpenGroupChat={() => setCurrentView('chat')}
+            onOpenProfile={(username) => {
+              setProfileUsername(username)
+              setCurrentView('profile')
+            }}
+          />
+        ) : currentView === 'profile' ? (
+          <ProfileView
+            token={token}
+            currentUser={user}
+            targetUsername={profileUsername || user.username}
+            onUserUpdated={setUser}
+            onBackToFeed={() => setCurrentView('feed')}
+            onOpenChat={() => setCurrentView('chat')}
+          />
         ) : (
           <ChatHome token={token} user={user} onUserUpdated={setUser} notificationTarget={notificationTarget} onNotificationHandled={handleNotificationHandled} unreadGroups={unreadGroups} onUnreadGroups={handleUnreadGroups} />
         )

@@ -252,6 +252,7 @@ async def upload_post_image(
 def get_news_feed(
     feed_type: str = Query(default="all"),  # 'all' (Popular), 'home' (Joined)
     community_slug: str | None = Query(default=None),
+    author_username: str | None = Query(default=None),
     sort: str = Query(default="new"),  # 'new', 'top'
     limit: int = Query(default=50, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -259,7 +260,12 @@ def get_news_feed(
 ) -> list[PostResponse]:
     query = select(Post).join(Community)
 
-    if community_slug:
+    if author_username:
+        target_author = db.scalar(select(User).where(func.lower(User.username) == author_username.lower()))
+        if not target_author:
+            raise HTTPException(status_code=404, detail="User not found")
+        query = query.where(Post.author_id == target_author.id)
+    elif community_slug:
         community = db.scalar(select(Community).where(Community.slug == community_slug.lower()))
         if not community:
             raise HTTPException(status_code=404, detail="Community not found")
@@ -287,6 +293,28 @@ def get_news_feed(
         query = query.order_by(Post.created_at.desc())
 
     posts = db.scalars(query.limit(limit)).all()
+    return [_build_post_response(post, user.id, db) for post in posts]
+
+
+@router.get("/feed/users/{username}/posts", response_model=list[PostResponse])
+def get_user_posts(
+    username: str,
+    limit: int = Query(default=50, ge=1, le=100),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[PostResponse]:
+    target_author = db.scalar(select(User).where(func.lower(User.username) == username.lower()))
+    if not target_author:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    query = (
+        select(Post)
+        .join(Community)
+        .where(Post.author_id == target_author.id)
+        .order_by(Post.created_at.desc())
+        .limit(limit)
+    )
+    posts = db.scalars(query).all()
     return [_build_post_response(post, user.id, db) for post in posts]
 
 
