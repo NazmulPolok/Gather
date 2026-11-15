@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.dependencies import get_current_user
+from app.core.media import safe_delete_upload_file, validate_image_file
 from app.core.security import ALGORITHM
 from app.core.ws_manager import manager
 from app.db.session import SessionLocal, get_db
@@ -24,14 +25,6 @@ router = APIRouter()
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
 MESSAGES_DIR = UPLOAD_DIR / "messages"
 MESSAGES_DIR.mkdir(parents=True, exist_ok=True)
-
-ALLOWED_IMAGE_TYPES = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-    "image/webp": ".webp",
-    "image/gif": ".gif",
-}
-MAX_FILE_SIZE = 10 * 1024 * 1024
 
 
 def _to_utc(dt: datetime | None) -> datetime | None:
@@ -216,19 +209,8 @@ async def upload_group_image(
     user: User = Depends(get_current_user),
 ) -> dict[str, str]:
     active_membership(db, group_id, user.id)
-    content_type = file.content_type or ""
-    if content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported image format. Please upload JPEG, PNG, WebP, or GIF.",
-        )
-    ext = ALLOWED_IMAGE_TYPES[content_type]
     contents = await file.read()
-    if len(contents) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=400,
-            detail="File size too large. Maximum size is 10MB.",
-        )
+    ext = validate_image_file(contents, file.content_type or "")
     filename = f"{secrets.token_hex(16)}{ext}"
     dest = MESSAGES_DIR / filename
     dest.write_bytes(contents)
@@ -372,15 +354,8 @@ async def delete_message(
             detail="You can only delete messages that you sent",
         )
 
-    # Clean up uploaded image file if present
-    if message.image_url and message.image_url.startswith("/uploads/messages/"):
-        try:
-            rel_name = message.image_url.removeprefix("/uploads/messages/")
-            img_file = MESSAGES_DIR / rel_name
-            if img_file.is_file():
-                img_file.unlink(missing_ok=True)
-        except Exception:
-            pass
+    # Clean up uploaded image file if present safely
+    safe_delete_upload_file(MESSAGES_DIR, message.image_url, "/uploads/messages/")
 
     db.delete(message)
     db.commit()

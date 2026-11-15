@@ -27,7 +27,6 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 
 
 .members-title-actions{display:flex;align-items:center;gap:10px}.leave-group-button,.remove-member-button{border:1px solid #ead8d5;border-radius:7px;padding:7px 10px;background:#fff;color:#a25248;font-size:10px;font-weight:600}.leave-group-button:hover,.remove-member-button:hover{background:#fff4f2;border-color:#d9b5af}.remove-member-button{padding:6px 8px}.member-line{gap:8px}
-.header-logout{margin-left:12px;padding:7px 10px;border:1px solid #e0e7df;border-radius:7px;background:#fff;color:#5d6e60;font-size:10px;font-weight:600}.header-logout:hover{border-color:#d9b5af;background:#fff8f7;color:#a44d43}
 
 /* Facebook-style notification menu and Messenger-like unread group rows */
 .header-right{gap:18px}.account-chip>span:nth-child(2){display:grid;gap:2px;font-weight:600}.account-chip>span:nth-child(2) small{color:#89958b;font-size:10px;font-weight:400}
@@ -48,7 +47,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 :root[data-theme="dark"] .site-header,:root[data-theme="dark"] .site-footer{background:#182019;border-color:#2c372e;color:#a4afa5}
 :root[data-theme="dark"] .wordmark{color:#dce8dc}:root[data-theme="dark"] .brand-mark{background:#4e8b5e}
 :root[data-theme="dark"] .account-chip,:root[data-theme="dark"] .connection{color:#aab5ab}
-:root[data-theme="dark"] .header-logout,:root[data-theme="dark"] .settings-trigger,:root[data-theme="dark"] .notification-bell{background:#222d24;border-color:#39463b;color:#d5ded5}
+:root[data-theme="dark"] .settings-trigger,:root[data-theme="dark"] .notification-bell{background:#222d24;border-color:#39463b;color:#d5ded5}
 :root[data-theme="dark"] .workspace,:root[data-theme="dark"] .main-panel,:root[data-theme="dark"] .chat-area{background:#1b231c;border-color:#303b32}
 :root[data-theme="dark"] .sidebar{background:#171e18;border-color:#303b32}:root[data-theme="dark"] .sidebar-note,:root[data-theme="dark"] .dashboard-empty,:root[data-theme="dark"] .dashboard-form{background:#1f2921;border-color:#344136}
 :root[data-theme="dark"] .sidebar-note strong,:root[data-theme="dark"] .dashboard-heading h1,:root[data-theme="dark"] .dashboard-section-title h2,:root[data-theme="dark"] .dashboard-empty strong{color:#e1e8e1}
@@ -133,24 +132,6 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
 :root[data-theme="dark"] .emoji-picker{background:#202a22;border-color:#38453a;box-shadow:0 10px 30px rgba(0,0,0,0.4)}
 :root[data-theme="dark"] .emoji-item:hover{background:#2c382e}
 
-/* OTP Popup Modal & Hint */
-.otp-dev-hint{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;margin:10px 0 16px;background:#edf7ee;border:1px dashed #7dbd8e;border-radius:10px;font-size:13px;color:#286344}
-.otp-dev-hint strong{letter-spacing:2px;font-size:15px;margin-left:4px}
-:root[data-theme="dark"] .otp-dev-hint{background:#1a2b1e;border-color:#4a7a55;color:#9ce0ab}
-
-.otp-popup-overlay{position:fixed;inset:0;background:rgba(16,26,18,0.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px}
-.otp-popup-modal{width:min(400px,100%);background:#fff;border-radius:18px;padding:28px 24px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,0.3);animation:popIn 0.2s cubic-bezier(0.16,1,0.3,1)}
-@keyframes popIn{from{transform:scale(0.92);opacity:0}to{transform:scale(1);opacity:1}}
-.otp-popup-icon{width:56px;height:56px;margin:0 auto 12px;background:#edf7ee;border-radius:50%;display:grid;place-items:center;font-size:28px}
-.otp-popup-modal h3{margin:0 0 6px;font:700 21px Manrope,sans-serif;color:#223026}
-.otp-popup-modal p{margin:0 0 16px;font-size:13px;color:#67776b}
-.otp-popup-code{font-family:monospace;font-size:34px;font-weight:800;letter-spacing:8px;color:#235839;background:#f0f8f1;border:2px dashed #59a770;border-radius:12px;padding:12px;margin:8px 0 14px;user-select:all}
-.otp-popup-note{font-size:11px!important;color:#648b6c!important;margin-bottom:18px!important}
-:root[data-theme="dark"] .otp-popup-modal{background:#1e2920;color:#e0eee1}
-:root[data-theme="dark"] .otp-popup-modal h3{color:#e0eee1}
-:root[data-theme="dark"] .otp-popup-modal p{color:#a8b8aa}
-:root[data-theme="dark"] .otp-popup-code{background:#152217;border-color:#488159;color:#92e2a8}
-:root[data-theme="dark"] .otp-popup-icon{background:#263a2a}
 
 /* Sidebar Profile Card Switchable Identity */
 .profile-card-clickable{width:100%;display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid #dfe7e0;border-radius:12px;background:#fbfdfb;text-align:left;cursor:pointer;transition:all 0.18s ease;box-shadow:0 1px 3px rgba(0,0,0,0.04)}

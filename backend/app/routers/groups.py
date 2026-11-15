@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
+from app.core.media import safe_delete_upload_file, validate_image_file
 from app.db.session import get_db
 from app.models.group import Group
 from app.models.membership import Membership
@@ -17,14 +18,6 @@ router = APIRouter()
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
 GROUPS_DIR = UPLOAD_DIR / "groups"
 GROUPS_DIR.mkdir(parents=True, exist_ok=True)
-
-ALLOWED_IMAGE_TYPES = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-    "image/webp": ".webp",
-    "image/gif": ".gif",
-}
-MAX_FILE_SIZE = 10 * 1024 * 1024
 
 
 @router.post("", response_model=GroupResponse, status_code=status.HTTP_201_CREATED)
@@ -88,22 +81,14 @@ async def upload_group_avatar(
     if group is None:
         raise HTTPException(status_code=404, detail="Group not found")
 
-    content_type = file.content_type or ""
-    if content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported image format. Please upload JPEG, PNG, WebP, or GIF.",
-        )
-    ext = ALLOWED_IMAGE_TYPES[content_type]
     contents = await file.read()
-    if len(contents) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=400,
-            detail="File size too large. Maximum size is 10MB.",
-        )
+    ext = validate_image_file(contents, file.content_type or "")
     filename = f"{secrets.token_hex(16)}{ext}"
     dest = GROUPS_DIR / filename
     dest.write_bytes(contents)
+
+    # Clean up previous group avatar if custom file
+    safe_delete_upload_file(GROUPS_DIR, group.avatar_url, "/uploads/groups/")
 
     group.avatar_url = f"/uploads/groups/{filename}"
     db.commit()
@@ -122,6 +107,7 @@ def delete_group_avatar(
     if group is None:
         raise HTTPException(status_code=404, detail="Group not found")
 
+    safe_delete_upload_file(GROUPS_DIR, group.avatar_url, "/uploads/groups/")
     group.avatar_url = None
     db.commit()
     db.refresh(group)

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.dependencies import get_current_user
+from app.core.media import safe_delete_upload_file, validate_image_file
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.session import get_db
 from app.models.password_reset_otp import PasswordResetOTP
@@ -33,14 +34,6 @@ router = APIRouter()
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
 AVATARS_DIR = UPLOAD_DIR / "avatars"
 AVATARS_DIR.mkdir(parents=True, exist_ok=True)
-
-ALLOWED_IMAGE_TYPES = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-    "image/webp": ".webp",
-    "image/gif": ".gif",
-}
-MAX_FILE_SIZE = 10 * 1024 * 1024
 
 
 def _find_user_by_identifier(db: Session, identifier: str) -> User | None:
@@ -234,22 +227,14 @@ async def upload_avatar(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> User:
-    content_type = file.content_type or ""
-    if content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported image format. Please upload JPEG, PNG, WebP, or GIF.",
-        )
-    ext = ALLOWED_IMAGE_TYPES[content_type]
     contents = await file.read()
-    if len(contents) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=400,
-            detail="File size too large. Maximum size is 10MB.",
-        )
+    ext = validate_image_file(contents, file.content_type or "")
     filename = f"{secrets.token_hex(16)}{ext}"
     dest = AVATARS_DIR / filename
     dest.write_bytes(contents)
+
+    # Clean up old uploaded avatar if it was a custom upload
+    safe_delete_upload_file(AVATARS_DIR, user.avatar_url, "/uploads/avatars/")
 
     user.avatar_url = f"/uploads/avatars/{filename}"
     db.commit()
@@ -262,6 +247,7 @@ def delete_avatar(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> User:
+    safe_delete_upload_file(AVATARS_DIR, user.avatar_url, "/uploads/avatars/")
     user.avatar_url = None
     db.commit()
     db.refresh(user)

@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
+from app.core.media import safe_delete_upload_file, validate_image_file
 from app.db.session import get_db
 from app.models.group import Group
 from app.models.membership import Membership
@@ -27,14 +28,6 @@ router = APIRouter()
 UPLOAD_DIR = Path(__file__).resolve().parent.parent.parent / "uploads"
 POSTS_DIR = UPLOAD_DIR / "posts"
 POSTS_DIR.mkdir(parents=True, exist_ok=True)
-
-ALLOWED_IMAGE_TYPES = {
-    "image/jpeg": ".jpg",
-    "image/png": ".png",
-    "image/webp": ".webp",
-    "image/gif": ".gif",
-}
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
 def _get_author_summary(user: User, membership: Membership | None) -> AuthorSummary:
@@ -123,19 +116,8 @@ async def upload_post_image(
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
 ) -> dict[str, str]:
-    content_type = file.content_type or ""
-    if content_type not in ALLOWED_IMAGE_TYPES:
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported image format. Please upload JPEG, PNG, WebP, or GIF.",
-        )
-    ext = ALLOWED_IMAGE_TYPES[content_type]
     contents = await file.read()
-    if len(contents) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=400,
-            detail="File size too large. Maximum size is 10MB.",
-        )
+    ext = validate_image_file(contents, file.content_type or "")
     filename = f"{secrets.token_hex(16)}{ext}"
     dest = POSTS_DIR / filename
     dest.write_bytes(contents)
@@ -259,15 +241,8 @@ def delete_post(
             detail="You do not have permission to delete this post",
         )
 
-    # Clean up uploaded image if present
-    if post.image_url and post.image_url.startswith("/uploads/posts/"):
-        try:
-            rel = post.image_url.removeprefix("/uploads/posts/")
-            img_path = POSTS_DIR / rel
-            if img_path.is_file():
-                img_path.unlink(missing_ok=True)
-        except Exception:
-            pass
+    # Clean up uploaded image if present safely
+    safe_delete_upload_file(POSTS_DIR, post.image_url, "/uploads/posts/")
 
     db.delete(post)
     db.commit()
