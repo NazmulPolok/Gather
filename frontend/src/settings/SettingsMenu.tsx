@@ -1,163 +1,25 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { api, getMediaUrl, PRESET_AVATARS, type AuthUser } from '../api/client'
-import { UserAvatar } from '../components/UserAvatar'
 
 type Theme = 'light' | 'dark'
 
 export function SettingsMenu({
   theme,
   onThemeChange,
-  user,
-  token,
-  onUserUpdated,
   onSignOut,
 }: {
   theme: Theme
   onThemeChange: (theme: Theme) => void
-  user: AuthUser | null
-  token: string | null
-  onUserUpdated?: (user: AuthUser) => void
   onSignOut?: () => void
 }) {
   const [open, setOpen] = useState(false)
-  const [page, setPage] = useState<'main' | 'theme' | 'profile'>('main')
-  const [nickname, setNickname] = useState(user?.nickname || '')
-  const [savingNick, setSavingNick] = useState(false)
-  const [savingAvatar, setSavingAvatar] = useState(false)
-  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null)
-  const [pendingAvatarPreview, setPendingAvatarPreview] = useState<string | null>(null)
-  const [pendingPresetId, setPendingPresetId] = useState<string | null>(null)
-  const [profileNotice, setProfileNotice] = useState('')
-  const [profileError, setProfileError] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (user) {
-      setNickname(user.nickname || '')
-    }
-  }, [user])
+  const [page, setPage] = useState<'main' | 'theme'>('main')
 
   function toggle() {
     if (!open) {
       setPage('main')
-      setProfileNotice('')
-      setProfileError('')
-      setPendingAvatarFile(null)
-      setPendingAvatarPreview(null)
-      setPendingPresetId(null)
     }
     setOpen(value => !value)
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file || !token) return
-    e.target.value = ''
-    if (file.size > 10 * 1024 * 1024) {
-      setProfileError('Image cannot exceed 10MB.')
-      return
-    }
-    setProfileError('')
-    setProfileNotice('')
-    setPendingAvatarFile(file)
-    setPendingPresetId(null)
-    setPendingAvatarPreview(URL.createObjectURL(file))
-  }
-
-  function handleSelectPresetAvatar(presetId: string) {
-    if (!token) return
-    setProfileError('')
-    setProfileNotice('')
-    setPendingAvatarFile(null)
-    setPendingAvatarPreview(null)
-    setPendingPresetId(presetId)
-  }
-
-  async function handleSaveAvatar() {
-    if (!token) return
-    if (!pendingAvatarFile && !pendingPresetId) return
-
-    setSavingAvatar(true)
-    setProfileError('')
-    setProfileNotice('')
-    try {
-      let updated: AuthUser
-      if (pendingAvatarFile) {
-        updated = await api.updateAvatar(token, pendingAvatarFile)
-      } else {
-        updated = await api.updateProfile(token, { avatar_url: pendingPresetId })
-      }
-      onUserUpdated?.(updated)
-      setPendingAvatarFile(null)
-      setPendingAvatarPreview(null)
-      setPendingPresetId(null)
-      setProfileNotice('Profile picture saved successfully!')
-    } catch (err) {
-      setProfileError(err instanceof Error ? err.message : 'Could not save photo')
-    } finally {
-      setSavingAvatar(false)
-    }
-  }
-
-  function handleCancelPendingAvatar() {
-    setPendingAvatarFile(null)
-    setPendingAvatarPreview(null)
-    setPendingPresetId(null)
-    setProfileError('')
-  }
-
-  async function handleRemoveAvatar() {
-    if (!token) return
-    setSavingAvatar(true)
-    setProfileError('')
-    setProfileNotice('')
-    setPendingAvatarFile(null)
-    setPendingAvatarPreview(null)
-    setPendingPresetId(null)
-    try {
-      const updated = await api.updateProfile(token, { avatar_url: null })
-      onUserUpdated?.(updated)
-      setProfileNotice('Profile picture/avatar removed.')
-    } catch (err) {
-      setProfileError(err instanceof Error ? err.message : 'Could not remove photo')
-    } finally {
-      setSavingAvatar(false)
-    }
-  }
-
-  async function handleSaveNickname(e: FormEvent) {
-    e.preventDefault()
-    if (!token) return
-    setSavingNick(true)
-    setProfileError('')
-    setProfileNotice('')
-    try {
-      const updated = await api.updateProfile(token, { nickname: nickname.trim() || null })
-      onUserUpdated?.(updated)
-      setProfileNotice('Nickname updated successfully!')
-    } catch (err) {
-      setProfileError(err instanceof Error ? err.message : 'Could not update nickname')
-    } finally {
-      setSavingNick(false)
-    }
-  }
-
-  async function handleClearNickname() {
-    if (!token) return
-    setSavingNick(true)
-    setProfileError('')
-    setProfileNotice('')
-    try {
-      const updated = await api.updateProfile(token, { nickname: null })
-      onUserUpdated?.(updated)
-      setNickname('')
-      setProfileNotice('Nickname cleared.')
-    } catch (err) {
-      setProfileError(err instanceof Error ? err.message : 'Could not clear nickname')
-    } finally {
-      setSavingNick(false)
-    }
   }
 
   return (
@@ -190,26 +52,11 @@ export function SettingsMenu({
                     </button>
                   </header>
                   <div className="settings-menu-list">
-                    <button
-                      className="settings-option-row"
-                      onClick={() => {
-                        setPage('profile')
-                        setProfileNotice('')
-                        setProfileError('')
-                      }}
-                    >
-                      <span className="settings-option-icon">👤</span>
-                      <span>
-                        <strong>Profile</strong>
-                        <small>{user?.nickname ? `Nick: ${user.nickname}` : 'Picture, avatar, nickname & email'}</small>
-                      </span>
-                      <span className="settings-option-arrow">›</span>
-                    </button>
                     <button className="settings-option-row" onClick={() => setPage('theme')}>
                       <span className="settings-option-icon">◐</span>
                       <span>
                         <strong>Theme</strong>
-                        <small>{theme === 'light' ? 'Light' : 'Dark'}</small>
+                        <small>{theme === 'light' ? 'Light mode' : 'Dark mode'}</small>
                       </span>
                       <span className="settings-option-arrow">›</span>
                     </button>
@@ -230,181 +77,7 @@ export function SettingsMenu({
                       </button>
                     )}
                   </div>
-                  <p className="settings-footer">Manage your account details and preferences.</p>
-                </>
-              ) : page === 'profile' ? (
-                <>
-                  <header className="settings-subheader">
-                    <button className="settings-back" onClick={() => setPage('main')} aria-label="Back to settings">
-                      ‹
-                    </button>
-                    <div>
-                      <strong>Profile</strong>
-                      <small>Picture, avatar, nickname & account</small>
-                    </div>
-                    <button className="settings-close" onClick={() => setOpen(false)} aria-label="Close settings">
-                      ×
-                    </button>
-                  </header>
-                  <div className="settings-profile-container">
-                    {profileNotice && <div className="settings-alert-success">{profileNotice}</div>}
-                    {profileError && <div className="settings-alert-error">{profileError}</div>}
-
-                    {/* 1. Signed up Email Info Card */}
-                    <div className="settings-email-card">
-                      <div className="settings-email-badge">
-                        <span className="badge-icon">✉</span>
-                        <span className="badge-label">Signed up with email:</span>
-                      </div>
-                      <strong className="settings-email-value">{user?.email}</strong>
-                      <small className="settings-email-meta">
-                        Registered Name: {[user?.first_name, user?.last_name].filter(Boolean).join(' ')} · @{user?.username}
-                      </small>
-                    </div>
-
-                    {/* 2. Profile Picture or Avatar */}
-                    {(() => {
-                      const hasPending = Boolean(pendingAvatarFile || pendingPresetId)
-                      const displayAvatarUrl = pendingAvatarPreview || pendingPresetId || user?.avatar_url
-                      return (
-                        <div className="settings-field-group">
-                          <span className="settings-section-title">PROFILE PICTURE OR AVATAR</span>
-                          <div className="settings-avatar-row">
-                            <div className="settings-avatar-display">
-                              <UserAvatar
-                                avatarUrl={displayAvatarUrl}
-                                fallback={user?.nickname || user?.first_name || user?.username || 'U'}
-                                size={56}
-                              />
-                            </div>
-                            <div className="settings-avatar-buttons">
-                              <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/png,image/jpeg,image/webp,image/gif"
-                                style={{ display: 'none' }}
-                                onChange={handleFileChange}
-                              />
-                              {hasPending ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    className="button button-primary button-sm save-photo-btn"
-                                    onClick={() => void handleSaveAvatar()}
-                                    disabled={savingAvatar}
-                                  >
-                                    💾 {savingAvatar ? 'Saving…' : 'Save'}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="outline-button button-sm"
-                                    onClick={handleCancelPendingAvatar}
-                                    disabled={savingAvatar}
-                                  >
-                                    Cancel
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button
-                                    type="button"
-                                    className="button button-primary button-sm"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    disabled={savingAvatar}
-                                  >
-                                    📷 Choose Photo from PC
-                                  </button>
-                                  {user?.avatar_url && (
-                                    <button
-                                      type="button"
-                                      className="outline-button button-sm"
-                                      onClick={handleRemoveAvatar}
-                                      disabled={savingAvatar}
-                                    >
-                                      Remove
-                                    </button>
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          </div>
-
-                          {pendingAvatarFile && (
-                            <div className="pending-photo-alert">
-                              <span>Photo selected: <strong>{pendingAvatarFile.name}</strong>. Click <b>Save</b> to apply.</span>
-                            </div>
-                          )}
-                          {pendingPresetId && (
-                            <div className="pending-photo-alert">
-                              <span>Avatar selected. Click <b>Save</b> to apply.</span>
-                            </div>
-                          )}
-
-                          {/* 2b. Preset Avatars Grid */}
-                          <div className="preset-avatar-subheading">Choose a fun avatar character:</div>
-                          <div className="preset-avatar-grid">
-                            {PRESET_AVATARS.map(preset => {
-                              const isSelected = pendingPresetId ? pendingPresetId === preset.id : (!pendingAvatarFile && user?.avatar_url === preset.id)
-                              return (
-                                <button
-                                  key={preset.id}
-                                  type="button"
-                                  className={`preset-avatar-option ${isSelected ? 'preset-avatar-selected' : ''}`}
-                                  style={{ backgroundColor: preset.bg, color: preset.color }}
-                                  onClick={() => handleSelectPresetAvatar(preset.id)}
-                                  title={`Select ${preset.label} (Click Save to apply)`}
-                                  disabled={savingAvatar}
-                                >
-                                  <span className="preset-avatar-emoji">{preset.emoji}</span>
-                                  <span className="preset-avatar-name">{preset.label}</span>
-                                  {isSelected && <span className="preset-avatar-check">✓</span>}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )
-                    })()}
-
-                    {/* 3. Nickname */}
-                    <form className="settings-field-group" onSubmit={handleSaveNickname}>
-                      <label htmlFor="settings-nickname-input" className="settings-section-title">
-                        YOUR NICKNAME
-                      </label>
-                      <div className="settings-nickname-row">
-                        <input
-                          id="settings-nickname-input"
-                          type="text"
-                          className="settings-text-input"
-                          placeholder="Set a nickname..."
-                          value={nickname}
-                          onChange={e => setNickname(e.target.value)}
-                          maxLength={64}
-                          disabled={savingNick}
-                        />
-                        <button
-                          type="submit"
-                          className="button button-primary button-sm"
-                          disabled={savingNick || nickname.trim() === (user?.nickname || '')}
-                        >
-                          {savingNick ? 'Saving…' : 'Save'}
-                        </button>
-                        {user?.nickname && (
-                          <button
-                            type="button"
-                            className="outline-button button-sm"
-                            onClick={handleClearNickname}
-                            disabled={savingNick}
-                          >
-                            Clear
-                          </button>
-                        )}
-                      </div>
-                      <small className="settings-field-hint">
-                        This nickname will be displayed across your groups and messages.
-                      </small>
-                    </form>
-                  </div>
+                  <p className="settings-footer">Manage your appearance and preferences.</p>
                 </>
               ) : (
                 <>

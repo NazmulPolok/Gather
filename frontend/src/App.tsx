@@ -100,23 +100,13 @@ export default function App() {
               >
                 <span>📰</span> News Feed
               </button>
-              <button
-                type="button"
-                className={`header-tab-pill ${currentView === 'profile' && (!profileUsername || profileUsername === user.username) ? 'active' : ''}`}
-                onClick={() => {
-                  setProfileUsername(user.username)
-                  setCurrentView('profile')
-                }}
-              >
-                <span>👤</span> Profile
-              </button>
             </nav>
           )}
         </div>
         <div className="header-right">
           <span className={`connection ${apiReady === false ? 'offline' : ''}`}><span className="connection-dot" />{apiReady === null ? 'Connecting' : apiReady ? 'All systems ready' : 'Server unavailable'}</span>
           {token && user && <NotificationCenter token={token} onSelect={handleNotificationSelect} onUnreadGroups={handleUnreadGroups} />}
-          {user && <SettingsMenu theme={theme} onThemeChange={setTheme} user={user} token={token} onUserUpdated={setUser} onSignOut={signOut} />}
+          {user && <SettingsMenu theme={theme} onThemeChange={setTheme} onSignOut={signOut} />}
           {user && (
             <div
               className="account-chip"
