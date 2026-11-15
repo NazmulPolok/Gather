@@ -11,12 +11,14 @@ export function SettingsMenu({
   user,
   token,
   onUserUpdated,
+  onSignOut,
 }: {
   theme: Theme
   onThemeChange: (theme: Theme) => void
   user: AuthUser | null
   token: string | null
   onUserUpdated?: (user: AuthUser) => void
+  onSignOut?: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [page, setPage] = useState<'main' | 'theme' | 'profile'>('main')
@@ -211,6 +213,22 @@ export function SettingsMenu({
                       </span>
                       <span className="settings-option-arrow">›</span>
                     </button>
+                    {onSignOut && (
+                      <button
+                        className="settings-option-row settings-option-logout"
+                        onClick={() => {
+                          setOpen(false)
+                          onSignOut()
+                        }}
+                      >
+                        <span className="settings-option-icon">🚪</span>
+                        <span>
+                          <strong className="logout-text-danger">Log out</strong>
+                          <small>Sign out of your account</small>
+                        </span>
+                        <span className="settings-option-arrow">›</span>
+                      </button>
+                    )}
                   </div>
                   <p className="settings-footer">Manage your account details and preferences.</p>
                 </>

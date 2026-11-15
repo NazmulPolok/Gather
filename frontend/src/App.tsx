@@ -104,8 +104,8 @@ export default function App() {
         <div className="header-right">
           <span className={`connection ${apiReady === false ? 'offline' : ''}`}><span className="connection-dot" />{apiReady === null ? 'Connecting' : apiReady ? 'All systems ready' : 'Server unavailable'}</span>
           {token && user && <NotificationCenter token={token} onSelect={handleNotificationSelect} onUnreadGroups={handleUnreadGroups} />}
-          {user && <SettingsMenu theme={theme} onThemeChange={setTheme} user={user} token={token} onUserUpdated={setUser} />}
-          {user && <div className="account-chip"><span className="avatar avatar-small"><UserAvatar avatarUrl={user.avatar_url} fallback={user.nickname || user.first_name || user.username} /></span><span>{(user.nickname ? `${user.nickname} (${user.first_name})` : [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)} <small>@{user.username}</small></span><button className="header-logout" onClick={signOut}>Log out</button></div>}
+          {user && <SettingsMenu theme={theme} onThemeChange={setTheme} user={user} token={token} onUserUpdated={setUser} onSignOut={signOut} />}
+          {user && <div className="account-chip"><span className="avatar avatar-small"><UserAvatar avatarUrl={user.avatar_url} fallback={user.nickname || user.first_name || user.username} /></span><span>{(user.nickname ? `${user.nickname} (${user.first_name})` : [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)} <small>@{user.username}</small></span></div>}
         </div>
       </header>
       {checkingSession ? (
