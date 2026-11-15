@@ -1,3 +1,4 @@
+from app.models.community import Community, CommunityMember
 from app.models.group import Group
 from app.models.membership import Membership
 from app.models.message import Message
@@ -6,4 +7,16 @@ from app.models.password_reset_otp import PasswordResetOTP
 from app.models.post import Post, PostComment, PostReaction
 from app.models.user import User
 
-__all__ = ["Group", "Membership", "Message", "Notification", "PasswordResetOTP", "Post", "PostComment", "PostReaction", "User"]
+__all__ = [
+    "Community",
+    "CommunityMember",
+    "Group",
+    "Membership",
+    "Message",
+    "Notification",
+    "PasswordResetOTP",
+    "Post",
+    "PostComment",
+    "PostReaction",
+    "User",
+]

@@ -8,20 +8,19 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_user
 from app.core.media import safe_delete_upload_file, validate_image_file
 from app.db.session import get_db
-from app.models.group import Group
-from app.models.membership import Membership
+from app.models.community import Community, CommunityMember
 from app.models.post import Post, PostComment, PostReaction
 from app.models.user import User
 from app.schemas.feed import (
     AuthorSummary,
     CommentCreate,
     CommentResponse,
-    GroupSummary,
+    CommunityCreate,
+    CommunitySummary,
     PostCreate,
     PostResponse,
     PostUpdate,
 )
-from app.services.permissions import active_membership
 
 router = APIRouter()
 
@@ -30,11 +29,9 @@ POSTS_DIR = UPLOAD_DIR / "posts"
 POSTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def _get_author_summary(user: User, membership: Membership | None) -> AuthorSummary:
-    role = membership.role if membership else "member"
+def _get_author_summary(user: User) -> AuthorSummary:
     name = (
-        (membership.nickname if membership and membership.nickname else None)
-        or user.nickname
+        user.nickname
         or " ".join(filter(None, [user.first_name, user.last_name]))
         or user.username
     )
@@ -43,24 +40,36 @@ def _get_author_summary(user: User, membership: Membership | None) -> AuthorSumm
         name=name,
         username=user.username,
         avatar_url=user.avatar_url,
-        role=role,
+    )
+
+
+def _build_community_summary(community: Community, current_user_id: int, db: Session) -> CommunitySummary:
+    member_count = db.scalar(
+        select(func.count(CommunityMember.id)).where(CommunityMember.community_id == community.id)
+    ) or 0
+
+    is_member = db.scalar(
+        select(CommunityMember.id).where(
+            CommunityMember.community_id == community.id,
+            CommunityMember.user_id == current_user_id,
+        )
+    ) is not None
+
+    return CommunitySummary(
+        id=community.id,
+        name=community.name,
+        slug=community.slug,
+        description=community.description,
+        avatar_url=community.avatar_url,
+        banner_url=community.banner_url,
+        member_count=member_count,
+        is_member=is_member,
     )
 
 
 def _build_post_response(post: Post, current_user_id: int, db: Session) -> PostResponse:
-    # Author membership in post's group
-    author_membership = db.scalar(
-        select(Membership).where(
-            Membership.group_id == post.group_id,
-            Membership.user_id == post.author_id,
-        )
-    )
-    author_summary = _get_author_summary(post.author, author_membership)
-    group_summary = GroupSummary(
-        id=post.group.id,
-        name=post.group.name,
-        avatar_url=post.group.avatar_url,
-    )
+    community_summary = _build_community_summary(post.community, current_user_id, db)
+    author_summary = _get_author_summary(post.author)
 
     # Upvotes
     upvote_count = db.scalar(
@@ -75,12 +84,8 @@ def _build_post_response(post: Post, current_user_id: int, db: Session) -> PostR
 
     # Comments
     comments_query = (
-        select(PostComment, User, Membership)
+        select(PostComment, User)
         .join(User, PostComment.author_id == User.id)
-        .outerjoin(
-            Membership,
-            (Membership.user_id == User.id) & (Membership.group_id == post.group_id),
-        )
         .where(PostComment.post_id == post.id)
         .order_by(PostComment.created_at.asc())
     )
@@ -89,17 +94,18 @@ def _build_post_response(post: Post, current_user_id: int, db: Session) -> PostR
         CommentResponse(
             id=c.id,
             post_id=c.post_id,
-            author=_get_author_summary(u, m),
+            author=_get_author_summary(u),
             content=c.content,
             created_at=c.created_at,
         )
-        for c, u, m in comment_rows
+        for c, u in comment_rows
     ]
 
     return PostResponse(
         id=post.id,
-        group=group_summary,
+        community=community_summary,
         author=author_summary,
+        title=post.title,
         content=post.content,
         image_url=post.image_url,
         upvote_count=upvote_count,
@@ -110,6 +116,123 @@ def _build_post_response(post: Post, current_user_id: int, db: Session) -> PostR
         comments=comment_responses,
     )
 
+
+# ==========================================
+# Community Endpoints
+# ==========================================
+
+@router.get("/communities", response_model=list[CommunitySummary])
+@router.get("/feed/communities", response_model=list[CommunitySummary])
+def list_communities(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[CommunitySummary]:
+    communities = db.scalars(select(Community).order_by(Community.name.asc())).all()
+    return [_build_community_summary(c, user.id, db) for c in communities]
+
+
+@router.post("/communities", response_model=CommunitySummary, status_code=status.HTTP_201_CREATED)
+@router.post("/feed/communities", response_model=CommunitySummary, status_code=status.HTTP_201_CREATED)
+def create_community(
+    payload: CommunityCreate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> CommunitySummary:
+    existing = db.scalar(select(Community).where(Community.slug == payload.slug))
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Community r/{payload.slug} already exists")
+
+    community = Community(
+        name=payload.name,
+        slug=payload.slug,
+        description=payload.description,
+        created_by_id=user.id,
+    )
+    db.add(community)
+    db.flush()
+
+    # Creator automatically joins as admin
+    membership = CommunityMember(
+        community_id=community.id,
+        user_id=user.id,
+        role="admin",
+    )
+    db.add(membership)
+    db.commit()
+    db.refresh(community)
+
+    return _build_community_summary(community, user.id, db)
+
+
+@router.get("/communities/{slug}", response_model=CommunitySummary)
+@router.get("/feed/communities/{slug}", response_model=CommunitySummary)
+def get_community(
+    slug: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> CommunitySummary:
+    community = db.scalar(select(Community).where(Community.slug == slug.lower()))
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found")
+    return _build_community_summary(community, user.id, db)
+
+
+@router.post("/communities/{slug}/join")
+@router.post("/feed/communities/{slug}/join")
+def join_community(
+    slug: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, object]:
+    community = db.scalar(select(Community).where(Community.slug == slug.lower()))
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found")
+
+    existing = db.scalar(
+        select(CommunityMember).where(
+            CommunityMember.community_id == community.id,
+            CommunityMember.user_id == user.id,
+        )
+    )
+    if not existing:
+        member = CommunityMember(
+            community_id=community.id,
+            user_id=user.id,
+            role="member",
+        )
+        db.add(member)
+        db.commit()
+
+    return {"status": "joined", "slug": slug}
+
+
+@router.post("/communities/{slug}/leave")
+@router.post("/feed/communities/{slug}/leave")
+def leave_community(
+    slug: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, object]:
+    community = db.scalar(select(Community).where(Community.slug == slug.lower()))
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found")
+
+    existing = db.scalar(
+        select(CommunityMember).where(
+            CommunityMember.community_id == community.id,
+            CommunityMember.user_id == user.id,
+        )
+    )
+    if existing:
+        db.delete(existing)
+        db.commit()
+
+    return {"status": "left", "slug": slug}
+
+
+# ==========================================
+# Feed & Post Endpoints
+# ==========================================
 
 @router.post("/feed/upload-image")
 async def upload_post_image(
@@ -127,63 +250,66 @@ async def upload_post_image(
 
 @router.get("/feed", response_model=list[PostResponse])
 def get_news_feed(
-    group_id: int | None = Query(default=None),
+    feed_type: str = Query(default="all"),  # 'all' (Popular), 'home' (Joined)
+    community_slug: str | None = Query(default=None),
+    sort: str = Query(default="new"),  # 'new', 'top'
     limit: int = Query(default=50, ge=1, le=100),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> list[PostResponse]:
-    # Active group IDs the user belongs to
-    user_group_ids = db.scalars(
-        select(Membership.group_id).where(
-            Membership.user_id == user.id,
-            Membership.status == "active",
+    query = select(Post).join(Community)
+
+    if community_slug:
+        community = db.scalar(select(Community).where(Community.slug == community_slug.lower()))
+        if not community:
+            raise HTTPException(status_code=404, detail="Community not found")
+        query = query.where(Post.community_id == community.id)
+    elif feed_type == "home":
+        # Only posts from communities the user joined
+        joined_community_ids = db.scalars(
+            select(CommunityMember.community_id).where(CommunityMember.user_id == user.id)
+        ).all()
+        if not joined_community_ids:
+            return []
+        query = query.where(Post.community_id.in_(joined_community_ids))
+
+    if sort == "top":
+        upvote_subq = (
+            select(PostReaction.post_id, func.count(PostReaction.id).label("score"))
+            .group_by(PostReaction.post_id)
+            .subquery()
         )
-    ).all()
+        query = query.outerjoin(upvote_subq, Post.id == upvote_subq.c.post_id).order_by(
+            func.coalesce(upvote_subq.c.score, 0).desc(),
+            Post.created_at.desc(),
+        )
+    else:
+        query = query.order_by(Post.created_at.desc())
 
-    if not user_group_ids:
-        return []
-
-    query = select(Post).join(Group).where(Post.group_id.in_(user_group_ids))
-    if group_id is not None:
-        if group_id not in user_group_ids:
-            raise HTTPException(status_code=403, detail="You are not an active member of this group")
-        query = query.where(Post.group_id == group_id)
-
-    query = query.order_by(Post.created_at.desc()).limit(limit)
-    posts = db.scalars(query).all()
-
+    posts = db.scalars(query.limit(limit)).all()
     return [_build_post_response(post, user.id, db) for post in posts]
 
 
-@router.get("/groups/{group_id}/posts", response_model=list[PostResponse])
-def get_group_posts(
-    group_id: int,
-    limit: int = Query(default=50, ge=1, le=100),
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
-) -> list[PostResponse]:
-    active_membership(db, group_id, user.id)
-    query = (
-        select(Post)
-        .where(Post.group_id == group_id)
-        .order_by(Post.created_at.desc())
-        .limit(limit)
-    )
-    posts = db.scalars(query).all()
-    return [_build_post_response(post, user.id, db) for post in posts]
-
-
-@router.post("/groups/{group_id}/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
-def create_group_post(
-    group_id: int,
+@router.post("/feed/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
+def create_post(
     payload: PostCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> PostResponse:
-    active_membership(db, group_id, user.id)
+    if payload.community_id:
+        community = db.scalar(select(Community).where(Community.id == payload.community_id))
+    elif payload.community_slug:
+        community = db.scalar(select(Community).where(Community.slug == payload.community_slug.lower()))
+    else:
+        raise HTTPException(status_code=400, detail="Community is required")
+
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found")
+
     post = Post(
-        group_id=group_id,
+        community_id=community.id,
         author_id=user.id,
+        title=payload.title,
         content=payload.content,
         image_url=payload.image_url,
     )
@@ -194,6 +320,19 @@ def create_group_post(
     return _build_post_response(post, user.id, db)
 
 
+@router.get("/feed/posts/{post_id}", response_model=PostResponse)
+def get_post(
+    post_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> PostResponse:
+    post = db.scalar(select(Post).where(Post.id == post_id))
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return _build_post_response(post, user.id, db)
+
+
+@router.patch("/feed/posts/{post_id}", response_model=PostResponse)
 @router.patch("/posts/{post_id}", response_model=PostResponse)
 def edit_post(
     post_id: int,
@@ -208,11 +347,11 @@ def edit_post(
     if post.author_id != user.id:
         raise HTTPException(status_code=403, detail="You can only edit your own posts")
 
-    clean_content = payload.content.strip() if payload.content else None
-    if not clean_content and not post.image_url:
-        raise HTTPException(status_code=400, detail="Post content cannot be empty")
+    if payload.title is not None:
+        post.title = payload.title
+    if payload.content is not None:
+        post.content = payload.content
 
-    post.content = clean_content
     post.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(post)
@@ -220,6 +359,7 @@ def edit_post(
     return _build_post_response(post, user.id, db)
 
 
+@router.delete("/feed/posts/{post_id}")
 @router.delete("/posts/{post_id}")
 def delete_post(
     post_id: int,
@@ -230,12 +370,10 @@ def delete_post(
     if post is None:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    membership = active_membership(db, post.group_id, user.id)
     is_author = (post.author_id == user.id)
-    is_admin = (membership.role == "admin" or post.group.owner_id == user.id)
-    is_moderator = (membership.role == "moderator")
+    is_community_creator = (post.community.created_by_id == user.id)
 
-    if not is_author and not is_admin and not is_moderator:
+    if not is_author and not is_community_creator:
         raise HTTPException(
             status_code=403,
             detail="You do not have permission to delete this post",
@@ -249,6 +387,8 @@ def delete_post(
     return {"status": "deleted", "post_id": post_id}
 
 
+@router.post("/feed/posts/{post_id}/react")
+@router.post("/feed/posts/{post_id}/upvote")
 @router.post("/posts/{post_id}/react")
 def toggle_post_reaction(
     post_id: int,
@@ -258,8 +398,6 @@ def toggle_post_reaction(
     post = db.scalar(select(Post).where(Post.id == post_id))
     if post is None:
         raise HTTPException(status_code=404, detail="Post not found")
-
-    active_membership(db, post.group_id, user.id)
 
     existing_reaction = db.scalar(
         select(PostReaction).where(
@@ -294,6 +432,7 @@ def toggle_post_reaction(
     }
 
 
+@router.get("/feed/posts/{post_id}/comments", response_model=list[CommentResponse])
 @router.get("/posts/{post_id}/comments", response_model=list[CommentResponse])
 def list_post_comments(
     post_id: int,
@@ -304,15 +443,9 @@ def list_post_comments(
     if post is None:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    active_membership(db, post.group_id, user.id)
-
     comments_query = (
-        select(PostComment, User, Membership)
+        select(PostComment, User)
         .join(User, PostComment.author_id == User.id)
-        .outerjoin(
-            Membership,
-            (Membership.user_id == User.id) & (Membership.group_id == post.group_id),
-        )
         .where(PostComment.post_id == post.id)
         .order_by(PostComment.created_at.asc())
     )
@@ -321,14 +454,15 @@ def list_post_comments(
         CommentResponse(
             id=c.id,
             post_id=c.post_id,
-            author=_get_author_summary(u, m),
+            author=_get_author_summary(u),
             content=c.content,
             created_at=c.created_at,
         )
-        for c, u, m in rows
+        for c, u in rows
     ]
 
 
+@router.post("/feed/posts/{post_id}/comments", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/posts/{post_id}/comments", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)
 def create_post_comment(
     post_id: int,
@@ -339,8 +473,6 @@ def create_post_comment(
     post = db.scalar(select(Post).where(Post.id == post_id))
     if post is None:
         raise HTTPException(status_code=404, detail="Post not found")
-
-    membership = active_membership(db, post.group_id, user.id)
 
     comment = PostComment(
         post_id=post_id,
@@ -354,12 +486,13 @@ def create_post_comment(
     return CommentResponse(
         id=comment.id,
         post_id=comment.post_id,
-        author=_get_author_summary(user, membership),
+        author=_get_author_summary(user),
         content=comment.content,
         created_at=comment.created_at,
     )
 
 
+@router.delete("/feed/comments/{comment_id}")
 @router.delete("/posts/comments/{comment_id}")
 def delete_post_comment(
     comment_id: int,
@@ -374,12 +507,11 @@ def delete_post_comment(
     if post is None:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    membership = active_membership(db, post.group_id, user.id)
     is_author = (comment.author_id == user.id)
-    is_admin = (membership.role == "admin" or post.group.owner_id == user.id)
-    is_moderator = (membership.role == "moderator")
+    is_post_author = (post.author_id == user.id)
+    is_community_creator = (post.community.created_by_id == user.id)
 
-    if not is_author and not is_admin and not is_moderator:
+    if not is_author and not is_post_author and not is_community_creator:
         raise HTTPException(
             status_code=403,
             detail="You do not have permission to delete this comment",

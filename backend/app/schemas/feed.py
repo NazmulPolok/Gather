@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+import re
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
@@ -8,17 +8,43 @@ class AuthorSummary(BaseModel):
     name: str
     username: str
     avatar_url: str | None = None
-    role: str = "member"
 
     model_config = {"from_attributes": True}
 
 
-class GroupSummary(BaseModel):
+class CommunitySummary(BaseModel):
     id: int
     name: str
+    slug: str
+    description: str | None = None
     avatar_url: str | None = None
+    banner_url: str | None = None
+    member_count: int = 0
+    is_member: bool = False
 
     model_config = {"from_attributes": True}
+
+
+class CommunityCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=64)
+    slug: str = Field(min_length=2, max_length=32)
+    description: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("slug")
+    @classmethod
+    def validate_slug(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not re.match(r"^[a-z0-9_]+$", v):
+            raise ValueError("Community slug can only contain lowercase letters, numbers, and underscores")
+        return v
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 2:
+            raise ValueError("Community name must be at least 2 characters")
+        return v
 
 
 class CommentCreate(BaseModel):
@@ -44,8 +70,19 @@ class CommentResponse(BaseModel):
 
 
 class PostCreate(BaseModel):
+    community_id: int | None = None
+    community_slug: str | None = None
+    title: str = Field(min_length=1, max_length=300)
     content: str | None = Field(default=None, max_length=10000)
     image_url: str | None = Field(default=None, max_length=512)
+
+    @field_validator("title")
+    @classmethod
+    def trim_title(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Post title cannot be empty")
+        return value
 
     @field_validator("content")
     @classmethod
@@ -64,14 +101,23 @@ class PostCreate(BaseModel):
         return None
 
     @model_validator(mode="after")
-    def validate_content_or_image(self) -> "PostCreate":
-        if not self.content and not self.image_url:
-            raise ValueError("Post must have text content or an image attachment")
+    def validate_community_target(self) -> "PostCreate":
+        if not self.community_id and not self.community_slug:
+            raise ValueError("Community must be specified (community_id or community_slug)")
         return self
 
 
 class PostUpdate(BaseModel):
+    title: str | None = Field(default=None, max_length=300)
     content: str | None = Field(default=None, max_length=10000)
+
+    @field_validator("title")
+    @classmethod
+    def trim_title(cls, value: str | None) -> str | None:
+        if value is not None:
+            value = value.strip()
+            return value if value else None
+        return None
 
     @field_validator("content")
     @classmethod
@@ -84,8 +130,9 @@ class PostUpdate(BaseModel):
 
 class PostResponse(BaseModel):
     id: int
-    group: GroupSummary
+    community: CommunitySummary
     author: AuthorSummary
+    title: str
     content: str | None = None
     image_url: str | None = None
     upvote_count: int = 0
@@ -96,7 +143,3 @@ class PostResponse(BaseModel):
     comments: list[CommentResponse] = []
 
     model_config = {"from_attributes": True}
-
-
-class RoleUpdatePayload(BaseModel):
-    role: Literal["admin", "moderator", "contributor", "member"]

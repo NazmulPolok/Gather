@@ -162,7 +162,17 @@ export type AuthorSummary = {
   name: string
   username: string
   avatar_url?: string | null
-  role: 'admin' | 'moderator' | 'contributor' | 'member'
+}
+
+export type CommunitySummary = {
+  id: number
+  name: string
+  slug: string
+  description?: string | null
+  avatar_url?: string | null
+  banner_url?: string | null
+  member_count: number
+  is_member: boolean
 }
 
 export type GroupSummary = {
@@ -181,8 +191,9 @@ export type CommentItem = {
 
 export type PostItem = {
   id: number
-  group: GroupSummary
+  community: CommunitySummary
   author: AuthorSummary
+  title: string
   content?: string | null
   image_url?: string | null
   upvote_count: number
@@ -276,14 +287,29 @@ export const api = {
     ),
   updateMemberRole: (token: string, groupId: number, userId: number, role: 'admin' | 'moderator' | 'contributor' | 'member') =>
     request<{ status: string; user_id: number; role: string }>(`/api/groups/${groupId}/members/${userId}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }, token),
-  getNewsFeed: (token: string, groupId?: number) =>
-    request<PostItem[]>(groupId ? `/api/feed?group_id=${groupId}` : '/api/feed', {}, token),
-  getGroupPosts: (token: string, groupId: number) =>
-    request<PostItem[]>(`/api/groups/${groupId}/posts`, {}, token),
-  createPost: (token: string, groupId: number, content?: string, imageUrl?: string) =>
-    request<PostItem>(`/api/groups/${groupId}/posts`, {
+  getCommunities: (token: string) =>
+    request<CommunitySummary[]>('/api/communities', {}, token),
+  createCommunity: (token: string, name: string, slug: string, description?: string) =>
+    request<CommunitySummary>('/api/communities', {
       method: 'POST',
-      body: JSON.stringify({ content: content || null, image_url: imageUrl || null }),
+      body: JSON.stringify({ name, slug, description: description || null }),
+    }, token),
+  joinCommunity: (token: string, slug: string) =>
+    request<{ status: string; slug: string }>(`/api/communities/${slug}/join`, { method: 'POST' }, token),
+  leaveCommunity: (token: string, slug: string) =>
+    request<{ status: string; slug: string }>(`/api/communities/${slug}/leave`, { method: 'POST' }, token),
+  getNewsFeed: (token: string, params?: { feed_type?: string; community_slug?: string; sort?: string }) => {
+    const q = new URLSearchParams()
+    if (params?.feed_type) q.set('feed_type', params.feed_type)
+    if (params?.community_slug) q.set('community_slug', params.community_slug)
+    if (params?.sort) q.set('sort', params.sort)
+    const qs = q.toString()
+    return request<PostItem[]>(qs ? `/api/feed?${qs}` : '/api/feed', {}, token)
+  },
+  createPost: (token: string, data: { community_slug?: string; community_id?: number; title: string; content?: string; image_url?: string }) =>
+    request<PostItem>('/api/feed/posts', {
+      method: 'POST',
+      body: JSON.stringify(data),
     }, token),
   uploadPostImage: (token: string, file: File) => {
     const formData = new FormData()
@@ -291,20 +317,20 @@ export const api = {
     return request<{ image_url: string }>('/api/feed/upload-image', { method: 'POST', body: formData }, token)
   },
   deletePost: (token: string, postId: number) =>
-    request<{ status: string; post_id: number }>(`/api/posts/${postId}`, { method: 'DELETE' }, token),
-  editPost: (token: string, postId: number, content: string) =>
-    request<PostItem>(`/api/posts/${postId}`, {
+    request<{ status: string; post_id: number }>(`/api/feed/posts/${postId}`, { method: 'DELETE' }, token),
+  editPost: (token: string, postId: number, data: { title?: string; content?: string }) =>
+    request<PostItem>(`/api/feed/posts/${postId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ content }),
+      body: JSON.stringify(data),
     }, token),
   togglePostReact: (token: string, postId: number) =>
-    request<{ status: string; post_id: number; has_upvoted: boolean; upvote_count: number }>(`/api/posts/${postId}/react`, { method: 'POST' }, token),
+    request<{ status: string; post_id: number; has_upvoted: boolean; upvote_count: number }>(`/api/feed/posts/${postId}/react`, { method: 'POST' }, token),
   getPostComments: (token: string, postId: number) =>
-    request<CommentItem[]>(`/api/posts/${postId}/comments`, {}, token),
+    request<CommentItem[]>(`/api/feed/posts/${postId}/comments`, {}, token),
   createComment: (token: string, postId: number, content: string) =>
-    request<CommentItem>(`/api/posts/${postId}/comments`, { method: 'POST', body: JSON.stringify({ content }) }, token),
+    request<CommentItem>(`/api/feed/posts/${postId}/comments`, { method: 'POST', body: JSON.stringify({ content }) }, token),
   deleteComment: (token: string, commentId: number) =>
-    request<{ status: string; comment_id: number }>(`/api/posts/comments/${commentId}`, { method: 'DELETE' }, token),
+    request<{ status: string; comment_id: number }>(`/api/feed/comments/${commentId}`, { method: 'DELETE' }, token),
   members: (token: string, groupId: number) => request<Member[]>(`/api/groups/${groupId}/members`, {}, token),
   approveMember: (token: string, groupId: number, userId: number) => request<{ status: string }>(`/api/groups/${groupId}/members/${userId}/approve`, { method: 'POST' }, token),
   updateNickname: (token: string, groupId: number, targetUserId: number, nickname: string | null) => request<{ status: string; user_id: number; nickname: string | null }>(`/api/groups/${groupId}/members/${targetUserId}/nickname`, { method: 'PATCH', body: JSON.stringify({ nickname }) }, token),

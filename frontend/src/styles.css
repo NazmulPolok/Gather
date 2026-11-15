@@ -2201,3 +2201,306 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
   color: #88d49a;
 }
 
+/* =========================================================
+   REDDIT-STYLE COMPONENT ENHANCEMENTS
+   ========================================================= */
+
+.reddit-sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid #e1e7e0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+:root[data-theme="dark"] .reddit-sort-bar {
+  background: #162017;
+  border-color: #243426;
+}
+.reddit-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #556257;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.reddit-sort-btn:hover {
+  background: #f0f4f0;
+  color: #263428;
+}
+.reddit-sort-btn.active {
+  background: #e6f2e8;
+  color: #1f6b39;
+  border-color: #c0dec7;
+}
+:root[data-theme="dark"] .reddit-sort-btn {
+  color: #aab5ac;
+}
+:root[data-theme="dark"] .reddit-sort-btn:hover {
+  background: #1f2b20;
+  color: #e5eee6;
+}
+:root[data-theme="dark"] .reddit-sort-btn.active {
+  background: #213c28;
+  color: #6ee29c;
+  border-color: #2d5537;
+}
+
+/* Reddit Post Card */
+.reddit-card {
+  display: flex;
+  background: #fff;
+  border: 1px solid #e1e7e0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+.reddit-card:hover {
+  border-color: #bccbc0;
+}
+:root[data-theme="dark"] .reddit-card {
+  background: #162017;
+  border-color: #243426;
+}
+:root[data-theme="dark"] .reddit-card:hover {
+  border-color: #384e3b;
+}
+
+.reddit-vote-col {
+  width: 44px;
+  background: #f8faf8;
+  border-right: 1px solid #eef2ed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 2px;
+  gap: 4px;
+  user-select: none;
+}
+:root[data-theme="dark"] .reddit-vote-col {
+  background: #121a13;
+  border-right-color: #1e2b20;
+}
+.reddit-up-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  color: #8c988e;
+  border-radius: 4px;
+  padding: 4px 6px;
+  transition: all 0.15s ease;
+}
+.reddit-up-btn:hover {
+  background: #e8eee8;
+  color: #ff4500;
+}
+.reddit-up-btn.upvoted {
+  color: #ff4500;
+}
+.reddit-vote-col-score {
+  font-size: 12px;
+  font-weight: 700;
+  color: #273329;
+}
+.reddit-vote-col-score.upvoted {
+  color: #ff4500;
+}
+:root[data-theme="dark"] .reddit-vote-col-score {
+  color: #c9d5cb;
+}
+:root[data-theme="dark"] .reddit-vote-col-score.upvoted {
+  color: #ff6830;
+}
+
+.reddit-body-col {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reddit-post-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #7b887c;
+}
+.reddit-sub-pill {
+  font-weight: 700;
+  color: #1f6b39;
+  cursor: pointer;
+  background: #edf5ee;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.reddit-sub-pill:hover {
+  background: #deede0;
+}
+:root[data-theme="dark"] .reddit-sub-pill {
+  color: #6de59b;
+  background: #1e3323;
+}
+:root[data-theme="dark"] .reddit-sub-pill:hover {
+  background: #27452f;
+}
+.reddit-author-handle {
+  color: #5d6b5e;
+  font-weight: 500;
+}
+:root[data-theme="dark"] .reddit-author-handle {
+  color: #9cb09f;
+}
+
+.reddit-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #19231b;
+}
+:root[data-theme="dark"] .reddit-title {
+  color: #f1f6f2;
+}
+
+.reddit-community-banner {
+  background: linear-gradient(135deg, #235436 0%, #173824 100%);
+  color: #fff;
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+.reddit-banner-text h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  color: #fff;
+}
+.reddit-banner-text p {
+  margin: 0;
+  font-size: 12.5px;
+  color: #c8e4cf;
+  max-width: 500px;
+}
+.reddit-join-btn {
+  padding: 7px 18px;
+  border-radius: 20px;
+  border: 1px solid #ffffff;
+  background: #ffffff;
+  color: #173824;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.reddit-join-btn:hover {
+  background: #e6f4ea;
+}
+.reddit-join-btn.joined {
+  background: transparent;
+  color: #ffffff;
+  border-color: rgba(255,255,255,0.6);
+}
+.reddit-join-btn.joined:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: #ffffff;
+}
+
+/* Modal for Community Creation */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  z-index: 200;
+  padding: 16px;
+}
+.modal-box {
+  background: #fff;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 460px;
+  padding: 22px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+:root[data-theme="dark"] .modal-box {
+  background: #182219;
+  border: 1px solid #28392a;
+}
+.modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1c271e;
+  margin: 0;
+}
+:root[data-theme="dark"] .modal-title {
+  color: #e5eee6;
+}
+.modal-input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.modal-input-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b584d;
+}
+:root[data-theme="dark"] .modal-input-field label {
+  color: #a7b7a9;
+}
+.modal-input-field input,
+.modal-input-field textarea {
+  border: 1px solid #ced8cd;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13.5px;
+  font-family: inherit;
+  background: #fdfefd;
+  color: #1a221b;
+  outline: none;
+}
+.modal-input-field input:focus,
+.modal-input-field textarea:focus {
+  border-color: #276939;
+  box-shadow: 0 0 0 3px rgba(39,105,57,0.15);
+}
+:root[data-theme="dark"] .modal-input-field input,
+:root[data-theme="dark"] .modal-input-field textarea {
+  background: #121a13;
+  border-color: #2a3a2c;
+  color: #e2ece3;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+
