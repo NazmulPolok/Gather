@@ -135,6 +135,9 @@ def _compute_message_statuses(
 
     return result
 
+def _display_name(user: User) -> str:
+    return user.nickname or " ".join(part for part in (user.first_name, user.last_name) if part).strip() or user.username
+
 
 @router.get("/{group_id}/messages", response_model=list[MessageResponse])
 def list_messages(
@@ -226,6 +229,10 @@ async def create_message(
     user: User = Depends(get_current_user),
 ) -> MessageResponse:
     membership = active_membership(db, group_id, user.id)
+
+    now_dt = datetime.now(timezone.utc)
+    user.last_seen_at = now_dt
+
     message = Message(
         group_id=group_id,
         sender_id=user.id,
@@ -616,7 +623,3 @@ async def group_websocket(
         )
     except Exception:
         manager.disconnect(websocket, group_id)
-
-
-def _display_name(user: User) -> str:
-    return user.nickname or " ".join(part for part in (user.first_name, user.last_name) if part).strip() or user.username

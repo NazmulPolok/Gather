@@ -71,5 +71,3 @@ class MessageResponse(BaseModel):
     created_at: datetime
     status: Literal["sending", "sent", "delivered", "seen"] = "sent"
     seen_by: list[SeenUser] = []
-
-    model_config = {"from_attributes": True}

@@ -90,6 +90,7 @@ class UserResponse(BaseModel):
     avatar_url: str | None = None
     nickname: str | None = None
     created_at: datetime | None = None
+    last_seen_at: datetime | None = None
     model_config = {"from_attributes": True}
 
 
@@ -104,7 +105,6 @@ class UserProfileResponse(BaseModel):
     post_count: int = 0
     total_upvotes: int = 0
     community_count: int = 0
-    model_config = {"from_attributes": True}
 
 
 class TokenResponse(BaseModel):

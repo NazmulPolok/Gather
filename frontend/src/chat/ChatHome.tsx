@@ -137,6 +137,15 @@ export function ChatHome({
 
   useEffect(() => { void refreshGroups() }, [refreshGroups])
 
+  // Periodic user presence heartbeat (every 20 seconds)
+  useEffect(() => {
+    void api.heartbeat(token).catch(() => undefined)
+    const interval = window.setInterval(() => {
+      void api.heartbeat(token).catch(() => undefined)
+    }, 20000)
+    return () => window.clearInterval(interval)
+  }, [token])
+
   useEffect(() => {
     if (!notificationTarget || loadingGroups) return
     const group = groups.find(item => item.id === notificationTarget.group_id)
@@ -177,8 +186,14 @@ export function ChatHome({
     }
   }, [token])
 
+  // Load messages and members polling
   useEffect(() => {
     setIsEditingName(false)
+    setTypingUsers({})
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current)
+    }
+
     if (!activeGroup) {
       setMessages([])
       setMembers([])
@@ -186,8 +201,16 @@ export function ChatHome({
     }
     const groupId = activeGroup.id
     void loadMessages(groupId)
-    void api.members(token, groupId).then(setMembers).catch(() => setMembers([]))
-    const interval = window.setInterval(() => { void loadMessages(groupId, true) }, 5000)
+
+    const fetchMembers = () => {
+      api.members(token, groupId).then(setMembers).catch(() => undefined)
+    }
+    fetchMembers()
+
+    const interval = window.setInterval(() => {
+      void loadMessages(groupId, true)
+      fetchMembers()
+    }, 5000)
     return () => window.clearInterval(interval)
   }, [activeGroup?.id, token, loadMessages])
 
@@ -765,6 +788,7 @@ export function ChatHome({
                 <UserAvatar
                   avatarUrl={user.avatar_url}
                   fallback={activeNickname || user.nickname || user.first_name || user.username}
+                  isOnline={true}
                 />
               )}
             </span>
@@ -783,9 +807,9 @@ export function ChatHome({
         {activeGroup ? <>
           <header className="chat-header">
             <div className="group-avatar-wrapper">
-              <div className="group-avatar tone-1 header-group-avatar">
-                <GroupAvatar avatarUrl={activeGroup.avatar_url} name={activeGroup.name} />
-              </div>
+              <span className="group-avatar header-group-avatar">
+                <GroupAvatar avatarUrl={pendingHeaderPreview || activeGroup.avatar_url} name={activeGroup.name} size={42} />
+              </span>
               {isAdmin && (
                 <>
                   <input
@@ -795,23 +819,22 @@ export function ChatHome({
                     style={{ display: 'none' }}
                     onChange={e => {
                       const file = e.target.files?.[0]
-                      if (file) {
-                        e.target.value = ''
-                        if (file.size > 10 * 1024 * 1024) {
-                          setError('Group photo cannot exceed 10MB.')
-                          return
-                        }
-                        setPendingHeaderPhoto(file)
-                        setPendingHeaderPreview(URL.createObjectURL(file))
+                      if (!file) return
+                      e.target.value = ''
+                      if (file.size > 10 * 1024 * 1024) {
+                        setError('Group photo cannot exceed 10MB.')
+                        return
                       }
+                      setPendingHeaderPhoto(file)
+                      setPendingHeaderPreview(URL.createObjectURL(file))
                     }}
                   />
                   <button
                     type="button"
                     className="group-avatar-change-btn"
                     onClick={() => groupFileInputRef.current?.click()}
-                    title="Change group photo from your PC"
-                    aria-label="Change group photo from your PC"
+                    title="Change group photo from PC"
+                    aria-label="Change group photo"
                     disabled={savingGroupPhoto}
                   >
                     {savingGroupPhoto ? '…' : '📷'}
@@ -1826,6 +1849,11 @@ function MemberPanel({
                   {member.role === 'moderator' && <span className="mod-pill" title="Group Moderator">MODERATOR</span>}
                   {member.role === 'contributor' && <span className="contrib-pill" title="Contributor">CONTRIBUTOR</span>}
                   {isSelf && <span className="you-pill">YOU</span>}
+                  {isOnline ? (
+                    <span className="online-badge-pill"><span className="online-green-dot" /> Active</span>
+                  ) : (
+                    <span className="last-seen-badge">{formatLastSeen(member.last_seen_at)}</span>
+                  )}
                 </div>
                 <small>
                   {hasNickname ? `${displayName(member)} (@${member.username})` : `@${member.username}`}

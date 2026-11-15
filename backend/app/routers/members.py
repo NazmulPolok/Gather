@@ -82,6 +82,10 @@ def list_members(
     user: User = Depends(get_current_user),
 ) -> list[dict[str, object]]:
     requester = active_membership(db, group_id, user.id)
+    now = datetime.now(timezone.utc)
+    user.last_seen_at = now
+    db.commit()
+
     query = select(Membership, User).join(User).where(Membership.group_id == group_id)
     if requester.role not in ("admin", "moderator"):
         query = query.where(Membership.status == "active")
