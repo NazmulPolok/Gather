@@ -6,7 +6,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user
-from app.core.media import safe_delete_upload_file, validate_image_file
+from app.core.media import (
+    optimize_video_to_1080p,
+    safe_delete_upload_file,
+    validate_image_file,
+    validate_video_file,
+)
 from app.db.session import get_db
 from app.models.community import Community, CommunityMember
 from app.models.post import Post, PostComment, PostReaction
@@ -108,6 +113,7 @@ def _build_post_response(post: Post, current_user_id: int, db: Session) -> PostR
         title=post.title,
         content=post.content,
         image_url=post.image_url,
+        video_url=post.video_url,
         upvote_count=upvote_count,
         has_upvoted=has_upvoted,
         comment_count=len(comment_responses),
@@ -234,18 +240,45 @@ def leave_community(
 # Feed & Post Endpoints
 # ==========================================
 
+@router.post("/feed/upload-media")
 @router.post("/feed/upload-image")
-async def upload_post_image(
+async def upload_post_media(
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
 ) -> dict[str, str]:
     contents = await file.read()
+    ct = (file.content_type or "").lower().split(";")[0].strip()
+    
+    # Check if video
+    if ct.startswith("video/") or ct in ("video/mp4", "video/webm", "video/quicktime", "video/x-matroska", "video/avi"):
+        ext = validate_video_file(contents, ct)
+        base_name = secrets.token_hex(16)
+        raw_temp = POSTS_DIR / f"raw_{base_name}{ext}"
+        out_file = POSTS_DIR / f"{base_name}.mp4"
+        raw_temp.write_bytes(contents)
+        try:
+            optimize_video_to_1080p(raw_temp, out_file)
+        finally:
+            raw_temp.unlink(missing_ok=True)
+            
+        video_url = f"/uploads/posts/{out_file.name}"
+        return {
+            "media_type": "video",
+            "video_url": video_url,
+            "image_url": "",
+        }
+    
+    # Otherwise process as image
     ext = validate_image_file(contents, file.content_type or "")
     filename = f"{secrets.token_hex(16)}{ext}"
     dest = POSTS_DIR / filename
     dest.write_bytes(contents)
 
-    return {"image_url": f"/uploads/posts/{filename}"}
+    return {
+        "media_type": "image",
+        "image_url": f"/uploads/posts/{filename}",
+        "video_url": "",
+    }
 
 
 @router.get("/feed", response_model=list[PostResponse])
@@ -340,6 +373,7 @@ def create_post(
         title=payload.title,
         content=payload.content,
         image_url=payload.image_url,
+        video_url=payload.video_url,
     )
     db.add(post)
     db.commit()
@@ -407,8 +441,9 @@ def delete_post(
             detail="You do not have permission to delete this post",
         )
 
-    # Clean up uploaded image if present safely
+    # Clean up uploaded media safely
     safe_delete_upload_file(POSTS_DIR, post.image_url, "/uploads/posts/")
+    safe_delete_upload_file(POSTS_DIR, post.video_url, "/uploads/posts/")
 
     db.delete(post)
     db.commit()

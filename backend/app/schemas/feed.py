@@ -75,6 +75,7 @@ class PostCreate(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     content: str | None = Field(default=None, max_length=10000)
     image_url: str | None = Field(default=None, max_length=512)
+    video_url: str | None = Field(default=None, max_length=512)
 
     @field_validator("title")
     @classmethod
@@ -92,9 +93,9 @@ class PostCreate(BaseModel):
             return value if value else None
         return None
 
-    @field_validator("image_url")
+    @field_validator("image_url", "video_url")
     @classmethod
-    def trim_image_url(cls, value: str | None) -> str | None:
+    def trim_media_url(cls, value: str | None) -> str | None:
         if value is not None:
             value = value.strip()
             return value if value else None
@@ -135,6 +136,7 @@ class PostResponse(BaseModel):
     title: str
     content: str | None = None
     image_url: str | None = None
+    video_url: str | None = None
     upvote_count: int = 0
     has_upvoted: bool = False
     comment_count: int = 0

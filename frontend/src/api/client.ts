@@ -194,6 +194,7 @@ export type PostItem = {
   title: string
   content?: string | null
   image_url?: string | null
+  video_url?: string | null
   upvote_count: number
   has_upvoted: boolean
   comment_count: number
@@ -224,6 +225,13 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
     throw new ApiError('Cannot reach the server. Check your connection and try again.', 0)
   }
   if (!response.ok) {
+    if (response.status === 401) {
+      try {
+        localStorage.removeItem('gather_access_token')
+      } catch {}
+      window.dispatchEvent(new Event('auth:unauthorized'))
+      throw new ApiError('Session expired. Please sign in again.', 401)
+    }
     const payload = await response.json().catch(() => ({})) as { detail?: string }
     throw new ApiError(payload.detail || `Request failed (${response.status})`, response.status)
   }
@@ -310,7 +318,7 @@ export const api = {
     const qs = q.toString()
     return request<PostItem[]>(qs ? `/api/feed?${qs}` : '/api/feed', {}, token)
   },
-  createPost: (token: string, data: { community_slug?: string; community_id?: number; title: string; content?: string; image_url?: string }) =>
+  createPost: (token: string, data: { community_slug?: string; community_id?: number; title: string; content?: string; image_url?: string; video_url?: string }) =>
     request<PostItem>('/api/feed/posts', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -318,7 +326,12 @@ export const api = {
   uploadPostImage: (token: string, file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    return request<{ image_url: string }>('/api/feed/upload-image', { method: 'POST', body: formData }, token)
+    return request<{ image_url: string; video_url?: string; media_type?: string }>('/api/feed/upload-media', { method: 'POST', body: formData }, token)
+  },
+  uploadPostMedia: (token: string, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request<{ image_url: string; video_url?: string; media_type: string }>('/api/feed/upload-media', { method: 'POST', body: formData }, token)
   },
   deletePost: (token: string, postId: number) =>
     request<{ status: string; post_id: number }>(`/api/feed/posts/${postId}`, { method: 'DELETE' }, token),

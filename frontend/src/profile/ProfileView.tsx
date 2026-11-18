@@ -265,15 +265,21 @@ export function ProfileView({
     setError('')
     try {
       let imageUrl: string | undefined
+      let videoUrl: string | undefined
       if (attachedImage) {
         const uploadRes = await api.uploadPostImage(token, attachedImage)
-        imageUrl = uploadRes.image_url
+        if (uploadRes.video_url) {
+          videoUrl = uploadRes.video_url
+        } else {
+          imageUrl = uploadRes.image_url
+        }
       }
       const newPost = await api.createPost(token, {
         community_slug: slug,
         title,
         content: newContent.trim() || undefined,
         image_url: imageUrl,
+        video_url: videoUrl,
       })
       setPosts(curr => [newPost, ...curr])
       setNewTitle('')
@@ -580,7 +586,17 @@ export function ProfileView({
 
                 {attachedPreview && (
                   <div className="composer-attachment-card">
-                    <img src={attachedPreview} alt="Preview" className="composer-attachment-img" />
+                    {attachedImage?.type.startsWith('video/') ? (
+                      <video
+                        src={attachedPreview}
+                        controls
+                        playsInline
+                        className="composer-attachment-img"
+                        style={{ maxHeight: '320px', width: '100%', borderRadius: '8px', backgroundColor: '#000' }}
+                      />
+                    ) : (
+                      <img src={attachedPreview} alt="Preview" className="composer-attachment-img" />
+                    )}
                     <button
                       type="button"
                       className="attachment-close-pill"
@@ -599,13 +615,18 @@ export function ProfileView({
                   <input
                     ref={postFileInputRef}
                     type="file"
-                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime,video/x-matroska,video/avi"
                     style={{ display: 'none' }}
                     onChange={e => {
                       const file = e.target.files?.[0]
                       if (!file) return
-                      if (file.size > 10 * 1024 * 1024) {
-                        setError('Photo cannot exceed 10MB')
+                      const isVideo = file.type.startsWith('video/')
+                      if (isVideo && file.size > 250 * 1024 * 1024) {
+                        setError('Video cannot exceed 250MB')
+                        return
+                      }
+                      if (!isVideo && file.size > 15 * 1024 * 1024) {
+                        setError('Photo cannot exceed 15MB')
                         return
                       }
                       if (attachedPreview) URL.revokeObjectURL(attachedPreview)
@@ -743,6 +764,17 @@ export function ProfileView({
                           >
                             <img src={getMediaUrl(post.image_url)} alt="Post" loading="lazy" />
                             <span className="media-zoom-hint">🔍 Click to enlarge</span>
+                          </div>
+                        )}
+                        {post.video_url && (
+                          <div className="post-media-frame post-video-frame" style={{ cursor: 'default' }}>
+                            <video
+                              src={getMediaUrl(post.video_url)}
+                              controls
+                              playsInline
+                              preload="metadata"
+                              style={{ width: '100%', maxHeight: '480px', borderRadius: '8px', display: 'block', backgroundColor: '#000' }}
+                            />
                           </div>
                         )}
                       </>

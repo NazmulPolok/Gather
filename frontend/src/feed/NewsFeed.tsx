@@ -183,12 +183,17 @@ export function NewsFeed({
     }
   }
 
-  // Handle Image Selection
+  // Handle Media Selection (Image / Video)
   function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 10 * 1024 * 1024) {
-      setError('Image cannot exceed 10MB')
+    const isVideo = file.type.startsWith('video/')
+    if (isVideo && file.size > 250 * 1024 * 1024) {
+      setError('Video cannot exceed 250MB')
+      return
+    }
+    if (!isVideo && file.size > 15 * 1024 * 1024) {
+      setError('Image cannot exceed 15MB')
       return
     }
     if (attachedPreview) URL.revokeObjectURL(attachedPreview)
@@ -222,15 +227,21 @@ export function NewsFeed({
     setError('')
     try {
       let imageUrl: string | undefined
+      let videoUrl: string | undefined
       if (attachedImage) {
         const uploadRes = await api.uploadPostImage(token, attachedImage)
-        imageUrl = uploadRes.image_url
+        if (uploadRes.video_url) {
+          videoUrl = uploadRes.video_url
+        } else {
+          imageUrl = uploadRes.image_url
+        }
       }
       const newPost = await api.createPost(token, {
         community_slug: slug,
         title,
         content: postContent.trim() || undefined,
         image_url: imageUrl,
+        video_url: videoUrl,
       })
       setPosts(curr => [newPost, ...curr])
       setPostTitle('')
@@ -546,7 +557,17 @@ export function NewsFeed({
 
             {attachedPreview && (
               <div className="composer-attachment-card">
-                <img src={attachedPreview} alt="Preview" className="composer-attachment-img" />
+                {attachedImage?.type.startsWith('video/') ? (
+                  <video
+                    src={attachedPreview}
+                    controls
+                    playsInline
+                    className="composer-attachment-img"
+                    style={{ maxHeight: '320px', width: '100%', borderRadius: '8px', backgroundColor: '#000' }}
+                  />
+                ) : (
+                  <img src={attachedPreview} alt="Preview" className="composer-attachment-img" />
+                )}
                 <button type="button" className="attachment-close-pill" onClick={clearImage}>
                   ✕ Remove
                 </button>
@@ -557,7 +578,7 @@ export function NewsFeed({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/gif,image/webp"
+                accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime,video/x-matroska,video/avi"
                 style={{ display: 'none' }}
                 onChange={handleImageSelect}
               />
@@ -704,6 +725,19 @@ export function NewsFeed({
                         >
                           <img src={getMediaUrl(post.image_url)} alt="Post upload" loading="lazy" />
                           <span className="media-zoom-hint">🔍 Click to enlarge</span>
+                        </div>
+                      )}
+
+                      {/* Media Video */}
+                      {post.video_url && (
+                        <div className="post-media-frame post-video-frame" style={{ cursor: 'default' }}>
+                          <video
+                            src={getMediaUrl(post.video_url)}
+                            controls
+                            playsInline
+                            preload="metadata"
+                            style={{ width: '100%', maxHeight: '480px', borderRadius: '8px', display: 'block', backgroundColor: '#000' }}
+                          />
                         </div>
                       )}
                     </>
