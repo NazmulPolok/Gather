@@ -692,7 +692,17 @@ export function ProfileView({
                   {/* Right Post Body */}
                   <div className="reddit-body-col">
                     <div className="reddit-post-meta">
-                      <span className="reddit-sub-pill">r/{post.community.slug}</span>
+                      {post.video_url ? (
+                        <span className="profile-video-page-badge" title={`Published on Watch Page @${post.community.slug}`}>
+                          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m22 8-6 4 6 4V8Z" />
+                            <rect width="14" height="12" x="2" y="6" rx="2" />
+                          </svg>
+                          <span>Watch Video • @{post.community.slug}</span>
+                        </span>
+                      ) : (
+                        <span className="reddit-sub-pill">r/{post.community.slug}</span>
+                      )}
                       <span>•</span>
                       <span className="reddit-author-handle">u/{post.author.username}</span>
                       <span>•</span>

@@ -19,8 +19,12 @@ class CommunitySummary(BaseModel):
     description: str | None = None
     avatar_url: str | None = None
     banner_url: str | None = None
+    privacy_type: str = "public"
+    category: str | None = "General"
     member_count: int = 0
     is_member: bool = False
+    is_admin: bool = False
+    can_upload_video: bool = True
 
     model_config = {"from_attributes": True}
 
@@ -29,6 +33,10 @@ class CommunityCreate(BaseModel):
     name: str = Field(min_length=2, max_length=64)
     slug: str = Field(min_length=2, max_length=32)
     description: str | None = Field(default=None, max_length=1000)
+    privacy_type: str = Field(default="public", pattern="^(public|private)$")
+    category: str | None = Field(default="General", max_length=64)
+    avatar_url: str | None = Field(default=None, max_length=512)
+    banner_url: str | None = Field(default=None, max_length=512)
 
     @field_validator("slug")
     @classmethod
@@ -137,6 +145,7 @@ class PostResponse(BaseModel):
     content: str | None = None
     image_url: str | None = None
     video_url: str | None = None
+    views_count: int = 0
     upvote_count: int = 0
     has_upvoted: bool = False
     comment_count: int = 0

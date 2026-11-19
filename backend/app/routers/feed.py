@@ -54,12 +54,20 @@ def _build_community_summary(community: Community, current_user_id: int, db: Ses
         select(func.count(CommunityMember.id)).where(CommunityMember.community_id == community.id)
     ) or 0
 
-    is_member = db.scalar(
-        select(CommunityMember.id).where(
+    role = db.scalar(
+        select(CommunityMember.role).where(
             CommunityMember.community_id == community.id,
             CommunityMember.user_id == current_user_id,
         )
-    ) is not None
+    )
+    is_admin = (community.created_by_id == current_user_id) or (role == "admin")
+    is_member = (role is not None) or is_admin
+
+    privacy_type = getattr(community, "privacy_type", "public") or "public"
+    category = getattr(community, "category", "General") or "General"
+
+    # Private pages: only admins can upload videos. Public pages: any user/member can upload videos.
+    can_upload_video = is_admin if privacy_type == "private" else True
 
     return CommunitySummary(
         id=community.id,
@@ -68,8 +76,12 @@ def _build_community_summary(community: Community, current_user_id: int, db: Ses
         description=community.description,
         avatar_url=community.avatar_url,
         banner_url=community.banner_url,
+        privacy_type=privacy_type,
+        category=category,
         member_count=member_count,
         is_member=is_member,
+        is_admin=is_admin,
+        can_upload_video=can_upload_video,
     )
 
 
@@ -77,7 +89,7 @@ def _build_post_response(post: Post, current_user_id: int, db: Session) -> PostR
     community_summary = _build_community_summary(post.community, current_user_id, db)
     author_summary = _get_author_summary(post.author)
 
-    # Upvotes
+    # Upvotes / Likes
     upvote_count = db.scalar(
         select(func.count(PostReaction.id)).where(PostReaction.post_id == post.id)
     ) or 0
@@ -87,6 +99,9 @@ def _build_post_response(post: Post, current_user_id: int, db: Session) -> PostR
             PostReaction.user_id == current_user_id,
         )
     ) is not None
+
+    # Views count
+    views_count = getattr(post, "views_count", 0) or 0
 
     # Comments
     comments_query = (
@@ -115,6 +130,7 @@ def _build_post_response(post: Post, current_user_id: int, db: Session) -> PostR
         content=post.content,
         image_url=post.image_url,
         video_url=post.video_url,
+        views_count=views_count,
         upvote_count=upvote_count,
         has_upvoted=has_upvoted,
         comment_count=len(comment_responses),
@@ -163,6 +179,10 @@ def create_community(
         name=payload.name,
         slug=payload.slug,
         description=payload.description,
+        privacy_type=payload.privacy_type or "public",
+        category=payload.category or "General",
+        avatar_url=payload.avatar_url,
+        banner_url=payload.banner_url,
         created_by_id=user.id,
     )
     db.add(community)
@@ -251,6 +271,72 @@ def leave_community(
         invalidate_feed()
 
     return {"status": "left", "slug": slug}
+
+
+@router.post("/feed/communities/{slug}/avatar", response_model=CommunitySummary)
+async def upload_community_avatar(
+    slug: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> CommunitySummary:
+    community = db.scalar(select(Community).where(Community.slug == slug.lower()))
+    if not community:
+        raise HTTPException(status_code=404, detail="Page not found")
+    is_creator = community.created_by_id == user.id
+    role = db.scalar(
+        select(CommunityMember.role).where(
+            CommunityMember.community_id == community.id,
+            CommunityMember.user_id == user.id,
+        )
+    )
+    if not (is_creator or role == "admin"):
+        raise HTTPException(status_code=403, detail="Only page admins can update the page avatar")
+
+    contents = await file.read()
+    ext = validate_image_file(contents, file.content_type or "")
+    filename = f"page_av_{secrets.token_hex(12)}{ext}"
+    dest = POSTS_DIR / filename
+    dest.write_bytes(contents)
+    community.avatar_url = f"/uploads/posts/{filename}"
+    db.commit()
+    db.refresh(community)
+    cache.delete_pattern("gather:communities:*")
+    invalidate_feed()
+    return _build_community_summary(community, user.id, db)
+
+
+@router.post("/feed/communities/{slug}/banner", response_model=CommunitySummary)
+async def upload_community_banner(
+    slug: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> CommunitySummary:
+    community = db.scalar(select(Community).where(Community.slug == slug.lower()))
+    if not community:
+        raise HTTPException(status_code=404, detail="Page not found")
+    is_creator = community.created_by_id == user.id
+    role = db.scalar(
+        select(CommunityMember.role).where(
+            CommunityMember.community_id == community.id,
+            CommunityMember.user_id == user.id,
+        )
+    )
+    if not (is_creator or role == "admin"):
+        raise HTTPException(status_code=403, detail="Only page admins can update the page cover banner")
+
+    contents = await file.read()
+    ext = validate_image_file(contents, file.content_type or "")
+    filename = f"page_cov_{secrets.token_hex(12)}{ext}"
+    dest = POSTS_DIR / filename
+    dest.write_bytes(contents)
+    community.banner_url = f"/uploads/posts/{filename}"
+    db.commit()
+    db.refresh(community)
+    cache.delete_pattern("gather:communities:*")
+    invalidate_feed()
+    return _build_community_summary(community, user.id, db)
 
 
 # ==========================================
@@ -394,6 +480,22 @@ def create_post(
     if not community:
         raise HTTPException(status_code=404, detail="Community not found")
 
+    # Private Page Video Upload Restriction:
+    # If the page/community is private, ONLY admins/creator can upload videos.
+    if payload.video_url and getattr(community, "privacy_type", "public") == "private":
+        is_creator = community.created_by_id == user.id
+        role = db.scalar(
+            select(CommunityMember.role).where(
+                CommunityMember.community_id == community.id,
+                CommunityMember.user_id == user.id,
+            )
+        )
+        if not (is_creator or role == "admin"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This is a private page. Only the page admin can upload videos.",
+            )
+
     post = Post(
         community_id=community.id,
         author_id=user.id,
@@ -408,6 +510,20 @@ def create_post(
 
     invalidate_feed(post_id=post.id, community_slug=community.slug)
     return _build_post_response(post, user.id, db)
+
+
+@router.post("/feed/posts/{post_id}/view")
+def increment_post_view(
+    post_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, int]:
+    post = db.scalar(select(Post).where(Post.id == post_id))
+    if post:
+        post.views_count = (post.views_count or 0) + 1
+        db.commit()
+        return {"views_count": post.views_count}
+    return {"views_count": 0}
 
 
 @router.get("/feed/posts/{post_id}", response_model=PostResponse)

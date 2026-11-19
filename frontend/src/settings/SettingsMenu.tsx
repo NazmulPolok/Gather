@@ -8,12 +8,14 @@ export function SettingsMenu({
   onThemeChange,
   onSignOut,
   onOpenShop,
+  onOpenPage,
   hasUserShop,
 }: {
   theme: Theme
   onThemeChange: (theme: Theme) => void
   onSignOut?: () => void
   onOpenShop?: () => void
+  onOpenPage?: () => void
   hasUserShop?: boolean
 }) {
   const [open, setOpen] = useState(false)
@@ -83,6 +85,29 @@ export function SettingsMenu({
                       ) : (
                         <span className="settings-shop-new-pill">NEW</span>
                       )}
+                      <span className="settings-option-arrow">›</span>
+                    </button>
+
+                    {/* Open a Page Button in Settings */}
+                    <button
+                      type="button"
+                      className="settings-option-row settings-option-page"
+                      onClick={() => {
+                        setOpen(false)
+                        onOpenPage?.()
+                      }}
+                    >
+                      <span className="settings-option-icon settings-option-page-icon">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                          <line x1="4" y1="22" x2="4" y2="15" />
+                        </svg>
+                      </span>
+                      <span>
+                        <strong className="shop-title-text">Open a Page</strong>
+                        <small>Create a Public or Private page & upload videos</small>
+                      </span>
+                      <span className="settings-shop-new-pill" style={{ background: '#e02424', color: '#fff' }}>NEW</span>
                       <span className="settings-option-arrow">›</span>
                     </button>
 

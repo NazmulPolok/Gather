@@ -857,8 +857,8 @@ export function ShopView({
             </div>
           )}
 
-          {/* Open Shop / My Shop Button */}
-          {userShop ? (
+          {/* My Shop Button (visible when user has an active store) */}
+          {userShop && (
             <button
               type="button"
               className={`shop-tab-toggle shop-myshop-toggle ${activeTab === 'myshop' ? 'active' : ''}`}
@@ -868,19 +868,6 @@ export function ShopView({
               <IconStore size={15} />
               <span>My Shop</span>
               <span className="shop-verified-dot">●</span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="shop-open-btn-pill"
-              onClick={() => {
-                setShopSuccessBanner(false)
-                setIsOpenShopModal(true)
-              }}
-              title="Open your own shop on Gather"
-            >
-              <IconStore size={15} />
-              <span>Open Shop</span>
             </button>
           )}
 
@@ -1169,28 +1156,6 @@ export function ShopView({
            VIEW 3: PUBLIC MARKETPLACE BROWSE GRID
            ========================================================= */
         <section className="shop-products-grid">
-          {/* Merchant Promotion Bar */}
-          {!userShop && (
-            <div className="shop-merchant-promo-banner">
-              <div className="promo-banner-text">
-                <span className="promo-badge">
-                  <IconStore size={14} /> Sell on Gather
-                </span>
-                <strong>Start your own business today!</strong>
-                <p>Register your verified store, list products, and reach thousands of community members.</p>
-              </div>
-              <button
-                type="button"
-                className="promo-open-btn"
-                onClick={() => {
-                  setShopSuccessBanner(false)
-                  setIsOpenShopModal(true)
-                }}
-              >
-                Open Shop Now →
-              </button>
-            </div>
-          )}
 
           {filteredProducts.length === 0 ? (
             <div className="shop-empty-state">

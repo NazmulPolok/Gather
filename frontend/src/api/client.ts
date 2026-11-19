@@ -169,8 +169,12 @@ export type CommunitySummary = {
   description?: string | null
   avatar_url?: string | null
   banner_url?: string | null
+  privacy_type?: 'public' | 'private'
+  category?: string | null
   member_count: number
   is_member: boolean
+  is_admin?: boolean
+  can_upload_video?: boolean
 }
 
 export type GroupSummary = {
@@ -195,6 +199,7 @@ export type PostItem = {
   content?: string | null
   image_url?: string | null
   video_url?: string | null
+  views_count?: number
   upvote_count: number
   has_upvoted: boolean
   comment_count: number
@@ -296,11 +301,31 @@ export const api = {
     request<{ status: string; user_id: number; role: string }>(`/api/groups/${groupId}/members/${userId}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }, token),
   getCommunities: (token: string) =>
     request<CommunitySummary[]>('/api/communities', {}, token),
-  createCommunity: (token: string, name: string, slug: string, description?: string) =>
+  createCommunity: (token: string, name: string, slug: string, description?: string, privacy_type: 'public' | 'private' = 'public', category?: string, avatar_url?: string, banner_url?: string) =>
     request<CommunitySummary>('/api/communities', {
       method: 'POST',
-      body: JSON.stringify({ name, slug, description: description || null }),
+      body: JSON.stringify({
+        name,
+        slug,
+        description: description || null,
+        privacy_type,
+        category: category || 'General',
+        avatar_url: avatar_url || null,
+        banner_url: banner_url || null,
+      }),
     }, token),
+  uploadPageAvatar: (token: string, slug: string, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request<CommunitySummary>(`/api/feed/communities/${encodeURIComponent(slug)}/avatar`, { method: 'POST', body: formData }, token)
+  },
+  uploadPageBanner: (token: string, slug: string, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request<CommunitySummary>(`/api/feed/communities/${encodeURIComponent(slug)}/banner`, { method: 'POST', body: formData }, token)
+  },
+  incrementPostView: (token: string, postId: number) =>
+    request<{ views_count: number }>(`/api/feed/posts/${postId}/view`, { method: 'POST' }, token),
   joinCommunity: (token: string, slug: string) =>
     request<{ status: string; slug: string }>(`/api/communities/${slug}/join`, { method: 'POST' }, token),
   leaveCommunity: (token: string, slug: string) =>
@@ -309,12 +334,13 @@ export const api = {
     request<UserProfile>(`/api/auth/users/${encodeURIComponent(username)}/profile`, {}, token),
   getUserPosts: (token: string, username: string) =>
     request<PostItem[]>(`/api/feed/users/${encodeURIComponent(username)}/posts`, {}, token),
-  getNewsFeed: (token: string, params?: { feed_type?: string; community_slug?: string; author_username?: string; sort?: string }) => {
+  getNewsFeed: (token: string, params?: { feed_type?: string; community_slug?: string; author_username?: string; sort?: string; limit?: number }) => {
     const q = new URLSearchParams()
     if (params?.feed_type) q.set('feed_type', params.feed_type)
     if (params?.community_slug) q.set('community_slug', params.community_slug)
     if (params?.author_username) q.set('author_username', params.author_username)
     if (params?.sort) q.set('sort', params.sort)
+    if (params?.limit) q.set('limit', String(params.limit))
     const qs = q.toString()
     return request<PostItem[]>(qs ? `/api/feed?${qs}` : '/api/feed', {}, token)
   },

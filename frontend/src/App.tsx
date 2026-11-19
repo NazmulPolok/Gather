@@ -6,6 +6,7 @@ import { ChatHome } from './chat/ChatHome'
 import { NewsFeed } from './feed/NewsFeed'
 import { ProfileView } from './profile/ProfileView'
 import { ShopView, type CartItem, type UserShop } from './shop/ShopView'
+import { WatchView } from './videos/WatchView'
 import { NotificationCenter } from './notifications/NotificationCenter'
 import { SettingsMenu } from './settings/SettingsMenu'
 import { UserAvatar } from './components/UserAvatar'
@@ -24,8 +25,9 @@ export default function App() {
   const [notificationTarget, setNotificationTarget] = useState<NotificationItem | null>(null)
   const [unreadGroups, setUnreadGroups] = useState<Record<number, number>>({})
   const [theme, setTheme] = useState<Theme>(() => localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light')
-  const [currentView, setCurrentView] = useState<'chat' | 'feed' | 'shop' | 'profile'>('chat')
+  const [currentView, setCurrentView] = useState<'chat' | 'feed' | 'watch' | 'shop' | 'profile'>('chat')
   const [profileUsername, setProfileUsername] = useState<string>('')
+  const [openPageModalTrigger, setOpenPageModalTrigger] = useState(false)
 
   // Shop Cart State
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -58,6 +60,11 @@ export default function App() {
   function handleOpenShopFromSettings() {
     setCurrentView('shop')
     setOpenShopModalTrigger(true)
+  }
+
+  function handleOpenPageFromSettings() {
+    setCurrentView('watch')
+    setOpenPageModalTrigger(true)
   }
 
   useEffect(() => {
@@ -154,7 +161,23 @@ export default function App() {
               <span className="fb-tab-label">News Feed</span>
             </button>
 
-            {/* 2. Chat */}
+            {/* 2. Watch / Videos */}
+            <button
+              type="button"
+              className={`fb-tab-item ${currentView === 'watch' ? 'active' : ''}`}
+              onClick={() => setCurrentView('watch')}
+              title="Watch Videos & Pages"
+            >
+              <span className="fb-tab-icon">
+                <svg viewBox="0 0 28 28" width="22" height="22" fill="currentColor">
+                  <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h15A2.5 2.5 0 0 1 24 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 4 17.5v-11zM12 9.5v5l4.5-2.5L12 9.5zM8 22.5a1 1 0 0 1 1-1h10a1 1 0 1 1 0 2H9a1 1 0 0 1-1-1z"/>
+                </svg>
+              </span>
+              <span className="fb-tab-label">Watch</span>
+              <span className="fb-tab-new-tag" style={{ background: '#e02424' }}>VIDEOS</span>
+            </button>
+
+            {/* 3. Chat */}
             <button
               type="button"
               className={`fb-tab-item ${currentView === 'chat' ? 'active' : ''}`}
@@ -169,7 +192,7 @@ export default function App() {
               <span className="fb-tab-label">Chat</span>
             </button>
 
-            {/* 3. Shop */}
+            {/* 4. Shop */}
             <button
               type="button"
               className={`fb-tab-item ${currentView === 'shop' ? 'active' : ''}`}
@@ -204,6 +227,7 @@ export default function App() {
                 onThemeChange={setTheme}
                 onSignOut={signOut}
                 onOpenShop={handleOpenShopFromSettings}
+                onOpenPage={handleOpenPageFromSettings}
                 hasUserShop={Boolean(userShop)}
               />
             </div>
@@ -262,6 +286,19 @@ export default function App() {
             onUserShopChange={setUserShop}
             openShopTrigger={openShopModalTrigger}
             onOpenShopTriggerHandled={() => setOpenShopModalTrigger(false)}
+          />
+        ) : currentView === 'watch' ? (
+          <WatchView
+            token={token}
+            user={user}
+            openPageTrigger={openPageModalTrigger}
+            onOpenPageTriggerHandled={() => setOpenPageModalTrigger(false)}
+            onOpenChat={() => setCurrentView('chat')}
+            onOpenFeed={() => setCurrentView('feed')}
+            onOpenProfile={(username) => {
+              setProfileUsername(username)
+              setCurrentView('profile')
+            }}
           />
         ) : currentView === 'feed' ? (
           <NewsFeed

@@ -12,6 +12,8 @@ class Community(Base):
     name: Mapped[str] = mapped_column(String(64), nullable=False)
     slug: Mapped[str] = mapped_column(String(32), unique=True, index=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    privacy_type: Mapped[str] = mapped_column(String(16), default="public", nullable=False)
+    category: Mapped[str | None] = mapped_column(String(64), default="General", nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     banner_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
