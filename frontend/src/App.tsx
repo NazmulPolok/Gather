@@ -5,12 +5,14 @@ import { AuthForm } from './auth/AuthForm'
 import { ChatHome } from './chat/ChatHome'
 import { NewsFeed } from './feed/NewsFeed'
 import { ProfileView } from './profile/ProfileView'
+import { ShopView, type CartItem } from './shop/ShopView'
 import { NotificationCenter } from './notifications/NotificationCenter'
 import { SettingsMenu } from './settings/SettingsMenu'
 import { UserAvatar } from './components/UserAvatar'
 
 const TOKEN_KEY = 'gather_access_token'
 const THEME_KEY = 'gather_theme'
+const CART_KEY = 'gather_shop_cart'
 type Theme = 'light' | 'dark'
 
 export default function App() {
@@ -23,8 +25,25 @@ export default function App() {
   const [notificationTarget, setNotificationTarget] = useState<NotificationItem | null>(null)
   const [unreadGroups, setUnreadGroups] = useState<Record<number, number>>({})
   const [theme, setTheme] = useState<Theme>(() => localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light')
-  const [currentView, setCurrentView] = useState<'chat' | 'feed' | 'profile'>('chat')
+  const [currentView, setCurrentView] = useState<'chat' | 'feed' | 'shop' | 'profile'>('chat')
   const [profileUsername, setProfileUsername] = useState<string>('')
+
+  // Shop Cart State
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem(CART_KEY)
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  function handleCartChange(newCart: CartItem[]) {
+    setCart(newCart)
+    try {
+      localStorage.setItem(CART_KEY, JSON.stringify(newCart))
+    } catch {}
+  }
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -81,35 +100,104 @@ export default function App() {
 
   return (
     <div className="app-frame">
-      <header className="site-header">
+      <header className="site-header fb-site-header">
+        {/* Left: Brand + Facebook Search Bar */}
         <div className="header-left">
-          <a className="wordmark" href="/" aria-label="Gather home"><span className="brand-mark">g</span>gather</a>
+          <a className="wordmark" href="/" aria-label="Gather home">
+            <span className="brand-mark">g</span>gather
+          </a>
           {token && user && (
-            <nav className="header-tabs-nav">
-              <button
-                type="button"
-                className={`header-tab-pill ${currentView === 'chat' ? 'active' : ''}`}
-                onClick={() => setCurrentView('chat')}
-              >
-                <span>💬</span> Chat
-              </button>
-              <button
-                type="button"
-                className={`header-tab-pill ${currentView === 'feed' ? 'active' : ''}`}
-                onClick={() => setCurrentView('feed')}
-              >
-                <span>📰</span> News Feed
-              </button>
-            </nav>
+            <div className="fb-header-search-wrap">
+              <span className="fb-search-lens">
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+                  <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                </svg>
+              </span>
+              <input
+                type="text"
+                className="fb-header-search-input"
+                placeholder="Search Gather..."
+                onClick={() => {
+                  if (currentView !== 'feed' && currentView !== 'shop') {
+                    setCurrentView('feed')
+                  }
+                }}
+              />
+            </div>
           )}
         </div>
-        <div className="header-right">
-          <span className={`connection ${apiReady === false ? 'offline' : ''}`}><span className="connection-dot" />{apiReady === null ? 'Connecting' : apiReady ? 'All systems ready' : 'Server unavailable'}</span>
-          {token && user && <NotificationCenter token={token} onSelect={handleNotificationSelect} onUnreadGroups={handleUnreadGroups} />}
-          {user && <SettingsMenu theme={theme} onThemeChange={setTheme} onSignOut={signOut} />}
+
+        {/* Center: Facebook-style navigation tabs (newsfeed -> chat -> shop) */}
+        {token && user && (
+          <nav className="fb-header-center-tabs">
+            {/* 1. News Feed */}
+            <button
+              type="button"
+              className={`fb-tab-item ${currentView === 'feed' ? 'active' : ''}`}
+              onClick={() => setCurrentView('feed')}
+              title="News Feed"
+            >
+              <span className="fb-tab-icon">
+                <svg viewBox="0 0 28 28" width="22" height="22" fill="currentColor">
+                  <path d="M14.004 3.515a1.5 1.5 0 0 1 1.01.397l9.5 8.5a1.5 1.5 0 0 1-.998 2.588h-.516v8.5a1.5 1.5 0 0 1-1.5 1.5h-4.5a1.5 1.5 0 0 1-1.5-1.5v-5.5h-3v5.5a1.5 1.5 0 0 1-1.5 1.5h-4.5a1.5 1.5 0 0 1-1.5-1.5v-8.5h-.516a1.5 1.5 0 0 1-.998-2.588l9.5-8.5a1.5 1.5 0 0 1 1.01-.397z"/>
+                </svg>
+              </span>
+              <span className="fb-tab-label">News Feed</span>
+            </button>
+
+            {/* 2. Chat */}
+            <button
+              type="button"
+              className={`fb-tab-item ${currentView === 'chat' ? 'active' : ''}`}
+              onClick={() => setCurrentView('chat')}
+              title="Chat / Messenger"
+            >
+              <span className="fb-tab-icon">
+                <svg viewBox="0 0 28 28" width="22" height="22" fill="currentColor">
+                  <path d="M14 2.04c-6.72 0-12.18 5.14-12.18 11.5 0 3.62 1.77 6.85 4.56 8.94V26l3.41-1.88c1.33.37 2.74.58 4.21.58 6.72 0 12.18-5.14 12.18-11.5S20.72 2.04 14 2.04zm1.22 15.54l-3.11-3.32-6.07 3.32 6.67-7.08 3.19 3.32 5.99-3.32-6.67 7.08z"/>
+                </svg>
+              </span>
+              <span className="fb-tab-label">Chat</span>
+            </button>
+
+            {/* 3. Shop */}
+            <button
+              type="button"
+              className={`fb-tab-item ${currentView === 'shop' ? 'active' : ''}`}
+              onClick={() => setCurrentView('shop')}
+              title="Gather Shop & Marketplace"
+            >
+              <span className="fb-tab-icon">
+                <svg viewBox="0 0 28 28" width="22" height="22" fill="currentColor">
+                  <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h17A1.5 1.5 0 0 1 24 8.5v2.88c0 1.45-.94 2.72-2.32 3.12-.48.14-.99.14-1.47 0A3.26 3.26 0 0 1 17.89 12a3.26 3.26 0 0 1-2.32 2.5 3.29 3.29 0 0 1-3.14 0A3.26 3.26 0 0 1 10.11 12a3.26 3.26 0 0 1-2.32 2.5c-.48.14-.99.14-1.47 0A3.24 3.24 0 0 1 4 11.38V8.5zM6 16.5a1.5 1.5 0 0 1 1.5-1.5h13a1.5 1.5 0 0 1 1.5 1.5v6a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 6 22.5v-6zm3 1.5v3h10v-3H9z"/>
+                </svg>
+              </span>
+              <span className="fb-tab-label">Shop</span>
+              <span className="fb-tab-new-tag">HOT</span>
+            </button>
+          </nav>
+        )}
+
+        {/* Right: Notification -> Setting -> Profile Icon */}
+        <div className="header-right fb-header-right">
+          {token && user && (
+            <div className="fb-action-buttons-group">
+              {/* 4. Notification */}
+              <NotificationCenter
+                token={token}
+                onSelect={handleNotificationSelect}
+                onUnreadGroups={handleUnreadGroups}
+              />
+
+              {/* 5. Setting */}
+              <SettingsMenu theme={theme} onThemeChange={setTheme} onSignOut={signOut} />
+            </div>
+          )}
+
+          {/* 6. Profile Icon */}
           {user && (
             <div
-              className="account-chip"
+              className="account-chip fb-account-chip"
               style={{ cursor: 'pointer' }}
               title="View your profile"
               onClick={() => {
@@ -117,18 +205,46 @@ export default function App() {
                 setCurrentView('profile')
               }}
             >
-              <span className="avatar avatar-small"><UserAvatar avatarUrl={user.avatar_url} fallback={user.nickname || user.first_name || user.username} /></span>
-              <span>{(user.nickname ? `${user.nickname} (${user.first_name})` : [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username)} <small>@{user.username}</small></span>
+              <span className="avatar avatar-small">
+                <UserAvatar
+                  avatarUrl={user.avatar_url}
+                  fallback={user.nickname || user.first_name || user.username}
+                />
+              </span>
+              <span className="fb-account-name">
+                {user.first_name || user.nickname || user.username}
+              </span>
             </div>
           )}
         </div>
       </header>
+
+      {/* Main View Area */}
       {checkingSession ? (
         <div className="loading-screen"><span className="spinner" />Restoring your session…</div>
       ) : token && sessionError ? (
-        <div className="loading-screen"><div className="session-recovery"><strong>Can’t reach your account right now</strong><p>{sessionError}</p><button className="button button-primary" onClick={() => setSessionAttempt(value => value + 1)}>Try again</button><button className="recovery-signout" onClick={signOut}>Sign out</button></div></div>
+        <div className="loading-screen">
+          <div className="session-recovery">
+            <strong>Can’t reach your account right now</strong>
+            <p>{sessionError}</p>
+            <button className="button button-primary" onClick={() => setSessionAttempt(value => value + 1)}>
+              Try again
+            </button>
+            <button className="recovery-signout" onClick={signOut}>
+              Sign out
+            </button>
+          </div>
+        </div>
       ) : token && user ? (
-        currentView === 'feed' ? (
+        currentView === 'shop' ? (
+          <ShopView
+            user={user}
+            cart={cart}
+            onCartChange={handleCartChange}
+            onOpenChat={() => setCurrentView('chat')}
+            onOpenFeed={() => setCurrentView('feed')}
+          />
+        ) : currentView === 'feed' ? (
           <NewsFeed
             token={token}
             user={user}
@@ -148,12 +264,25 @@ export default function App() {
             onOpenChat={() => setCurrentView('chat')}
           />
         ) : (
-          <ChatHome token={token} user={user} onUserUpdated={setUser} notificationTarget={notificationTarget} onNotificationHandled={handleNotificationHandled} unreadGroups={unreadGroups} onUnreadGroups={handleUnreadGroups} />
+          <ChatHome
+            token={token}
+            user={user}
+            onUserUpdated={setUser}
+            notificationTarget={notificationTarget}
+            onNotificationHandled={handleNotificationHandled}
+            unreadGroups={unreadGroups}
+            onUnreadGroups={handleUnreadGroups}
+          />
         )
       ) : (
         <AuthForm onSignedIn={signedIn} />
       )}
-      {!user && <footer className="site-footer"><span>Gather · good conversations, together.</span><span>Made for your group</span></footer>}
+      {!user && (
+        <footer className="site-footer">
+          <span>Gather · good conversations, together.</span>
+          <span>Made for your group</span>
+        </footer>
+      )}
     </div>
   )
 }

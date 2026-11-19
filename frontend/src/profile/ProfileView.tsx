@@ -921,7 +921,7 @@ export function ProfileView({
                         type="button"
                         onClick={() => setSelectedPreset(preset.id)}
                         style={{
-                          border: isSelected ? '2px solid #276939' : '1px solid #dce4dc',
+                          border: isSelected ? '2px solid #2563eb' : '1px solid #dce4dc',
                           background: preset.bg,
                           borderRadius: '10px',
                           padding: '10px',

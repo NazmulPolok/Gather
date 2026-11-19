@@ -427,7 +427,7 @@ export function NewsFeed({
               border: 'none',
               fontSize: '11px',
               fontWeight: 700,
-              color: '#2b7545',
+              color: '#2563eb',
               cursor: 'pointer',
             }}
             onClick={() => setShowCreateCommunity(true)}
@@ -444,7 +444,7 @@ export function NewsFeed({
               className={`feed-filter-btn ${selectedCommunitySlug === comm.slug ? 'active' : ''}`}
               onClick={() => setSelectedCommunitySlug(comm.slug)}
             >
-              <span className="feed-filter-icon" style={{ fontSize: '13px', fontWeight: 700, color: '#276939' }}>
+              <span className="feed-filter-icon" style={{ fontSize: '13px', fontWeight: 700, color: '#2563eb' }}>
                 r/
               </span>
               <div className="feed-filter-copy">
@@ -481,7 +481,7 @@ export function NewsFeed({
             <div className="reddit-banner-text">
               <h2>r/{currentCommunity.slug}</h2>
               <p>{currentCommunity.description || currentCommunity.name}</p>
-              <div style={{ marginTop: '8px', fontSize: '11.5px', color: '#c0dec7' }}>
+              <div style={{ marginTop: '8px', fontSize: '11.5px', color: '#bfdbfe' }}>
                 👥 {currentCommunity.member_count} {currentCommunity.member_count === 1 ? 'member' : 'members'}
               </div>
             </div>
@@ -984,7 +984,7 @@ export function NewsFeed({
               <div className="modal-input-field">
                 <label>Subreddit Slug (r/slug)</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span style={{ fontWeight: 700, color: '#276939' }}>r/</span>
+                  <span style={{ fontWeight: 700, color: '#2563eb' }}>r/</span>
                   <input
                     type="text"
                     placeholder="e.g. ai"

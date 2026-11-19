@@ -97,7 +97,10 @@ export function NotificationCenter({ token, onSelect, onUnreadGroups }: { token:
 
   return <div className="notification-center">
     <button className={`notification-bell ${open ? 'notification-bell-open' : ''}`} aria-label={`Notifications${feed.unread_count ? `, ${feed.unread_count} unread` : ''}`} aria-expanded={open} onClick={() => setOpen(value => !value)}>
-      <span aria-hidden="true">🔔</span>{feed.unread_count > 0 && <b className="notification-count">{feed.unread_count > 99 ? '99+' : feed.unread_count}</b>}
+      <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+      </svg>
+      {feed.unread_count > 0 && <b className="notification-count">{feed.unread_count > 99 ? '99+' : feed.unread_count}</b>}
     </button>
     {open && createPortal(<>
       <button className="notification-dismiss-layer" aria-label="Close notifications" onClick={() => setOpen(false)} />

@@ -72,8 +72,8 @@ export function GroupAvatar({
         flex: 'none',
         fontSize: size * 0.44,
         fontWeight: 700,
-        background: '#e0eee1',
-        color: '#346d46',
+        background: 'linear-gradient(135deg, #1e40af, #2563eb)',
+        color: '#ffffff',
       }}
     >
       {(name.slice(0, 1) || 'G').toUpperCase()}

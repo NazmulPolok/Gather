@@ -75,8 +75,8 @@ export function UserAvatar({
           flex: 'none',
           fontSize: size * 0.44,
           fontWeight: 700,
-          background: '#e3ece4',
-          color: '#32583d',
+          background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
+          color: '#ffffff',
         }}
       >
         {(fallback.slice(0, 1) || 'U').toUpperCase()}
