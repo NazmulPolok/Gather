@@ -5,7 +5,6 @@ import {
   type AuthUser,
   type CommunitySummary,
   type PostItem,
-  type CommentItem,
 } from '../api/client'
 import { UserAvatar } from '../components/UserAvatar'
 

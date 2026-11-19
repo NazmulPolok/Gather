@@ -31,7 +31,6 @@ function getMessageDateKey(dateStr: string): string {
 export function ChatHome({
   token,
   user,
-  onUserUpdated,
   notificationTarget,
   onNotificationHandled,
   unreadGroups,
@@ -39,7 +38,6 @@ export function ChatHome({
 }: {
   token: string
   user: AuthUser
-  onUserUpdated?: (user: AuthUser) => void
   notificationTarget: NotificationItem | null
   onNotificationHandled: () => void
   unreadGroups: Record<number, number>

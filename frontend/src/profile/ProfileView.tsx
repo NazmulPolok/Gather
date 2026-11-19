@@ -7,7 +7,6 @@ import {
   type PostItem,
   type CommunitySummary,
   PRESET_AVATARS,
-  getPresetAvatar,
 } from '../api/client'
 import { UserAvatar } from '../components/UserAvatar'
 

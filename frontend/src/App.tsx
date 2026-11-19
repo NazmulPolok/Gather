@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ApiError, api, getMediaUrl } from './api/client'
+import { ApiError, api } from './api/client'
 import type { AuthResponse, AuthUser, NotificationItem } from './api/client'
 import { AuthForm } from './auth/AuthForm'
 import { ChatHome } from './chat/ChatHome'
 import { NewsFeed } from './feed/NewsFeed'
 import { ProfileView } from './profile/ProfileView'
-import { ShopView, type CartItem } from './shop/ShopView'
+import { ShopView, type CartItem, type UserShop } from './shop/ShopView'
 import { NotificationCenter } from './notifications/NotificationCenter'
 import { SettingsMenu } from './settings/SettingsMenu'
 import { UserAvatar } from './components/UserAvatar'
@@ -19,7 +19,6 @@ export default function App() {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY))
   const [user, setUser] = useState<AuthUser | null>(null)
   const [checkingSession, setCheckingSession] = useState(Boolean(token))
-  const [apiReady, setApiReady] = useState<boolean | null>(null)
   const [sessionError, setSessionError] = useState('')
   const [sessionAttempt, setSessionAttempt] = useState(0)
   const [notificationTarget, setNotificationTarget] = useState<NotificationItem | null>(null)
@@ -45,16 +44,26 @@ export default function App() {
     } catch {}
   }
 
+  // User Shop state & trigger from Settings
+  const [userShop, setUserShop] = useState<UserShop | null>(() => {
+    try {
+      const saved = localStorage.getItem('gather_active_user_shop')
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
+  const [openShopModalTrigger, setOpenShopModalTrigger] = useState(false)
+
+  function handleOpenShopFromSettings() {
+    setCurrentView('shop')
+    setOpenShopModalTrigger(true)
+  }
+
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     localStorage.setItem(THEME_KEY, theme)
   }, [theme])
-
-  useEffect(() => {
-    let live = true
-    api.health().then(() => live && setApiReady(true)).catch(() => live && setApiReady(false))
-    return () => { live = false }
-  }, [])
 
   useEffect(() => {
     if (!token) {
@@ -190,7 +199,13 @@ export default function App() {
               />
 
               {/* 5. Setting */}
-              <SettingsMenu theme={theme} onThemeChange={setTheme} onSignOut={signOut} />
+              <SettingsMenu
+                theme={theme}
+                onThemeChange={setTheme}
+                onSignOut={signOut}
+                onOpenShop={handleOpenShopFromSettings}
+                hasUserShop={Boolean(userShop)}
+              />
             </div>
           )}
 
@@ -243,6 +258,10 @@ export default function App() {
             onCartChange={handleCartChange}
             onOpenChat={() => setCurrentView('chat')}
             onOpenFeed={() => setCurrentView('feed')}
+            userShop={userShop}
+            onUserShopChange={setUserShop}
+            openShopTrigger={openShopModalTrigger}
+            onOpenShopTriggerHandled={() => setOpenShopModalTrigger(false)}
           />
         ) : currentView === 'feed' ? (
           <NewsFeed
@@ -267,7 +286,6 @@ export default function App() {
           <ChatHome
             token={token}
             user={user}
-            onUserUpdated={setUser}
             notificationTarget={notificationTarget}
             onNotificationHandled={handleNotificationHandled}
             unreadGroups={unreadGroups}

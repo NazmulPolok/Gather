@@ -164,6 +164,33 @@ function IconCheckSuccess({ size = 32, className = '' }: { size?: number; classN
   )
 }
 
+function IconPlus({ size = 16, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  )
+}
+
+function IconEdit({ size = 15, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  )
+}
+
+function IconShieldCheck({ size = 16, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  )
+}
+
 export interface Product {
   id: string
   name: string
@@ -176,6 +203,8 @@ export interface Product {
   description: string
   image: string
   inStock: boolean
+  shopId?: string
+  shopName?: string
 }
 
 export interface CartItem {
@@ -196,6 +225,28 @@ export interface Order {
   }
   paymentMethod: string
   status: 'Processing' | 'Shipped' | 'Delivered'
+}
+
+export interface UserShop {
+  id: string
+  ownerId: number | string
+  ownerUsername: string
+  name: string
+  tagline: string
+  category: 'Electronics' | 'Gaming' | 'Apparel' | 'Gadgets' | 'All Categories'
+  description: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  logoUrl?: string
+  bannerGradient?: string
+  returnPolicy: string
+  rating: number
+  reviewsCount: number
+  createdAt: string
+  status: 'active' | 'verified'
+  productsCount: number
 }
 
 const SAMPLE_PRODUCTS: Product[] = [
@@ -358,6 +409,23 @@ const SAMPLE_PRODUCTS: Product[] = [
 ]
 
 const ORDERS_STORAGE_KEY = 'gather_shop_orders'
+const CUSTOM_PRODUCTS_STORAGE_KEY = 'gather_custom_products'
+
+// Preset logo options for quick store setup
+const LOGO_PRESETS = [
+  { label: 'Cyber Tech', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80' },
+  { label: 'Pro Gamer', url: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=150&auto=format&fit=crop&q=80' },
+  { label: 'Minimalist', url: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=150&auto=format&fit=crop&q=80' },
+  { label: 'Gadget Lab', url: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=150&auto=format&fit=crop&q=80' },
+]
+
+// Preset banner gradients
+const BANNER_PRESETS = [
+  { id: 'blue', label: 'Deep Blue', css: 'linear-gradient(135deg, #1e3a8a, #0284c7)' },
+  { id: 'dark', label: 'Obsidian Slate', css: 'linear-gradient(135deg, #0f172a, #334155)' },
+  { id: 'violet', label: 'Cyber Violet', css: 'linear-gradient(135deg, #312e81, #7c3aed)' },
+  { id: 'emerald', label: 'Emerald Sleek', css: 'linear-gradient(135deg, #064e3b, #059669)' },
+]
 
 interface ShopViewProps {
   user: AuthUser
@@ -365,14 +433,22 @@ interface ShopViewProps {
   onOpenFeed?: () => void
   cart: CartItem[]
   onCartChange: (cart: CartItem[]) => void
+  userShop?: UserShop | null
+  onUserShopChange?: (shop: UserShop | null) => void
+  openShopTrigger?: boolean
+  onOpenShopTriggerHandled?: () => void
 }
 
 export function ShopView({
   user,
   cart,
   onCartChange,
+  userShop: userShopProp,
+  onUserShopChange,
+  openShopTrigger,
+  onOpenShopTriggerHandled,
 }: ShopViewProps) {
-  const [activeTab, setActiveTab] = useState<'browse' | 'orders'>('browse')
+  const [activeTab, setActiveTab] = useState<'browse' | 'orders' | 'myshop'>('browse')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
   const [sortBy, setSortBy] = useState<'featured' | 'price-low' | 'price-high' | 'rating'>('featured')
@@ -386,6 +462,7 @@ export function ShopView({
   const [shippingCity, setShippingCity] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'card' | 'mfs'>('cod')
   const [lastPlacedOrder, setLastPlacedOrder] = useState<Order | null>(null)
+  
   const [orders, setOrders] = useState<Order[]>(() => {
     try {
       const saved = localStorage.getItem(ORDERS_STORAGE_KEY)
@@ -395,12 +472,175 @@ export function ShopView({
     }
   })
 
+  // User Shop State
+  const [userShop, setUserShop] = useState<UserShop | null>(() => {
+    if (userShopProp !== undefined) return userShopProp
+    try {
+      const saved = localStorage.getItem('gather_active_user_shop')
+      return saved ? JSON.parse(saved) : null
+    } catch {
+      return null
+    }
+  })
+
+  // Sync internal userShop with prop
+  useEffect(() => {
+    if (userShopProp !== undefined) {
+      setUserShop(userShopProp)
+    }
+  }, [userShopProp])
+
+  // Custom Products added by merchants
+  const [customProducts, setCustomProducts] = useState<Product[]>(() => {
+    try {
+      const saved = localStorage.getItem(CUSTOM_PRODUCTS_STORAGE_KEY)
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  // Open Shop Modal states
+  const [isOpenShopModal, setIsOpenShopModal] = useState(false)
+  const [shopName, setShopName] = useState('')
+  const [shopTagline, setShopTagline] = useState('')
+  const [shopCategory, setShopCategory] = useState<'Electronics' | 'Gaming' | 'Apparel' | 'Gadgets' | 'All Categories'>('Electronics')
+  const [shopEmail, setShopEmail] = useState(`${user.username}@merchant.gather`)
+  const [shopPhone, setShopPhone] = useState('+880 1700-')
+  const [shopCity, setShopCity] = useState('Dhaka')
+  const [shopAddress, setShopAddress] = useState('')
+  const [shopDescription, setShopDescription] = useState('')
+  const [shopReturnPolicy, setShopReturnPolicy] = useState('7 Days Replacement Warranty & 100% Genuine Guarantee')
+  const [shopLogoUrl, setShopLogoUrl] = useState(LOGO_PRESETS[0].url)
+  const [shopBannerGradient, setShopBannerGradient] = useState(BANNER_PRESETS[0].css)
+  const [shopSuccessBanner, setShopSuccessBanner] = useState(false)
+
+  // Add Product Modal states
+  const [isAddProductModal, setIsAddProductModal] = useState(false)
+  const [newProdName, setNewProdName] = useState('')
+  const [newProdCategory, setNewProdCategory] = useState<'Electronics' | 'Gaming' | 'Apparel' | 'Gadgets'>('Electronics')
+  const [newProdPrice, setNewProdPrice] = useState('')
+  const [newProdOriginalPrice, setNewProdOriginalPrice] = useState('')
+  const [newProdDescription, setNewProdDescription] = useState('')
+  const [newProdImage, setNewProdImage] = useState('https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=700&auto=format&fit=crop&q=80')
+
+  // Handle trigger from Settings button
+  useEffect(() => {
+    if (openShopTrigger) {
+      if (!userShop) {
+        setIsOpenShopModal(true)
+      } else {
+        setActiveTab('myshop')
+      }
+      onOpenShopTriggerHandled?.()
+    }
+  }, [openShopTrigger, userShop, onOpenShopTriggerHandled])
+
   // Save orders to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders))
     } catch {}
   }, [orders])
+
+  // Save custom products to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(CUSTOM_PRODUCTS_STORAGE_KEY, JSON.stringify(customProducts))
+    } catch {}
+  }, [customProducts])
+
+  // Pre-fill form when userShop exists and modal is opened for editing
+  function openShopModalForEdit() {
+    if (userShop) {
+      setShopName(userShop.name)
+      setShopTagline(userShop.tagline)
+      setShopCategory(userShop.category)
+      setShopEmail(userShop.email)
+      setShopPhone(userShop.phone)
+      setShopCity(userShop.city)
+      setShopAddress(userShop.address)
+      setShopDescription(userShop.description)
+      setShopReturnPolicy(userShop.returnPolicy)
+      setShopLogoUrl(userShop.logoUrl || LOGO_PRESETS[0].url)
+      setShopBannerGradient(userShop.bannerGradient || BANNER_PRESETS[0].css)
+    }
+    setShopSuccessBanner(false)
+    setIsOpenShopModal(true)
+  }
+
+  // Handle Open/Create Shop form submit
+  function handleOpenShopSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!shopName.trim()) return
+
+    const newShop: UserShop = {
+      id: userShop?.id || `SHOP-${Math.floor(1000 + Math.random() * 9000)}`,
+      ownerId: user.id,
+      ownerUsername: user.username,
+      name: shopName.trim(),
+      tagline: shopTagline.trim() || 'Official Gather Verified Merchant',
+      category: shopCategory,
+      email: shopEmail.trim(),
+      phone: shopPhone.trim(),
+      address: shopAddress.trim(),
+      city: shopCity.trim(),
+      description: shopDescription.trim() || 'Welcome to our official store on Gather Marketplace!',
+      returnPolicy: shopReturnPolicy.trim() || '7 Days Replacement Warranty',
+      logoUrl: shopLogoUrl,
+      bannerGradient: shopBannerGradient,
+      rating: userShop?.rating || 5.0,
+      reviewsCount: userShop?.reviewsCount || 1,
+      createdAt: userShop?.createdAt || new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      status: 'verified',
+      productsCount: customProducts.filter(p => p.shopId === (userShop?.id || '')).length,
+    }
+
+    setUserShop(newShop)
+    onUserShopChange?.(newShop)
+    try {
+      localStorage.setItem('gather_active_user_shop', JSON.stringify(newShop))
+      localStorage.setItem(`gather_user_shop_${user.id}`, JSON.stringify(newShop))
+    } catch {}
+
+    setShopSuccessBanner(true)
+  }
+
+  // Handle Add Product submit
+  function handleAddProductSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newProdName.trim() || !newProdPrice) return
+
+    const parsedPrice = parseFloat(newProdPrice)
+    const parsedOrig = newProdOriginalPrice ? parseFloat(newProdOriginalPrice) : undefined
+
+    const product: Product = {
+      id: `custom-${Date.now()}`,
+      name: newProdName.trim(),
+      category: newProdCategory,
+      price: isNaN(parsedPrice) ? 49 : parsedPrice,
+      originalPrice: parsedOrig && !isNaN(parsedOrig) ? parsedOrig : undefined,
+      rating: 5.0,
+      reviewsCount: 1,
+      badge: 'Merchant Official',
+      description: newProdDescription.trim() || 'Verified quality product from official Gather merchant.',
+      image: newProdImage.trim() || 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=700&auto=format&fit=crop&q=80',
+      inStock: true,
+      shopId: userShop?.id,
+      shopName: userShop?.name,
+    }
+
+    setCustomProducts(prev => [product, ...prev])
+    setIsAddProductModal(false)
+    setNewProdName('')
+    setNewProdPrice('')
+    setNewProdOriginalPrice('')
+    setNewProdDescription('')
+  }
+
+  function handleDeleteCustomProduct(productId: string) {
+    setCustomProducts(prev => prev.filter(p => p.id !== productId))
+  }
 
   const totalCartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0)
   const cartSubtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
@@ -480,13 +720,17 @@ export function ShopView({
     setCheckoutStep('success')
   }
 
+  // Combined product catalog
+  const combinedCatalog = [...customProducts, ...SAMPLE_PRODUCTS]
+
   // Filter and sort products
-  const filteredProducts = SAMPLE_PRODUCTS.filter(product => {
+  const filteredProducts = combinedCatalog.filter(product => {
     const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory
     const matchesQuery =
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchQuery.toLowerCase())
+      product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (product.shopName && product.shopName.toLowerCase().includes(searchQuery.toLowerCase()))
     return matchesCategory && matchesQuery
   }).sort((a, b) => {
     if (sortBy === 'price-low') return a.price - b.price
@@ -494,6 +738,9 @@ export function ShopView({
     if (sortBy === 'rating') return b.rating - a.rating
     return 0 // default featured
   })
+
+  // User's own shop products
+  const myShopProducts = customProducts.filter(p => userShop && p.shopId === userShop.id)
 
   return (
     <div className="shop-container">
@@ -515,7 +762,7 @@ export function ShopView({
             </span>
             <input
               type="text"
-              placeholder="Search products by name, gadget, category..."
+              placeholder="Search products, merchants, gadgets, categories..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
@@ -533,45 +780,60 @@ export function ShopView({
         </div>
       </section>
 
-      {/* Navigation Controls: Categories, Sort & Orders Tab */}
+      {/* Navigation Controls: Categories, Sort, My Shop & Orders Tab */}
       <div className="shop-controls-bar">
         <div className="shop-category-pills">
           <button
             type="button"
-            className={`shop-category-btn ${selectedCategory === 'All' ? 'active' : ''}`}
-            onClick={() => setSelectedCategory('All')}
+            className={`shop-category-btn ${activeTab === 'browse' && selectedCategory === 'All' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('browse')
+              setSelectedCategory('All')
+            }}
           >
             <IconGrid size={14} />
             <span>All</span>
           </button>
           <button
             type="button"
-            className={`shop-category-btn ${selectedCategory === 'Electronics' ? 'active' : ''}`}
-            onClick={() => setSelectedCategory('Electronics')}
+            className={`shop-category-btn ${activeTab === 'browse' && selectedCategory === 'Electronics' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('browse')
+              setSelectedCategory('Electronics')
+            }}
           >
             <IconHeadphones size={14} />
             <span>Electronics</span>
           </button>
           <button
             type="button"
-            className={`shop-category-btn ${selectedCategory === 'Gaming' ? 'active' : ''}`}
-            onClick={() => setSelectedCategory('Gaming')}
+            className={`shop-category-btn ${activeTab === 'browse' && selectedCategory === 'Gaming' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('browse')
+              setSelectedCategory('Gaming')
+            }}
           >
             <IconGamepad size={14} />
             <span>Gaming</span>
           </button>
           <button
             type="button"
-            className={`shop-category-btn ${selectedCategory === 'Apparel' ? 'active' : ''}`}
-            onClick={() => setSelectedCategory('Apparel')}
+            className={`shop-category-btn ${activeTab === 'browse' && selectedCategory === 'Apparel' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('browse')
+              setSelectedCategory('Apparel')
+            }}
           >
             <IconShirt size={14} />
             <span>Apparel</span>
           </button>
           <button
             type="button"
-            className={`shop-category-btn ${selectedCategory === 'Gadgets' ? 'active' : ''}`}
-            onClick={() => setSelectedCategory('Gadgets')}
+            className={`shop-category-btn ${activeTab === 'browse' && selectedCategory === 'Gadgets' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('browse')
+              setSelectedCategory('Gadgets')
+            }}
           >
             <IconBolt size={14} />
             <span>Gadgets</span>
@@ -579,31 +841,61 @@ export function ShopView({
         </div>
 
         <div className="shop-actions-right">
-          <div className="shop-sort-wrapper">
-            <span>Sort by:</span>
-            <select
-              value={sortBy}
-              onChange={e => setSortBy(e.target.value as any)}
-              className="shop-sort-select"
-            >
-              <option value="featured">Featured</option>
-              <option value="price-low">Price: Low to High</option>
-              <option value="price-high">Price: High to Low</option>
-              <option value="rating">Highest Rated</option>
-            </select>
-          </div>
+          {activeTab === 'browse' && (
+            <div className="shop-sort-wrapper">
+              <span>Sort by:</span>
+              <select
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value as any)}
+                className="shop-sort-select"
+              >
+                <option value="featured">Featured</option>
+                <option value="price-low">Price: Low to High</option>
+                <option value="price-high">Price: High to Low</option>
+                <option value="rating">Highest Rated</option>
+              </select>
+            </div>
+          )}
 
+          {/* Open Shop / My Shop Button */}
+          {userShop ? (
+            <button
+              type="button"
+              className={`shop-tab-toggle shop-myshop-toggle ${activeTab === 'myshop' ? 'active' : ''}`}
+              onClick={() => setActiveTab(activeTab === 'myshop' ? 'browse' : 'myshop')}
+              title="Manage your storefront"
+            >
+              <IconStore size={15} />
+              <span>My Shop</span>
+              <span className="shop-verified-dot">●</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="shop-open-btn-pill"
+              onClick={() => {
+                setShopSuccessBanner(false)
+                setIsOpenShopModal(true)
+              }}
+              title="Open your own shop on Gather"
+            >
+              <IconStore size={15} />
+              <span>Open Shop</span>
+            </button>
+          )}
+
+          {/* My Orders Button */}
           <button
             type="button"
             className={`shop-tab-toggle ${activeTab === 'orders' ? 'active' : ''}`}
-            onClick={() => setActiveTab(activeTab === 'browse' ? 'orders' : 'browse')}
+            onClick={() => setActiveTab(activeTab === 'orders' ? 'browse' : 'orders')}
           >
             <IconPackage size={15} />
             <span>My Orders</span>
             {orders.length > 0 && <span className="orders-count-badge">{orders.length}</span>}
           </button>
 
-          {/* Active & Effective Cart Button inside Shop */}
+          {/* Cart Button */}
           <button
             type="button"
             className={`shop-cart-header-btn ${totalCartItemsCount > 0 ? 'has-items' : ''}`}
@@ -627,8 +919,180 @@ export function ShopView({
         </div>
       </div>
 
-      {/* Main View Area */}
-      {activeTab === 'orders' ? (
+      {/* =========================================================
+          VIEW 1: MY SHOP STOREFRONT & MERCHANT DASHBOARD
+          ========================================================= */}
+      {activeTab === 'myshop' && userShop ? (
+        <section className="myshop-section">
+          {/* Shop Hero Storefront Banner */}
+          <div className="myshop-hero-card" style={{ background: userShop.bannerGradient || BANNER_PRESETS[0].css }}>
+            <div className="myshop-banner-overlay" />
+            <div className="myshop-hero-inner">
+              <div className="myshop-avatar-col">
+                <img src={userShop.logoUrl || LOGO_PRESETS[0].url} alt={userShop.name} className="myshop-logo-img" />
+                <span className="myshop-verified-badge" title="Verified Merchant">
+                  <IconShieldCheck size={16} />
+                </span>
+              </div>
+
+              <div className="myshop-info-col">
+                <div className="myshop-title-row">
+                  <h2>{userShop.name}</h2>
+                  <span className="myshop-category-chip">{userShop.category}</span>
+                  <span className="myshop-status-chip">● {userShop.status.toUpperCase()}</span>
+                </div>
+                <p className="myshop-tagline">{userShop.tagline}</p>
+                <div className="myshop-meta-row">
+                  <span>
+                    <IconStar size={13} /> <strong>{userShop.rating.toFixed(1)}</strong> rating
+                  </span>
+                  <span>•</span>
+                  <span><strong>{myShopProducts.length}</strong> items listed</span>
+                  <span>•</span>
+                  <span>Owner: <strong>@{userShop.ownerUsername}</strong></span>
+                </div>
+              </div>
+
+              <div className="myshop-actions-col">
+                <button
+                  type="button"
+                  className="button button-primary myshop-add-btn"
+                  onClick={() => setIsAddProductModal(true)}
+                >
+                  <IconPlus size={15} />
+                  <span>Add Product</span>
+                </button>
+                <button
+                  type="button"
+                  className="button button-secondary myshop-edit-btn"
+                  onClick={openShopModalForEdit}
+                >
+                  <IconEdit size={14} />
+                  <span>Edit Shop</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Shop Overview Details Grid */}
+          <div className="myshop-details-grid">
+            <div className="myshop-detail-card">
+              <span className="detail-label">Business Email</span>
+              <strong>{userShop.email || 'N/A'}</strong>
+            </div>
+            <div className="myshop-detail-card">
+              <span className="detail-label">Helpline Phone</span>
+              <strong>{userShop.phone || 'N/A'}</strong>
+            </div>
+            <div className="myshop-detail-card">
+              <span className="detail-label">Location / City</span>
+              <strong>{userShop.city}, {userShop.address || 'Central'}</strong>
+            </div>
+            <div className="myshop-detail-card">
+              <span className="detail-label">Return Policy</span>
+              <strong>{userShop.returnPolicy}</strong>
+            </div>
+          </div>
+
+          {/* Shop Story Description */}
+          {userShop.description && (
+            <div className="myshop-story-box">
+              <h4>About This Store</h4>
+              <p>{userShop.description}</p>
+            </div>
+          )}
+
+          {/* Listed Products Heading */}
+          <div className="myshop-products-header">
+            <div>
+              <h3>Products in Your Store ({myShopProducts.length})</h3>
+              <small>Items visible to all Gather users in the public marketplace</small>
+            </div>
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={() => setIsAddProductModal(true)}
+            >
+              <IconPlus size={15} /> Add New Product
+            </button>
+          </div>
+
+          {myShopProducts.length === 0 ? (
+            <div className="shop-empty-state myshop-empty">
+              <span className="empty-icon">
+                <IconPackage size={44} />
+              </span>
+              <h3>No products listed yet</h3>
+              <p>Your shop is live! Add your first item to start selling to Gather community members.</p>
+              <button
+                type="button"
+                className="button button-primary"
+                onClick={() => setIsAddProductModal(true)}
+              >
+                <IconPlus size={15} /> Add Your First Product
+              </button>
+            </div>
+          ) : (
+            <div className="shop-products-grid myshop-grid">
+              {myShopProducts.map(product => (
+                <div key={product.id} className="product-card">
+                  <div className="product-image-container">
+                    <img src={product.image} alt={product.name} className="product-image" loading="lazy" />
+                    <span className="product-badge">Your Store</span>
+                    <span className="product-category-tag">{product.category}</span>
+                  </div>
+
+                  <div className="product-details">
+                    <div className="product-rating-row">
+                      <span className="star-icon">
+                        <IconStar size={13} />
+                      </span>
+                      <strong className="rating-score">{product.rating}</strong>
+                      <small className="reviews-count">({product.reviewsCount})</small>
+                    </div>
+
+                    <h3 className="product-title" title={product.name}>
+                      {product.name}
+                    </h3>
+                    <p className="product-description">{product.description}</p>
+
+                    <div className="product-price-row">
+                      <div className="price-block">
+                        <span className="current-price">${product.price}</span>
+                        {product.originalPrice && (
+                          <span className="original-price">${product.originalPrice}</span>
+                        )}
+                      </div>
+                      <span className="free-shipping-tag">In Stock</span>
+                    </div>
+
+                    <div className="product-actions-row">
+                      <button
+                        type="button"
+                        className="button button-secondary myshop-del-btn"
+                        onClick={() => handleDeleteCustomProduct(product.id)}
+                        title="Remove from shop"
+                      >
+                        <IconTrash size={14} /> Remove
+                      </button>
+                      <button
+                        type="button"
+                        className="add-to-cart-btn"
+                        onClick={() => addToCart(product)}
+                      >
+                        <IconCart size={14} /> Add to Cart
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : activeTab === 'orders' ? (
+        /* =========================================================
+           VIEW 2: ORDER HISTORY
+           ========================================================= */
         <section className="shop-orders-section">
           <div className="shop-section-header">
             <h2>Your Order History</h2>
@@ -701,8 +1165,33 @@ export function ShopView({
           )}
         </section>
       ) : (
-        /* Product Grid */
+        /* =========================================================
+           VIEW 3: PUBLIC MARKETPLACE BROWSE GRID
+           ========================================================= */
         <section className="shop-products-grid">
+          {/* Merchant Promotion Bar */}
+          {!userShop && (
+            <div className="shop-merchant-promo-banner">
+              <div className="promo-banner-text">
+                <span className="promo-badge">
+                  <IconStore size={14} /> Sell on Gather
+                </span>
+                <strong>Start your own business today!</strong>
+                <p>Register your verified store, list products, and reach thousands of community members.</p>
+              </div>
+              <button
+                type="button"
+                className="promo-open-btn"
+                onClick={() => {
+                  setShopSuccessBanner(false)
+                  setIsOpenShopModal(true)
+                }}
+              >
+                Open Shop Now →
+              </button>
+            </div>
+          )}
+
           {filteredProducts.length === 0 ? (
             <div className="shop-empty-state">
               <span className="empty-icon">
@@ -737,6 +1226,11 @@ export function ShopView({
                     </span>
                     <strong className="rating-score">{product.rating}</strong>
                     <small className="reviews-count">({product.reviewsCount})</small>
+                    {product.shopName && (
+                      <span className="merchant-seller-tag" title={`Sold by ${product.shopName}`}>
+                        by {product.shopName}
+                      </span>
+                    )}
                   </div>
 
                   <h3 className="product-title" title={product.name}>
@@ -802,6 +1296,358 @@ export function ShopView({
           </div>
           <span className="floating-cart-arrow">View Cart →</span>
         </button>
+      )}
+
+      {/* =========================================================
+          MODAL 1: OPEN SHOP / EDIT SHOP ONBOARDING MODAL
+          ========================================================= */}
+      {isOpenShopModal && (
+        <div className="shop-modal-overlay" onClick={() => setIsOpenShopModal(false)}>
+          <div className="shop-modal-dialog shop-wide-modal" onClick={e => e.stopPropagation()}>
+            <div className="shop-modal-header">
+              <div>
+                <h3>{userShop ? 'Edit Your Shop Details' : 'Open Your Shop on Gather'}</h3>
+                <small>{userShop ? 'Update your merchant information' : 'Launch your official store & start selling'}</small>
+              </div>
+              <button
+                type="button"
+                className="shop-modal-close"
+                onClick={() => setIsOpenShopModal(false)}
+                title="Close"
+              >
+                <IconClose size={16} />
+              </button>
+            </div>
+
+            {shopSuccessBanner ? (
+              <div className="shop-creation-success-pane">
+                <div className="success-icon-bubble">
+                  <IconCheckSuccess size={36} />
+                </div>
+                <h3>{userShop?.name} is Now Live!</h3>
+                <p>Your shop has been registered and verified on Gather Marketplace. You can now add products and start making sales.</p>
+                
+                <div className="shop-preview-card">
+                  <img src={userShop?.logoUrl || LOGO_PRESETS[0].url} alt={userShop?.name} className="preview-logo" />
+                  <div>
+                    <strong>{userShop?.name}</strong>
+                    <small>{userShop?.tagline}</small>
+                    <span className="preview-cat">{userShop?.category}</span>
+                  </div>
+                </div>
+
+                <div className="shop-success-actions">
+                  <button
+                    type="button"
+                    className="button button-primary"
+                    onClick={() => {
+                      setIsOpenShopModal(false)
+                      setActiveTab('myshop')
+                    }}
+                  >
+                    Go to My Shop Dashboard
+                  </button>
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    onClick={() => {
+                      setIsOpenShopModal(false)
+                      setIsAddProductModal(true)
+                    }}
+                  >
+                    + Add First Product
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleOpenShopSubmit} className="open-shop-form-scroll">
+                {/* Section 1: Store Identity */}
+                <div className="form-section-title">
+                  <IconStore size={16} />
+                  <span>Store Identity & Branding</span>
+                </div>
+
+                <div className="checkout-input-row">
+                  <label>Shop Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={shopName}
+                    onChange={e => setShopName(e.target.value)}
+                    placeholder="e.g. Nexus Gaming & Electronics"
+                  />
+                </div>
+
+                <div className="checkout-input-row">
+                  <label>Tagline / Punchline *</label>
+                  <input
+                    type="text"
+                    required
+                    value={shopTagline}
+                    onChange={e => setShopTagline(e.target.value)}
+                    placeholder="e.g. Premium enthusiast desktop accessories & gear"
+                  />
+                </div>
+
+                <div className="checkout-input-grid">
+                  <div>
+                    <label>Primary Niche / Category</label>
+                    <select
+                      className="shop-select-field"
+                      value={shopCategory}
+                      onChange={e => setShopCategory(e.target.value as any)}
+                    >
+                      <option value="Electronics">Electronics</option>
+                      <option value="Gaming">Gaming</option>
+                      <option value="Apparel">Apparel</option>
+                      <option value="Gadgets">Gadgets</option>
+                      <option value="All Categories">All Categories</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>City / Hub Location *</label>
+                    <input
+                      type="text"
+                      required
+                      value={shopCity}
+                      onChange={e => setShopCity(e.target.value)}
+                      placeholder="e.g. Dhaka"
+                    />
+                  </div>
+                </div>
+
+                {/* Section 2: Contact & Business Address */}
+                <div className="form-section-title" style={{ marginTop: '16px' }}>
+                  <IconPin size={16} />
+                  <span>Business Contact & Warehouse</span>
+                </div>
+
+                <div className="checkout-input-grid">
+                  <div>
+                    <label>Business Email *</label>
+                    <input
+                      type="email"
+                      required
+                      value={shopEmail}
+                      onChange={e => setShopEmail(e.target.value)}
+                      placeholder="contact@yourshop.com"
+                    />
+                  </div>
+                  <div>
+                    <label>Support Helpline Phone *</label>
+                    <input
+                      type="tel"
+                      required
+                      value={shopPhone}
+                      onChange={e => setShopPhone(e.target.value)}
+                      placeholder="+880 1700 000000"
+                    />
+                  </div>
+                </div>
+
+                <div className="checkout-input-row">
+                  <label>Warehouse / Pickup Address</label>
+                  <input
+                    type="text"
+                    value={shopAddress}
+                    onChange={e => setShopAddress(e.target.value)}
+                    placeholder="e.g. Suite 4B, Road 11, Banani Commercial Area"
+                  />
+                </div>
+
+                {/* Section 3: Policies & Description */}
+                <div className="form-section-title" style={{ marginTop: '16px' }}>
+                  <IconShieldCheck size={16} />
+                  <span>Policies & About Us</span>
+                </div>
+
+                <div className="checkout-input-row">
+                  <label>Store Description / Story</label>
+                  <textarea
+                    rows={2}
+                    value={shopDescription}
+                    onChange={e => setShopDescription(e.target.value)}
+                    placeholder="Briefly describe what your shop sells, shipping speed, and commitment to quality..."
+                  />
+                </div>
+
+                <div className="checkout-input-row">
+                  <label>Warranty & Return Policy</label>
+                  <input
+                    type="text"
+                    value={shopReturnPolicy}
+                    onChange={e => setShopReturnPolicy(e.target.value)}
+                    placeholder="e.g. 7 Days Replacement Warranty & 100% Genuine Guarantee"
+                  />
+                </div>
+
+                {/* Section 4: Logo & Theme Previews */}
+                <div className="form-section-title" style={{ marginTop: '16px' }}>
+                  <IconStar size={16} />
+                  <span>Store Logo & Cover Theme</span>
+                </div>
+
+                <div className="checkout-input-row">
+                  <label>Pick a Store Logo Avatar</label>
+                  <div className="logo-presets-row">
+                    {LOGO_PRESETS.map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        className={`logo-preset-btn ${shopLogoUrl === preset.url ? 'selected' : ''}`}
+                        onClick={() => setShopLogoUrl(preset.url)}
+                      >
+                        <img src={preset.url} alt={preset.label} />
+                        <span>{preset.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="checkout-input-row">
+                  <label>Pick a Store Cover Banner Theme</label>
+                  <div className="banner-presets-row">
+                    {BANNER_PRESETS.map(preset => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        className={`banner-preset-btn ${shopBannerGradient === preset.css ? 'selected' : ''}`}
+                        style={{ background: preset.css }}
+                        onClick={() => setShopBannerGradient(preset.css)}
+                      >
+                        <span>{preset.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="open-shop-actions">
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    onClick={() => setIsOpenShopModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="button button-primary submit-open-shop-btn">
+                    <IconStore size={16} />
+                    <span>{userShop ? 'Save Changes' : 'Open Shop Now'}</span>
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL 2: ADD PRODUCT TO MY SHOP
+          ========================================================= */}
+      {isAddProductModal && (
+        <div className="shop-modal-overlay" onClick={() => setIsAddProductModal(false)}>
+          <div className="shop-modal-dialog" onClick={e => e.stopPropagation()}>
+            <div className="shop-modal-header">
+              <div>
+                <h3>Add Product to Your Store</h3>
+                <small>List a new item on Gather Marketplace</small>
+              </div>
+              <button
+                type="button"
+                className="shop-modal-close"
+                onClick={() => setIsAddProductModal(false)}
+                title="Close"
+              >
+                <IconClose size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddProductSubmit} className="checkout-form-scroll">
+              <div className="checkout-input-row">
+                <label>Product Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={newProdName}
+                  onChange={e => setNewProdName(e.target.value)}
+                  placeholder="e.g. Wireless RGB Mechanical Keyboard"
+                />
+              </div>
+
+              <div className="checkout-input-grid">
+                <div>
+                  <label>Category *</label>
+                  <select
+                    className="shop-select-field"
+                    value={newProdCategory}
+                    onChange={e => setNewProdCategory(e.target.value as any)}
+                  >
+                    <option value="Electronics">Electronics</option>
+                    <option value="Gaming">Gaming</option>
+                    <option value="Apparel">Apparel</option>
+                    <option value="Gadgets">Gadgets</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Price ($) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={newProdPrice}
+                    onChange={e => setNewProdPrice(e.target.value)}
+                    placeholder="99.00"
+                  />
+                </div>
+              </div>
+
+              <div className="checkout-input-row">
+                <label>Original / Cut Price ($)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={newProdOriginalPrice}
+                  onChange={e => setNewProdOriginalPrice(e.target.value)}
+                  placeholder="129.00 (optional discount tag)"
+                />
+              </div>
+
+              <div className="checkout-input-row">
+                <label>Product Description *</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={newProdDescription}
+                  onChange={e => setNewProdDescription(e.target.value)}
+                  placeholder="Specs, features, materials, and warranty information..."
+                />
+              </div>
+
+              <div className="checkout-input-row">
+                <label>Product Image URL</label>
+                <input
+                  type="url"
+                  value={newProdImage}
+                  onChange={e => setNewProdImage(e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div className="checkout-actions-footer">
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => setIsAddProductModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="button button-primary place-order-btn">
+                  <IconPlus size={15} />
+                  <span>Publish Item to Store</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* =========================================================
