@@ -7,10 +7,14 @@ from app.core.config import settings
 from app.routers import auth, feed, groups, health, members, messages, notifications
 
 app = FastAPI(title="Group Chat API", version="0.1.0")
+
+cors_regex = r".*" if settings.allow_all_origins else r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$"
+origins_list = [] if settings.allow_all_origins else settings.cors_origins
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origins=origins_list,
+    allow_origin_regex=cors_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

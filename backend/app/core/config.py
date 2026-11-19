@@ -33,5 +33,9 @@ class Settings(BaseSettings):
     def cors_origins(self) -> list[str]:
         return [origin.strip().rstrip("/") for origin in self.frontend_origins.split(",") if origin.strip()]
 
+    @property
+    def allow_all_origins(self) -> bool:
+        return "*" in self.frontend_origins.split(",") or self.frontend_origins.strip() == "*"
+
 
 settings = Settings()
