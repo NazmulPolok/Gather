@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.cache import cache, make_key, invalidate_groups_cache
 from app.core.dependencies import get_current_user
 from app.core.media import safe_delete_upload_file, validate_image_file
 from app.db.session import get_db
@@ -28,18 +29,29 @@ def create_group(payload: GroupCreate, db: Session = Depends(get_db), user: User
     db.add(Membership(group_id=group.id, user_id=user.id, role="admin", status="active"))
     db.commit()
     db.refresh(group)
+    invalidate_groups_cache(user.id)
     return group
 
 
 @router.get("", response_model=list[GroupResponse])
 def list_groups(db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> list[Group]:
+    cache_key = make_key("user_groups", user.id)
+    cached = cache.get_json(cache_key)
+    if cached is not None:
+        try:
+            return [GroupResponse.model_validate(g) for g in cached]
+        except Exception:
+            pass
+
     query = (
         select(Group)
         .join(Membership)
         .where(Membership.user_id == user.id, Membership.status == "active")
         .order_by(Group.created_at.desc())
     )
-    return list(db.scalars(query).all())
+    groups = list(db.scalars(query).all())
+    cache.set_json(cache_key, [GroupResponse.model_validate(g).model_dump(mode="json") for g in groups], ex=45)
+    return groups
 
 
 @router.get("/{group_id}", response_model=GroupResponse)
@@ -66,6 +78,7 @@ def update_group(
         setattr(group, field, value)
     db.commit()
     db.refresh(group)
+    invalidate_groups_cache()
     return group
 
 
@@ -93,6 +106,7 @@ async def upload_group_avatar(
     group.avatar_url = f"/uploads/groups/{filename}"
     db.commit()
     db.refresh(group)
+    invalidate_groups_cache()
     return group
 
 
@@ -111,5 +125,6 @@ def delete_group_avatar(
     group.avatar_url = None
     db.commit()
     db.refresh(group)
+    invalidate_groups_cache()
     return group
 

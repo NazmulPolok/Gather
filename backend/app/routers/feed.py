@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.cache import cache, make_key, invalidate_feed
 from app.core.dependencies import get_current_user
 from app.core.media import (
     optimize_video_to_1080p,
@@ -133,8 +134,18 @@ def list_communities(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> list[CommunitySummary]:
+    cache_key = make_key("communities", user.id)
+    cached = cache.get_json(cache_key)
+    if cached is not None:
+        try:
+            return [CommunitySummary.model_validate(c) for c in cached]
+        except Exception:
+            pass
+
     communities = db.scalars(select(Community).order_by(Community.name.asc())).all()
-    return [_build_community_summary(c, user.id, db) for c in communities]
+    summaries = [_build_community_summary(c, user.id, db) for c in communities]
+    cache.set_json(cache_key, [s.model_dump(mode="json") for s in summaries], ex=60)
+    return summaries
 
 
 @router.post("/communities", response_model=CommunitySummary, status_code=status.HTTP_201_CREATED)
@@ -167,6 +178,8 @@ def create_community(
     db.commit()
     db.refresh(community)
 
+    cache.delete_pattern("gather:communities:*")
+    invalidate_feed()
     return _build_community_summary(community, user.id, db)
 
 
@@ -208,6 +221,8 @@ def join_community(
         )
         db.add(member)
         db.commit()
+        cache.delete_pattern("gather:communities:*")
+        invalidate_feed()
 
     return {"status": "joined", "slug": slug}
 
@@ -232,6 +247,8 @@ def leave_community(
     if existing:
         db.delete(existing)
         db.commit()
+        cache.delete_pattern("gather:communities:*")
+        invalidate_feed()
 
     return {"status": "left", "slug": slug}
 
@@ -291,6 +308,14 @@ def get_news_feed(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> list[PostResponse]:
+    cache_key = make_key("feed", feed_type, community_slug or "all", author_username or "all", sort, limit, user.id)
+    cached = cache.get_json(cache_key)
+    if cached is not None:
+        try:
+            return [PostResponse.model_validate(p) for p in cached]
+        except Exception:
+            pass
+
     query = select(Post).join(Community)
 
     if author_username:
@@ -326,7 +351,9 @@ def get_news_feed(
         query = query.order_by(Post.created_at.desc())
 
     posts = db.scalars(query.limit(limit)).all()
-    return [_build_post_response(post, user.id, db) for post in posts]
+    responses = [_build_post_response(post, user.id, db) for post in posts]
+    cache.set_json(cache_key, [r.model_dump(mode="json") for r in responses], ex=30)
+    return responses
 
 
 @router.get("/feed/users/{username}/posts", response_model=list[PostResponse])
@@ -379,6 +406,7 @@ def create_post(
     db.commit()
     db.refresh(post)
 
+    invalidate_feed(post_id=post.id, community_slug=community.slug)
     return _build_post_response(post, user.id, db)
 
 
@@ -418,6 +446,7 @@ def edit_post(
     db.commit()
     db.refresh(post)
 
+    invalidate_feed(post_id=post.id, community_slug=community.slug)
     return _build_post_response(post, user.id, db)
 
 
@@ -445,8 +474,10 @@ def delete_post(
     safe_delete_upload_file(POSTS_DIR, post.image_url, "/uploads/posts/")
     safe_delete_upload_file(POSTS_DIR, post.video_url, "/uploads/posts/")
 
+    slug = post.community.slug if post.community else None
     db.delete(post)
     db.commit()
+    invalidate_feed(post_id=post_id, community_slug=slug)
     return {"status": "deleted", "post_id": post_id}
 
 
@@ -487,6 +518,7 @@ def toggle_post_reaction(
         select(func.count(PostReaction.id)).where(PostReaction.post_id == post_id)
     ) or 0
 
+    invalidate_feed(post_id=post_id)
     return {
         "status": "ok",
         "post_id": post_id,
@@ -546,6 +578,7 @@ def create_post_comment(
     db.commit()
     db.refresh(comment)
 
+    invalidate_feed(post_id=post_id)
     return CommentResponse(
         id=comment.id,
         post_id=comment.post_id,
@@ -582,4 +615,5 @@ def delete_post_comment(
 
     db.delete(comment)
     db.commit()
+    invalidate_feed(post_id=post.id)
     return {"status": "deleted", "comment_id": comment_id}

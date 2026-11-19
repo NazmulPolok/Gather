@@ -7,6 +7,7 @@ from jose import JWTError, jwt
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
+from app.core.cache import cache, make_key, invalidate_group_messages
 from app.core.config import settings
 from app.core.dependencies import get_current_user
 from app.core.media import safe_delete_upload_file, validate_image_file
@@ -148,6 +149,15 @@ def list_messages(
     user: User = Depends(get_current_user),
 ) -> list[MessageResponse]:
     active_membership(db, group_id, user.id)
+
+    cache_key = make_key("messages", group_id, limit, before_id or "latest", user.id)
+    cached_data = cache.get_json(cache_key)
+    if cached_data is not None:
+        try:
+            return [MessageResponse.model_validate(item) for item in cached_data]
+        except Exception:
+            pass
+
     query = select(Message).where(Message.group_id == group_id)
     if before_id is not None:
         query = query.where(Message.id < before_id)
@@ -201,6 +211,7 @@ def list_messages(
                 seen_by=seen_users,
             )
         )
+    cache.set_json(cache_key, [item.model_dump(mode="json") for item in response_items], ex=20)
     return response_items
 
 
@@ -336,6 +347,7 @@ async def create_message(
         "is_typing": False,
     })
 
+    invalidate_group_messages(group_id)
     return response
 
 
@@ -377,6 +389,7 @@ async def delete_message(
         },
     )
 
+    invalidate_group_messages(group_id)
     return {"status": "deleted", "message_id": message_id}
 
 
@@ -461,6 +474,7 @@ async def edit_message(
         },
     )
 
+    invalidate_group_messages(group_id)
     return response
 
 

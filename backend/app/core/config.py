@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://groupchat:groupchat-local-password@localhost:5432/groupchat"
+    redis_url: str = "redis://redis:6379/0"
     jwt_secret_key: str = "development-only-change-me"
     access_token_minutes: int = 30
     frontend_origins: str = "http://localhost:5173"
