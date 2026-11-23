@@ -146,6 +146,65 @@ function IconCopyBtn({ size = 15 }: { size?: number }) {
   )
 }
 
+function IconDashboard({ size = 18 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="9" rx="1" />
+      <rect x="14" y="3" width="7" height="5" rx="1" />
+      <rect x="14" y="12" width="7" height="9" rx="1" />
+      <rect x="3" y="16" width="7" height="5" rx="1" />
+    </svg>
+  )
+}
+
+function IconChartAnalytics({ size = 18 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
+    </svg>
+  )
+}
+
+function IconVideoList({ size = 18 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="m10 9 5 3-5 3V9Z" />
+    </svg>
+  )
+}
+
+function IconTrash({ size = 15 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  )
+}
+
+function IconEye({ size = 15 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
+function IconUsers({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  )
+}
+
 function IconFilm({ size = 48 }: { size?: number }) {
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -280,6 +339,12 @@ export function WatchView({
   const [sharePost, setSharePost] = useState<PostItem | null>(null)
   const [copiedLink, setCopiedLink] = useState(false)
 
+  // YouTube Studio Dashboard Mode state
+  const [viewMode, setViewMode] = useState<'feed' | 'dashboard'>('feed')
+  const [dashboardTab, setDashboardTab] = useState<'overview' | 'content' | 'analytics' | 'comments'>('overview')
+  const [dashboardChannelSlug, setDashboardChannelSlug] = useState<string>('')
+  const [deletingPostId, setDeletingPostId] = useState<number | null>(null)
+
   // Trigger Open Page from Settings
   useEffect(() => {
     if (openPageTrigger) {
@@ -337,6 +402,78 @@ export function WatchView({
   const videoPosts = useMemo(() => {
     return posts.filter(p => Boolean(p.video_url))
   }, [posts])
+
+  // Active channel slug in Studio Dashboard
+  const activeDashboardSlug = useMemo(() => {
+    if (dashboardChannelSlug) return dashboardChannelSlug
+    if (myPages.length > 0) return myPages[0].slug
+    return user.username
+  }, [dashboardChannelSlug, myPages, user.username])
+
+  // Active channel community object
+  const activeDashboardChannel = useMemo(() => {
+    return pages.find(p => p.slug.toLowerCase() === activeDashboardSlug.toLowerCase()) || null
+  }, [pages, activeDashboardSlug])
+
+  // Videos belonging to active channel
+  const channelVideos = useMemo(() => {
+    return videoPosts.filter(p => {
+      if (activeDashboardChannel) {
+        return p.community.slug.toLowerCase() === activeDashboardSlug.toLowerCase()
+      }
+      return p.author.username.toLowerCase() === user.username.toLowerCase()
+    })
+  }, [videoPosts, activeDashboardSlug, activeDashboardChannel, user.username])
+
+  // Latest uploaded video
+  const latestVideo = useMemo(() => {
+    return channelVideos.length > 0 ? channelVideos[0] : null
+  }, [channelVideos])
+
+  // Analytics totals
+  const totalViews = useMemo(() => {
+    return channelVideos.reduce((acc, v) => acc + (v.views_count || 0), 0)
+  }, [channelVideos])
+
+  const totalLikes = useMemo(() => {
+    return channelVideos.reduce((acc, v) => acc + (v.upvote_count || 0), 0)
+  }, [channelVideos])
+
+  const totalComments = useMemo(() => {
+    return channelVideos.reduce((acc, v) => acc + (v.comment_count || 0), 0)
+  }, [channelVideos])
+
+  // All comments on channel videos
+  const channelComments = useMemo(() => {
+    const list: { comment: CommentItem; video: PostItem }[] = []
+    channelVideos.forEach(v => {
+      (v.comments || []).forEach(c => {
+        list.push({ comment: c, video: v })
+      })
+    })
+    return list.sort((a, b) => new Date(b.comment.created_at).getTime() - new Date(a.comment.created_at).getTime())
+  }, [channelVideos])
+
+  // Delete video from channel
+  const handleDeleteVideo = async (postId: number) => {
+    if (!window.confirm('Are you sure you want to delete this video? This cannot be undone.')) {
+      return
+    }
+    setDeletingPostId(postId)
+    try {
+      await api.deletePost(token, postId)
+      setPosts(prev => prev.filter(p => p.id !== postId))
+      if (activeWatchPost?.id === postId) {
+        setActiveWatchPost(null)
+      }
+      setNotice('Video deleted successfully!')
+      setTimeout(() => setNotice(''), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not delete video')
+    } finally {
+      setDeletingPostId(null)
+    }
+  }
 
   // Filtered video posts
   const filteredVideos = useMemo(() => {
@@ -622,29 +759,60 @@ export function WatchView({
           TOP ACTION & SEARCH HEADER
           ========================================================================= */}
       <header className="yt-watch-header">
-        {/* Search Input */}
-        <div className="yt-header-center">
-          <div className="yt-search-input-wrap">
-            <input
-              type="text"
-              placeholder="Search videos, pages, creators..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                className="yt-search-clear"
-                onClick={() => setSearchQuery('')}
-              >
-                ✕
-              </button>
-            )}
-            <span className="yt-search-icon">
-              <IconSearch size={15} />
-            </span>
-          </div>
+        {/* Left Side: Feed vs Studio Dashboard Tabs */}
+        <div className="yt-header-left-tabs">
+          <button
+            type="button"
+            className={`yt-tab-switch-btn ${viewMode === 'feed' ? 'active' : ''}`}
+            onClick={() => setViewMode('feed')}
+            title="Browse all videos"
+          >
+            <IconTV size={16} />
+            <span>Watch Feed</span>
+          </button>
+          <button
+            type="button"
+            className={`yt-tab-switch-btn yt-studio-tab-btn ${viewMode === 'dashboard' ? 'active' : ''}`}
+            onClick={() => {
+              setViewMode('dashboard')
+              if (!dashboardChannelSlug && myPages.length > 0) {
+                setDashboardChannelSlug(myPages[0].slug)
+              } else if (!dashboardChannelSlug) {
+                setDashboardChannelSlug(user.username)
+              }
+            }}
+            title="Open YouTube Studio Channel Dashboard"
+          >
+            <IconDashboard size={16} />
+            <span>Studio Dashboard</span>
+          </button>
         </div>
+
+        {/* Search Input (Shown when in feed mode) */}
+        {viewMode === 'feed' && (
+          <div className="yt-header-center">
+            <div className="yt-search-input-wrap">
+              <input
+                type="text"
+                placeholder="Search videos, pages, creators..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="yt-search-clear"
+                  onClick={() => setSearchQuery('')}
+                >
+                  ✕
+                </button>
+              )}
+              <span className="yt-search-icon">
+                <IconSearch size={15} />
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Right CTA Buttons: Open Page + Upload Video */}
         <div className="yt-header-right">
@@ -655,7 +823,7 @@ export function WatchView({
               setPageError('')
               setIsOpenPageModal(true)
             }}
-            title="Create a new Public or Private Page"
+            title="Create a new Channel / Page"
           >
             <IconPage size={15} />
             <span>Open a Page</span>
@@ -664,7 +832,7 @@ export function WatchView({
           <button
             type="button"
             className="yt-btn-upload-video"
-            onClick={() => handleOpenUploadModal()}
+            onClick={() => handleOpenUploadModal(viewMode === 'dashboard' ? activeDashboardSlug : undefined)}
             title="Upload a new video to a page"
           >
             <IconVideoUpload size={17} />
@@ -673,14 +841,622 @@ export function WatchView({
         </div>
       </header>
 
-      {/* =========================================================================
-          CATEGORY CHIPS BAR
-          ========================================================================= */}
-      <div className="yt-categories-bar">
-        <div className="yt-chips-scroll">
-          <button
-            type="button"
-            className={`yt-chip-pill ${selectedCategory === 'All' && !selectedPageSlug ? 'active' : ''}`}
+      {viewMode === 'dashboard' ? (
+        /* =========================================================================
+           YOUTUBE STUDIO CREATOR DASHBOARD
+           ========================================================================= */
+        <section className="yt-studio-dashboard-view">
+          {/* 1. Channel Header Card */}
+          <div className="yt-studio-channel-hero">
+            <div className="yt-channel-hero-left">
+              <div className="yt-channel-hero-avatar">
+                <UserAvatar
+                  avatarUrl={activeDashboardChannel?.avatar_url || user.avatar_url}
+                  fallback={activeDashboardChannel?.name || `${user.first_name} ${user.last_name}`.trim() || user.username}
+                  size={52}
+                />
+              </div>
+              <div className="yt-channel-hero-info">
+                <div className="yt-channel-title-row">
+                  <h2>{activeDashboardChannel?.name || `${user.first_name} ${user.last_name}`.trim() || user.username}</h2>
+                  <span className="yt-studio-badge">Creator Channel</span>
+                </div>
+                <div className="yt-channel-sub-row">
+                  <span className="channel-handle">@{activeDashboardSlug}</span>
+                  <span className="channel-dot">•</span>
+                  <span>{activeDashboardChannel?.member_count ?? 1} {((activeDashboardChannel?.member_count ?? 1) === 1) ? 'Subscriber' : 'Subscribers'}</span>
+                  <span className="channel-dot">•</span>
+                  <span>{channelVideos.length} {channelVideos.length === 1 ? 'Video' : 'Videos'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="yt-channel-hero-right">
+              {/* Channel Selector Dropdown */}
+              <div className="yt-studio-channel-selector">
+                <label>Active Channel:</label>
+                <select
+                  value={activeDashboardSlug}
+                  onChange={e => setDashboardChannelSlug(e.target.value)}
+                  className="yt-studio-hero-select"
+                >
+                  <option value={user.username}>Personal Channel (@{user.username})</option>
+                  {myPages.map(p => (
+                    <option key={p.id} value={p.slug}>
+                      {p.name} (@{p.slug})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                className="button button-primary"
+                onClick={() => handleOpenUploadModal(activeDashboardSlug)}
+              >
+                <IconVideoUpload size={16} />
+                <span>Upload to Channel</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 2. Studio Subnav Tabs */}
+          <div className="yt-studio-subnav-tabs">
+            <button
+              type="button"
+              className={`yt-studio-subnav-pill ${dashboardTab === 'overview' ? 'active' : ''}`}
+              onClick={() => setDashboardTab('overview')}
+            >
+              <IconDashboard size={15} />
+              <span>Dashboard</span>
+            </button>
+            <button
+              type="button"
+              className={`yt-studio-subnav-pill ${dashboardTab === 'content' ? 'active' : ''}`}
+              onClick={() => setDashboardTab('content')}
+            >
+              <IconVideoList size={15} />
+              <span>Content ({channelVideos.length})</span>
+            </button>
+            <button
+              type="button"
+              className={`yt-studio-subnav-pill ${dashboardTab === 'analytics' ? 'active' : ''}`}
+              onClick={() => setDashboardTab('analytics')}
+            >
+              <IconChartAnalytics size={15} />
+              <span>Analytics</span>
+            </button>
+            <button
+              type="button"
+              className={`yt-studio-subnav-pill ${dashboardTab === 'comments' ? 'active' : ''}`}
+              onClick={() => setDashboardTab('comments')}
+            >
+              <IconComment size={15} />
+              <span>Comments ({channelComments.length})</span>
+            </button>
+          </div>
+
+          {/* 3. Subnav Views */}
+          {dashboardTab === 'overview' && (
+            <div className="yt-studio-dashboard-content">
+              {/* Metric KPI cards */}
+              <div className="yt-studio-kpi-grid">
+                <div className="yt-studio-kpi-card">
+                  <div className="kpi-icon-wrap" style={{ background: 'rgba(37, 99, 235, 0.1)', color: '#2563eb' }}>
+                    <IconUsers size={20} />
+                  </div>
+                  <div className="kpi-body">
+                    <span className="kpi-label">Subscribers</span>
+                    <strong className="kpi-number">{activeDashboardChannel?.member_count ?? 1}</strong>
+                    <span className="kpi-trend">+1 this month</span>
+                  </div>
+                </div>
+
+                <div className="yt-studio-kpi-card">
+                  <div className="kpi-icon-wrap" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+                    <IconEye size={20} />
+                  </div>
+                  <div className="kpi-body">
+                    <span className="kpi-label">Total Views</span>
+                    <strong className="kpi-number">{totalViews}</strong>
+                    <span className="kpi-trend">All-time lifetime</span>
+                  </div>
+                </div>
+
+                <div className="yt-studio-kpi-card">
+                  <div className="kpi-icon-wrap" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
+                    <IconThumbUp size={20} />
+                  </div>
+                  <div className="kpi-body">
+                    <span className="kpi-label">Total Likes</span>
+                    <strong className="kpi-number">{totalLikes}</strong>
+                    <span className="kpi-trend">Viewer engagement</span>
+                  </div>
+                </div>
+
+                <div className="yt-studio-kpi-card">
+                  <div className="kpi-icon-wrap" style={{ background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6' }}>
+                    <IconVideoList size={20} />
+                  </div>
+                  <div className="kpi-body">
+                    <span className="kpi-label">Published Videos</span>
+                    <strong className="kpi-number">{channelVideos.length}</strong>
+                    <span className="kpi-trend">1080p Full HD</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* YouTube Studio Dashboard 2-column cards layout */}
+              <div className="yt-studio-cards-row">
+                {/* Left Card: Latest Video Performance */}
+                <div className="yt-studio-widget-card yt-latest-video-card">
+                  <div className="widget-header">
+                    <h4>Latest video performance</h4>
+                    {latestVideo && <span className="widget-tag">Published</span>}
+                  </div>
+
+                  {latestVideo ? (
+                    <div className="latest-video-content">
+                      <div className="latest-video-preview" onClick={() => handleWatchVideo(latestVideo)}>
+                        <video src={getMediaUrl(latestVideo.video_url || '')} preload="metadata" />
+                        <div className="latest-video-play-overlay">
+                          <span>▶ Watch</span>
+                        </div>
+                        <span className="yt-badge-resolution" style={{ position: 'absolute', top: 6, right: 6 }}>1080p FHD</span>
+                      </div>
+
+                      <div className="latest-video-info">
+                        <strong className="video-title" title={latestVideo.title}>{latestVideo.title}</strong>
+                        <span className="video-date">Published {formatRelativeTime(latestVideo.created_at)}</span>
+
+                        <div className="latest-video-stats-table">
+                          <div className="stats-row">
+                            <span>Ranking by views</span>
+                            <strong>#1 of {channelVideos.length}</strong>
+                          </div>
+                          <div className="stats-row">
+                            <span>Views</span>
+                            <strong>{latestVideo.views_count}</strong>
+                          </div>
+                          <div className="stats-row">
+                            <span>Likes</span>
+                            <strong>{latestVideo.upvote_count}</strong>
+                          </div>
+                          <div className="stats-row">
+                            <span>Comments</span>
+                            <strong>{latestVideo.comment_count}</strong>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          className="button button-secondary button-small"
+                          style={{ marginTop: 12, width: '100%' }}
+                          onClick={() => handleWatchVideo(latestVideo)}
+                        >
+                          Go to Video Player & Comments
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="widget-empty-card">
+                      <IconFilm size={40} />
+                      <p>Upload a video to see real-time analytics and audience performance here.</p>
+                      <button
+                        type="button"
+                        className="button button-primary button-small"
+                        onClick={() => handleOpenUploadModal(activeDashboardSlug)}
+                      >
+                        Upload Video Now
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Card: Channel Analytics & Top Content */}
+                <div className="yt-studio-widget-card">
+                  <div className="widget-header">
+                    <h4>Channel analytics</h4>
+                    <span className="widget-sub">Current subscribers</span>
+                  </div>
+
+                  <div className="analytics-summary-box">
+                    <span className="analytics-sub-number">{activeDashboardChannel?.member_count ?? 1}</span>
+                    <span className="analytics-sub-delta">+1 in last 28 days</span>
+                  </div>
+
+                  <hr className="widget-divider" />
+
+                  <div className="analytics-top-header">
+                    <strong>Top performing videos</strong>
+                    <small>Lifetime views</small>
+                  </div>
+
+                  {channelVideos.length === 0 ? (
+                    <p className="widget-empty-text">No videos published yet.</p>
+                  ) : (
+                    <div className="analytics-top-list">
+                      {channelVideos.slice(0, 4).map((vid, i) => (
+                        <div key={vid.id} className="top-video-item" onClick={() => handleWatchVideo(vid)}>
+                          <span className="item-rank">#{i + 1}</span>
+                          <div className="item-details">
+                            <span className="item-title" title={vid.title}>{vid.title}</span>
+                            <span className="item-date">{formatRelativeTime(vid.created_at)}</span>
+                          </div>
+                          <div className="item-numbers">
+                            <strong>{vid.views_count}</strong>
+                            <small>views</small>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    className="yt-view-all-link"
+                    style={{ marginTop: 'auto', paddingTop: 14 }}
+                    onClick={() => setDashboardTab('analytics')}
+                  >
+                    Go to Channel Analytics →
+                  </button>
+                </div>
+              </div>
+
+              {/* Bottom Cards: Recent Comments & Creator Guide */}
+              <div className="yt-studio-cards-row" style={{ marginTop: 20 }}>
+                {/* Comments Widget */}
+                <div className="yt-studio-widget-card">
+                  <div className="widget-header">
+                    <h4>Recent comments</h4>
+                    <span className="widget-sub">{channelComments.length} total</span>
+                  </div>
+
+                  {channelComments.length === 0 ? (
+                    <div className="widget-empty-card">
+                      <IconComment size={36} />
+                      <p>No comments on this channel yet. When viewers comment on your videos, they'll show up here.</p>
+                    </div>
+                  ) : (
+                    <div className="recent-comments-list">
+                      {channelComments.slice(0, 4).map(({ comment, video }) => (
+                        <div key={comment.id} className="recent-comment-item">
+                          <UserAvatar
+                            avatarUrl={comment.author.avatar_url}
+                            fallback={comment.author.name || comment.author.username}
+                            size={34}
+                          />
+                          <div className="comment-body-col">
+                            <div className="comment-meta-row">
+                              <strong>{comment.author.name || comment.author.username}</strong>
+                              <span>@{comment.author.username}</span>
+                              <span className="comment-dot">•</span>
+                              <span className="comment-time">{formatRelativeTime(comment.created_at)}</span>
+                            </div>
+                            <p className="comment-text-preview">{comment.content}</p>
+                            <span className="comment-on-video" onClick={() => handleWatchVideo(video)}>
+                              on <em>"{video.title}"</em>
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Creator Insider Card */}
+                <div className="yt-studio-widget-card">
+                  <div className="widget-header">
+                    <h4>Creator Insider & Best Practices</h4>
+                  </div>
+                  <div className="creator-tips-list">
+                    <div className="tip-item">
+                      <span className="tip-badge">1080p FHD</span>
+                      <div>
+                        <strong>Automatic Full HD Encoding</strong>
+                        <p>All videos uploaded are encoded in crisp 1080p Full HD format to deliver smooth playback.</p>
+                      </div>
+                    </div>
+                    <div className="tip-item">
+                      <span className="tip-badge">Tags & SEO</span>
+                      <div>
+                        <strong>Add Search Tags</strong>
+                        <p>Include tags and descriptive keywords during upload so viewers can discover your channel.</p>
+                      </div>
+                    </div>
+                    <div className="tip-item">
+                      <span className="tip-badge">Community</span>
+                      <div>
+                        <strong>Engage with Viewers</strong>
+                        <p>Reply to comments and share your video links directly into Gather chats and feeds.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* CONTENT TAB: Full Video Manager Table */}
+          {dashboardTab === 'content' && (
+            <div className="yt-studio-content-view">
+              <div className="content-view-header">
+                <div>
+                  <h3>Channel content</h3>
+                  <p>Manage, play, copy links, or delete your published videos.</p>
+                </div>
+                <button
+                  type="button"
+                  className="button button-primary"
+                  onClick={() => handleOpenUploadModal(activeDashboardSlug)}
+                >
+                  <IconVideoUpload size={16} />
+                  <span>Upload Video</span>
+                </button>
+              </div>
+
+              {channelVideos.length === 0 ? (
+                <div className="yt-empty-feed" style={{ marginTop: 40 }}>
+                  <IconFilm size={48} />
+                  <h4>No videos uploaded yet</h4>
+                  <p>Start uploading videos to manage your channel content here.</p>
+                  <button
+                    type="button"
+                    className="button button-primary"
+                    onClick={() => handleOpenUploadModal(activeDashboardSlug)}
+                  >
+                    Upload Video Now
+                  </button>
+                </div>
+              ) : (
+                <div className="yt-studio-table-container">
+                  <table className="yt-studio-table">
+                    <thead>
+                      <tr>
+                        <th>Video</th>
+                        <th>Visibility</th>
+                        <th>Date</th>
+                        <th>Views</th>
+                        <th>Comments</th>
+                        <th>Likes</th>
+                        <th style={{ textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {channelVideos.map(video => (
+                        <tr key={video.id}>
+                          {/* Video thumbnail + Title */}
+                          <td className="video-cell">
+                            <div className="mini-thumb-wrap" onClick={() => handleWatchVideo(video)}>
+                              <video src={getMediaUrl(video.video_url || '')} preload="metadata" />
+                              <span className="mini-play-icon">▶</span>
+                            </div>
+                            <div className="video-title-col">
+                              <strong className="table-video-title" onClick={() => handleWatchVideo(video)} title={video.title}>
+                                {video.title}
+                              </strong>
+                              <small className="table-video-desc">
+                                {video.content ? video.content.slice(0, 60) + (video.content.length > 60 ? '...' : '') : 'No description'}
+                              </small>
+                            </div>
+                          </td>
+
+                          {/* Visibility */}
+                          <td>
+                            <span className="visibility-badge">
+                              <IconCheckSuccess size={12} />
+                              <span>Published</span>
+                            </span>
+                          </td>
+
+                          {/* Date */}
+                          <td className="date-cell">
+                            <span>{new Date(video.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                            <small>{formatRelativeTime(video.created_at)}</small>
+                          </td>
+
+                          {/* Views */}
+                          <td><strong>{video.views_count}</strong></td>
+
+                          {/* Comments */}
+                          <td>{video.comment_count}</td>
+
+                          {/* Likes */}
+                          <td>{video.upvote_count}</td>
+
+                          {/* Actions */}
+                          <td style={{ textAlign: 'right' }}>
+                            <div className="table-actions-row">
+                              <button
+                                type="button"
+                                className="action-icon-btn"
+                                onClick={() => handleWatchVideo(video)}
+                                title="Watch Video"
+                              >
+                                ▶
+                              </button>
+                              <button
+                                type="button"
+                                className="action-icon-btn"
+                                onClick={() => handleCopyShareLink(video)}
+                                title="Copy Video Link"
+                              >
+                                <IconCopyBtn size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className="action-icon-btn delete-btn"
+                                disabled={deletingPostId === video.id}
+                                onClick={() => handleDeleteVideo(video.id)}
+                                title="Delete Video"
+                              >
+                                <IconTrash size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ANALYTICS TAB */}
+          {dashboardTab === 'analytics' && (
+            <div className="yt-studio-analytics-view">
+              <div className="analytics-hero-banner">
+                <h3>Channel Analytics</h3>
+                <p>Your channel got <strong>{totalViews} views</strong> across <strong>{channelVideos.length} videos</strong>.</p>
+              </div>
+
+              <div className="yt-studio-kpi-grid" style={{ marginBottom: 24 }}>
+                <div className="yt-studio-kpi-card">
+                  <div className="kpi-icon-wrap" style={{ background: 'rgba(37, 99, 235, 0.1)', color: '#2563eb' }}>
+                    <IconEye size={20} />
+                  </div>
+                  <div className="kpi-body">
+                    <span className="kpi-label">Views</span>
+                    <strong className="kpi-number">{totalViews}</strong>
+                    <span className="kpi-trend">100% organic</span>
+                  </div>
+                </div>
+
+                <div className="yt-studio-kpi-card">
+                  <div className="kpi-icon-wrap" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+                    <IconUsers size={20} />
+                  </div>
+                  <div className="kpi-body">
+                    <span className="kpi-label">Subscribers</span>
+                    <strong className="kpi-number">{activeDashboardChannel?.member_count ?? 1}</strong>
+                    <span className="kpi-trend">Channel community</span>
+                  </div>
+                </div>
+
+                <div className="yt-studio-kpi-card">
+                  <div className="kpi-icon-wrap" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
+                    <IconThumbUp size={20} />
+                  </div>
+                  <div className="kpi-body">
+                    <span className="kpi-label">Likes Rate</span>
+                    <strong className="kpi-number">{totalLikes}</strong>
+                    <span className="kpi-trend">Positive reactions</span>
+                  </div>
+                </div>
+
+                <div className="yt-studio-kpi-card">
+                  <div className="kpi-icon-wrap" style={{ background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6' }}>
+                    <IconComment size={20} />
+                  </div>
+                  <div className="kpi-body">
+                    <span className="kpi-label">Audience Comments</span>
+                    <strong className="kpi-number">{totalComments}</strong>
+                    <span className="kpi-trend">Community interaction</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Performance Rankings Table */}
+              <div className="yt-studio-widget-card" style={{ padding: 24 }}>
+                <h4 style={{ marginBottom: 16 }}>Video Performance Rankings</h4>
+                {channelVideos.length === 0 ? (
+                  <p className="widget-empty-text">No videos to display analytics for.</p>
+                ) : (
+                  <div className="yt-studio-table-container">
+                    <table className="yt-studio-table">
+                      <thead>
+                        <tr>
+                          <th>Rank</th>
+                          <th>Video Title</th>
+                          <th>Views</th>
+                          <th>Likes</th>
+                          <th>Comments</th>
+                          <th>Engagement Score</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...channelVideos].sort((a, b) => (b.views_count || 0) - (a.views_count || 0)).map((v, idx) => (
+                          <tr key={v.id}>
+                            <td><strong>#{idx + 1}</strong></td>
+                            <td style={{ cursor: 'pointer' }} onClick={() => handleWatchVideo(v)}>
+                              <strong style={{ color: '#2563eb' }}>{v.title}</strong>
+                            </td>
+                            <td>{v.views_count} views</td>
+                            <td>{v.upvote_count} likes</td>
+                            <td>{v.comment_count} comments</td>
+                            <td>
+                              <span className="engagement-chip">
+                                {(((v.upvote_count + v.comment_count) / Math.max(1, v.views_count ?? 0)) * 100).toFixed(1)}%
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* COMMENTS TAB */}
+          {dashboardTab === 'comments' && (
+            <div className="yt-studio-comments-view">
+              <div className="content-view-header">
+                <div>
+                  <h3>Channel Comments</h3>
+                  <p>All comments left across your published videos.</p>
+                </div>
+              </div>
+
+              {channelComments.length === 0 ? (
+                <div className="widget-empty-card" style={{ padding: 48 }}>
+                  <IconComment size={48} />
+                  <h4>No comments yet</h4>
+                  <p>When viewers leave comments on your videos, they will appear here so you can read and engage.</p>
+                </div>
+              ) : (
+                <div className="full-comments-list">
+                  {channelComments.map(({ comment, video }) => (
+                    <div key={comment.id} className="studio-full-comment-card">
+                      <UserAvatar
+                        avatarUrl={comment.author.avatar_url}
+                        fallback={comment.author.name || comment.author.username}
+                        size={42}
+                      />
+                      <div className="comment-main-col">
+                        <div className="comment-user-line">
+                          <strong>{comment.author.name || comment.author.username}</strong>
+                          <span className="user-handle">@{comment.author.username}</span>
+                          <span className="dot">•</span>
+                          <span className="time">{formatRelativeTime(comment.created_at)}</span>
+                        </div>
+                        <p className="comment-content-text">{comment.content}</p>
+                        <div className="comment-video-badge" onClick={() => handleWatchVideo(video)}>
+                          <span>On video:</span>
+                          <strong>{video.title}</strong>
+                          <span className="action-pill">▶ Watch & Reply</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      ) : (
+        /* STANDARD FEED VIEW (Categories + Channels Carousel + Video Grid) */
+        <>
+          {/* =========================================================================
+              CATEGORY CHIPS BAR
+              ========================================================================= */}
+          <div className="yt-categories-bar">
+            <div className="yt-chips-scroll">
+              <button
+                type="button"
+                className={`yt-chip-pill ${selectedCategory === 'All' && !selectedPageSlug ? 'active' : ''}`}
             onClick={() => {
               setSelectedCategory('All')
               setSelectedPageSlug(null)
@@ -1009,6 +1785,8 @@ export function WatchView({
           </div>
         )}
       </main>
+      </>
+      )}
 
       {/* =========================================================================
           MODAL 1: YOUTUBE THEATER WATCH MODAL
