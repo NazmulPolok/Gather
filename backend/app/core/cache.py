@@ -1,7 +1,6 @@
 import json
 import logging
-from typing import Any, Callable
-from functools import wraps
+from typing import Any
 
 import redis
 from app.core.config import settings

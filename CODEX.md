@@ -278,3 +278,14 @@ These entries summarize prior work and requests gathered before this maintenance
   - Added modern, high-contrast, production-ready styles in `frontend/src/styles.css` with full light/dark mode support.
 - Files changed: `CODEX.md`, `frontend/src/feed/NewsFeed.tsx`, `frontend/src/styles.css`.
 - Verification: Built frontend with `npm run build` (0 TypeScript / Vite errors) and tested live HMR.
+
+### 2026-11-23: Safe Garbage Code Audit and Cleanup
+
+- Request: Audit project for any dead, unused, or garbage code and safely remove it without breaking or deleting any necessary code.
+- Outcome:
+  - Scanned full frontend codebase (0 unused variables, 0 unused imports, 0 commented-out blocks, 0 leftover debugging logs).
+  - Removed 41 lines of orphaned, superseded dark mode CSS rules (`.create-type-card`, `.join-rule-selection-card`, `.join-rule-option`) in `frontend/src/styles.css`.
+  - Removed unused imports in `backend/app/core/cache.py` (`Callable`, `wraps`) and `backend/app/core/ws_manager.py` (`json`).
+  - Preserved all active application code, models, schemas, and routes intact.
+- Files changed: `frontend/src/styles.css`, `backend/app/core/cache.py`, `backend/app/core/ws_manager.py`, `CODEX.md`.
+- Verification: Backend container recompiled and restarted with 200 OK responses; Frontend compiled with `npm run build` (0 errors).

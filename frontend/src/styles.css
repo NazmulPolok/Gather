@@ -9794,47 +9794,6 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{
   background: #dc2626;
 }
 
-:root[data-theme="dark"] .create-type-card {
-  background: #1e293b;
-  border-color: #334155;
-}
-
-:root[data-theme="dark"] .create-type-card.active {
-  border-color: #3b82f6;
-  background: #172554;
-}
-
-:root[data-theme="dark"] .create-type-card h5 {
-  color: #f1f5f9;
-}
-
-:root[data-theme="dark"] .create-type-card p {
-  color: #94a3b8;
-}
-
-:root[data-theme="dark"] .join-rule-selection-card {
-  background: #1e293b;
-  border-color: #334155;
-}
-
-:root[data-theme="dark"] .join-rule-option {
-  background: #0f172a;
-  border-color: #334155;
-}
-
-:root[data-theme="dark"] .join-rule-option.selected {
-  background: #172554;
-  border-color: #3b82f6;
-}
-
-:root[data-theme="dark"] .join-rule-option strong {
-  color: #f1f5f9;
-}
-
-:root[data-theme="dark"] .join-rule-option span {
-  color: #94a3b8;
-}
-
 :root[data-theme="dark"] .composer-locked-box {
   background: #1e293b;
   border-color: #334155;
