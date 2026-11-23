@@ -175,6 +175,8 @@ export type CommunitySummary = {
   is_member: boolean
   is_admin?: boolean
   can_upload_video?: boolean
+  creator_username?: string | null
+  creator_name?: string | null
 }
 
 export type GroupSummary = {

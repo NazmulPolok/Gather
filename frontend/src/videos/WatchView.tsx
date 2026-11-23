@@ -118,6 +118,34 @@ function IconShieldCheck({ size = 14 }: { size?: number }) {
   )
 }
 
+function IconStudioUpload({ size = 72 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" stroke="#2563eb" fill="rgba(37, 99, 235, 0.08)" />
+      <path d="M12 16V8" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" />
+      <path d="m8.5 11.5 3.5-3.5 3.5 3.5" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function IconCheckSuccess({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  )
+}
+
+function IconCopyBtn({ size = 15 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="13" height="13" x="9" y="9" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  )
+}
+
 function IconFilm({ size = 48 }: { size?: number }) {
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -216,7 +244,6 @@ export function WatchView({
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
   const [selectedPageSlug, setSelectedPageSlug] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [privacyFilter, setPrivacyFilter] = useState<'all' | 'public' | 'private'>('all')
 
   // Watch Theater Modal
   const [activeWatchPost, setActiveWatchPost] = useState<PostItem | null>(null)
@@ -229,20 +256,24 @@ export function WatchView({
   const [pageName, setPageName] = useState('')
   const [pageSlug, setPageSlug] = useState('')
   const [pageCategory, setPageCategory] = useState('Tech & Gadgets')
-  const [pagePrivacy, setPagePrivacy] = useState<'public' | 'private'>('public')
   const [pageDescription, setPageDescription] = useState('')
   const [submittingPage, setSubmittingPage] = useState(false)
   const [pageError, setPageError] = useState('')
 
-  // Upload Video Modal state
+  // Upload Video Modal state (YouTube Studio Style)
   const [isUploadVideoModal, setIsUploadVideoModal] = useState(false)
   const [uploadTargetSlug, setUploadTargetSlug] = useState('')
   const [videoTitle, setVideoTitle] = useState('')
   const [videoDescription, setVideoDescription] = useState('')
+  const [videoCategory, setVideoCategory] = useState('Tech & Gadgets')
+  const [videoTags, setVideoTags] = useState('')
+  const [videoAudience, setVideoAudience] = useState<'not-for-kids' | 'kids'>('not-for-kids')
+  const [isDragging, setIsDragging] = useState(false)
   const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null)
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null)
   const [uploadingVideo, setUploadingVideo] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const [copiedPreviewLink, setCopiedPreviewLink] = useState(false)
   const videoInputRef = useRef<HTMLInputElement>(null)
 
   // Share Modal state
@@ -283,24 +314,21 @@ export function WatchView({
     fetchAllData()
   }, [token])
 
-  // User's own pages (where user is admin or creator)
+  // User's own channels (only channel owners/admins can upload videos, like YouTube)
   const myPages = useMemo(() => {
-    return pages.filter(p => p.is_admin)
+    return pages.filter(p => p.is_admin || p.can_upload_video)
   }, [pages])
 
   const handleOpenUploadModal = (preferredSlug?: string) => {
-    // REQUIREMENT: User MUST open a page first before uploading videos!
-    // Videos cannot be uploaded directly from a personal account without a page.
-    if (myPages.length === 0) {
-      setPageError('To upload videos to Watch, you must create a Page first! Personal ID uploads are not allowed in Watch.')
-      setIsOpenPageModal(true)
-      return
-    }
     setUploadError('')
     if (preferredSlug && myPages.some(p => p.slug === preferredSlug)) {
       setUploadTargetSlug(preferredSlug)
-    } else if (!uploadTargetSlug || !myPages.some(p => p.slug === uploadTargetSlug)) {
-      setUploadTargetSlug(myPages[0].slug)
+    } else if (myPages.length > 0) {
+      if (!uploadTargetSlug || !myPages.some(p => p.slug === uploadTargetSlug)) {
+        setUploadTargetSlug(myPages[0].slug)
+      }
+    } else {
+      setUploadTargetSlug(user.username)
     }
     setIsUploadVideoModal(true)
   }
@@ -317,12 +345,7 @@ export function WatchView({
       if (selectedPageSlug && p.community.slug.toLowerCase() !== selectedPageSlug.toLowerCase()) {
         return false
       }
-      // 2. Privacy filter
-      const pagePrivacyType = p.community.privacy_type || 'public'
-      if (privacyFilter !== 'all' && pagePrivacyType !== privacyFilter) {
-        return false
-      }
-      // 3. Category filter
+      // 2. Category filter
       if (selectedCategory !== 'All') {
         const commCat = p.community.category || 'General'
         if (selectedCategory === 'My Pages') {
@@ -331,7 +354,7 @@ export function WatchView({
           return false
         }
       }
-      // 4. Search query
+      // 3. Search query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase()
         const titleMatch = p.title.toLowerCase().includes(q)
@@ -344,7 +367,7 @@ export function WatchView({
       }
       return true
     })
-  }, [videoPosts, selectedPageSlug, privacyFilter, selectedCategory, searchQuery, user.username])
+  }, [videoPosts, selectedPageSlug, selectedCategory, searchQuery, user.username])
 
   // Currently selected Page details
   const activePageDetails = useMemo(() => {
@@ -453,7 +476,7 @@ export function WatchView({
         pageName.trim(),
         pageSlug.trim().toLowerCase(),
         pageDescription.trim() || undefined,
-        pagePrivacy,
+        'private',
         pageCategory
       )
       setPages(prev => [created, ...prev])
@@ -473,10 +496,8 @@ export function WatchView({
     }
   }
 
-  // Handle Video File Select
-  const handleVideoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  // Process selected video file (common for file picker & drag-and-drop)
+  const processVideoFile = (file: File) => {
     if (!file.type.startsWith('video/')) {
       setUploadError('Please select a valid video file (MP4, WebM, MOV)')
       return
@@ -487,8 +508,19 @@ export function WatchView({
     }
     setUploadError('')
     setSelectedVideoFile(file)
+    // Auto populate title from filename if title is blank
+    if (!videoTitle.trim()) {
+      const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ')
+      setVideoTitle(cleanName.charAt(0).toUpperCase() + cleanName.slice(1))
+    }
     if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl)
     setVideoPreviewUrl(URL.createObjectURL(file))
+  }
+
+  // Handle Video File Select
+  const handleVideoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) processVideoFile(file)
   }
 
   // Handle Upload Video Submit
@@ -502,14 +534,16 @@ export function WatchView({
       setUploadError('Please provide a video title.')
       return
     }
-    if (!uploadTargetSlug) {
-      setUploadError('Please select a page to upload to.')
+
+    const effectiveSlug = uploadTargetSlug || (myPages[0]?.slug ?? user.username)
+
+    const targetPage = pages.find(p => p.slug === effectiveSlug)
+    if (targetPage && targetPage.privacy_type !== 'private') {
+      setUploadError('In Watch, videos can only be uploaded to Private Pages by the page holder.')
       return
     }
-
-    const targetPage = pages.find(p => p.slug === uploadTargetSlug)
-    if (targetPage && targetPage.privacy_type === 'private' && !targetPage.can_upload_video) {
-      setUploadError('This is a private page. Only the page admin can upload videos.')
+    if (targetPage && !targetPage.can_upload_video && !targetPage.is_admin) {
+      setUploadError('Only the channel owner (admin) can upload videos to this channel.')
       return
     }
 
@@ -521,20 +555,34 @@ export function WatchView({
         throw new Error('Video upload failed on the server.')
       }
 
+      let finalContent = videoDescription.trim()
+      if (videoTags.trim()) {
+        const formattedTags = videoTags
+          .split(',')
+          .map(t => t.trim())
+          .filter(Boolean)
+          .map(t => (t.startsWith('#') ? t : `#${t}`))
+          .join(' ')
+        finalContent = finalContent ? `${finalContent}\n\n${formattedTags}` : formattedTags
+      }
+
       const createdPost = await api.createPost(token, {
-        community_slug: uploadTargetSlug,
+        community_slug: effectiveSlug,
         title: videoTitle.trim(),
-        content: videoDescription.trim() || undefined,
+        content: finalContent || undefined,
         video_url: uploadRes.video_url,
       })
 
-      setPosts(prev => [createdPost, ...prev])
+      // Refresh pages list in case user's personal channel was created
+      fetchAllData()
+
       setIsUploadVideoModal(false)
       setSelectedVideoFile(null)
       if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl)
       setVideoPreviewUrl(null)
       setVideoTitle('')
       setVideoDescription('')
+      setVideoTags('')
       setNotice('Video uploaded and published successfully!')
       setTimeout(() => setNotice(''), 4000)
 
@@ -574,19 +622,7 @@ export function WatchView({
           TOP ACTION & SEARCH HEADER
           ========================================================================= */}
       <header className="yt-watch-header">
-        <div className="yt-header-left">
-          <div className="yt-logo-badge">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="#e02424">
-              <path d="M21.58 7.19a2.76 2.76 0 0 0-1.95-1.96C17.9 4.75 12 4.75 12 4.75s-5.9 0-7.63.48A2.76 2.76 0 0 0 2.42 7.2 28.7 28.7 0 0 0 1.95 12c0 1.62.16 3.24.47 4.81.28.98 1.05 1.76 1.95 1.96 1.73.48 7.63.48 7.63.48s5.9 0 7.63-.48a2.76 2.76 0 0 0 1.95-1.96c.31-1.57.47-3.19.47-4.81s-.16-3.24-.47-4.81zM9.75 15.02V8.98L15.5 12l-5.75 3.02z" />
-            </svg>
-            <div className="yt-logo-text">
-              <strong>Watch & Videos</strong>
-              <small>YouTube-style Video & Pages Hub</small>
-            </div>
-          </div>
-        </div>
-
-        {/* Center Search Input */}
+        {/* Search Input */}
         <div className="yt-header-center">
           <div className="yt-search-input-wrap">
             <input
@@ -638,48 +674,20 @@ export function WatchView({
       </header>
 
       {/* =========================================================================
-          CATEGORY & PRIVACY PILLS BAR
+          CATEGORY CHIPS BAR
           ========================================================================= */}
       <div className="yt-categories-bar">
         <div className="yt-chips-scroll">
-          {/* Privacy Quick Filter */}
           <button
             type="button"
-            className={`yt-chip-pill ${privacyFilter === 'all' && selectedCategory === 'All' && !selectedPageSlug ? 'active' : ''}`}
+            className={`yt-chip-pill ${selectedCategory === 'All' && !selectedPageSlug ? 'active' : ''}`}
             onClick={() => {
-              setPrivacyFilter('all')
               setSelectedCategory('All')
               setSelectedPageSlug(null)
             }}
           >
             All Videos
           </button>
-
-          <button
-            type="button"
-            className={`yt-chip-pill ${privacyFilter === 'public' ? 'active' : ''}`}
-            onClick={() => {
-              setPrivacyFilter(privacyFilter === 'public' ? 'all' : 'public')
-              setSelectedPageSlug(null)
-            }}
-          >
-            <IconGlobe size={13} />
-            <span>Public Pages</span>
-          </button>
-
-          <button
-            type="button"
-            className={`yt-chip-pill ${privacyFilter === 'private' ? 'active' : ''}`}
-            onClick={() => {
-              setPrivacyFilter(privacyFilter === 'private' ? 'all' : 'private')
-              setSelectedPageSlug(null)
-            }}
-          >
-            <IconLock size={13} />
-            <span>Private Pages</span>
-          </button>
-
-          <span className="yt-chip-divider" />
 
           {CATEGORIES.filter(c => c !== 'All').map(cat => (
             <button
@@ -723,7 +731,6 @@ export function WatchView({
         <div className="yt-channels-grid-scroll">
           {pages.map(page => {
             const isSelected = selectedPageSlug?.toLowerCase() === page.slug.toLowerCase()
-            const isPrivate = page.privacy_type === 'private'
             return (
               <div
                 key={page.id}
@@ -736,18 +743,17 @@ export function WatchView({
                     fallback={page.name}
                     size={46}
                   />
-                  <span
-                    className={`yt-privacy-badge-dot ${isPrivate ? 'private' : 'public'}`}
-                    title={isPrivate ? 'Private Page (Only Admin Uploads)' : 'Public Page (Open Uploads)'}
-                  >
-                    {isPrivate ? <IconLock size={10} /> : <IconGlobe size={10} />}
-                  </span>
                 </div>
                 <div className="yt-channel-info">
                   <strong className="yt-channel-name">{page.name}</strong>
-                  <span className="yt-channel-handle">@{page.slug}</span>
+                  <div className="yt-channel-handle-row">
+                    <span className="yt-channel-handle">@{page.slug}</span>
+                    <span className="yt-channel-holder-badge" title="Channel Owner">
+                      @{page.creator_username || (page.is_admin ? user.username : 'admin')}
+                    </span>
+                  </div>
                   <span className="yt-channel-meta">
-                    {page.member_count} {page.member_count === 1 ? 'follower' : 'followers'} • {isPrivate ? 'Private' : 'Public'}
+                    {page.member_count} {page.member_count === 1 ? 'subscriber' : 'subscribers'}
                   </span>
                 </div>
                 <button
@@ -758,7 +764,7 @@ export function WatchView({
                     handleToggleFollowPage(page.slug, page.is_member)
                   }}
                 >
-                  {page.is_member ? 'Following' : '+ Follow'}
+                  {page.is_member ? 'Subscribed' : '+ Subscribe'}
                 </button>
               </div>
             )
@@ -789,47 +795,31 @@ export function WatchView({
             <div className="yt-page-main-details">
               <div className="yt-page-title-row">
                 <h2>{activePageDetails.name}</h2>
-                <span className={`yt-page-privacy-pill ${activePageDetails.privacy_type}`}>
-                  {activePageDetails.privacy_type === 'private' ? (
-                    <>
-                      <IconLock size={12} />
-                      <span>Private Page</span>
-                    </>
-                  ) : (
-                    <>
-                      <IconGlobe size={12} />
-                      <span>Public Page</span>
-                    </>
-                  )}
+                <span className="yt-page-holder-pill" title="Channel Owner">
+                  <IconShieldCheck size={12} />
+                  <span>Channel Owner: @{activePageDetails.creator_username || (activePageDetails.is_admin ? user.username : 'admin')}</span>
                 </span>
                 {activePageDetails.is_admin && (
                   <span className="yt-page-admin-pill">
-                    <IconShieldCheck size={12} />
-                    <span>Admin</span>
+                    <span>Your Channel</span>
                   </span>
                 )}
               </div>
               <p className="yt-page-handle-stats">
-                @{activePageDetails.slug} • {activePageDetails.category || 'General'} • {activePageDetails.member_count} followers
+                @{activePageDetails.slug} • Owner: <strong>@{activePageDetails.creator_username || (activePageDetails.is_admin ? user.username : 'admin')}</strong> • {activePageDetails.category || 'General'} • {activePageDetails.member_count} subscribers
               </p>
               {activePageDetails.description && (
                 <p className="yt-page-desc-text">{activePageDetails.description}</p>
               )}
 
               <div className="yt-page-permission-notice">
-                {activePageDetails.privacy_type === 'private' ? (
-                  activePageDetails.can_upload_video ? (
-                    <span className="notice-admin-ok">
-                      <IconShieldCheck size={14} /> <strong>Admin Access:</strong> You can upload videos to this private page.
-                    </span>
-                  ) : (
-                    <span className="notice-private-visitor">
-                      <IconLock size={14} /> <strong>Private Page:</strong> Only the page admin can upload videos. You can watch, like, comment, and share all videos!
-                    </span>
-                  )
+                {activePageDetails.can_upload_video ? (
+                  <span className="notice-admin-ok">
+                    <IconShieldCheck size={14} /> <strong>Channel Owner:</strong> You are the verified owner of this channel (@{activePageDetails.creator_username || user.username}). You can upload and manage videos.
+                  </span>
                 ) : (
-                  <span className="notice-public-ok">
-                    <IconGlobe size={14} /> <strong>Public Page:</strong> All members can upload videos, like, comment, and share.
+                  <span className="notice-private-visitor">
+                    <IconLock size={14} /> <strong>Creator Channel:</strong> Owned by @{activePageDetails.creator_username || 'admin'}. You can watch, like, comment, and share all videos!
                   </span>
                 )}
               </div>
@@ -903,8 +893,6 @@ export function WatchView({
         ) : (
           <div className="yt-videos-grid">
             {filteredVideos.map(post => {
-              const pagePrivacyType = post.community.privacy_type || 'public'
-              const isPrivate = pagePrivacyType === 'private'
               return (
                 <article key={post.id} className="yt-video-card">
                   {/* 16:9 Video Player / Thumbnail Preview */}
@@ -965,12 +953,14 @@ export function WatchView({
                         >
                           {post.community.name}
                         </span>
-                        <span
-                          className={`yt-card-privacy-icon ${isPrivate ? 'private' : 'public'}`}
-                          title={isPrivate ? 'Private Page' : 'Public Page'}
-                        >
-                          {isPrivate ? <IconLock size={12} /> : <IconGlobe size={12} />}
-                        </span>
+                        {(post.community.creator_username || post.author.username) && (
+                          <span
+                            className="yt-card-holder-username"
+                            title={`Channel Owner: @${post.community.creator_username || post.author.username}`}
+                          >
+                            @{post.community.creator_username || post.author.username}
+                          </span>
+                        )}
                       </div>
 
                       <div className="yt-card-meta-row">
@@ -1070,7 +1060,7 @@ export function WatchView({
                           {activeWatchPost.community.name}
                         </strong>
                         <span className="yt-theater-channel-sub">
-                          @{activeWatchPost.community.slug} • {activeWatchPost.community.privacy_type === 'private' ? 'Private Page' : 'Public Page'}
+                          @{activeWatchPost.community.slug} • Channel Owner: @{activeWatchPost.community.creator_username || activeWatchPost.author.username}
                         </span>
                       </div>
                       <button
@@ -1253,7 +1243,7 @@ export function WatchView({
 
               {/* Page Slug */}
               <div className="form-group">
-                <label>Page Handle / Slug *</label>
+                <label>Channel Handle / Unique Slug *</label>
                 <div className="slug-input-prefix-wrap">
                   <span className="slug-prefix">@</span>
                   <input
@@ -1264,7 +1254,9 @@ export function WatchView({
                     required
                   />
                 </div>
-                <small className="field-hint">Only lowercase letters, numbers, and underscores.</small>
+                <small className="field-hint">
+                  Only lowercase letters, numbers, and underscores. Together with your username @{user.username}, this makes your channel uniquely recognizable.
+                </small>
               </div>
 
               {/* Category */}
@@ -1280,58 +1272,15 @@ export function WatchView({
                 </select>
               </div>
 
-              {/* PRIVACY SELECTION: Public vs Private */}
-              <div className="form-group">
-                <label className="section-label">Privacy Mode (Video Upload Permission) *</label>
-                <div className="yt-privacy-cards-grid">
-                  {/* Public Page Card */}
-                  <div
-                    className={`yt-privacy-card ${pagePrivacy === 'public' ? 'selected' : ''}`}
-                    onClick={() => setPagePrivacy('public')}
-                  >
-                    <div className="privacy-card-header">
-                      <span className="privacy-icon-globe">
-                        <IconGlobe size={20} />
-                      </span>
-                      <div>
-                        <strong>Public Page</strong>
-                        <span className="privacy-tag public">Open Uploads</span>
-                      </div>
-                      <input
-                        type="radio"
-                        checked={pagePrivacy === 'public'}
-                        onChange={() => setPagePrivacy('public')}
-                      />
-                    </div>
-                    <p className="privacy-card-desc">
-                      Anyone can follow, and <strong>all page members can upload videos</strong> to this page. Ideal for collaborative groups & community channels.
-                    </p>
-                  </div>
-
-                  {/* Private Page Card */}
-                  <div
-                    className={`yt-privacy-card ${pagePrivacy === 'private' ? 'selected' : ''}`}
-                    onClick={() => setPagePrivacy('private')}
-                  >
-                    <div className="privacy-card-header">
-                      <span className="privacy-icon-lock">
-                        <IconLock size={20} />
-                      </span>
-                      <div>
-                        <strong>Private Page</strong>
-                        <span className="privacy-tag private">Admin Only Uploads</span>
-                      </div>
-                      <input
-                        type="radio"
-                        checked={pagePrivacy === 'private'}
-                        onChange={() => setPagePrivacy('private')}
-                      />
-                    </div>
-                    <p className="privacy-card-desc">
-                      Anyone can watch, like, comment & share, BUT <strong>only you (Page Admin) can upload videos</strong>. Ideal for personal creators & brands.
-                    </p>
-                  </div>
+              {/* Creator Channel Ownership Callout */}
+              <div className="yt-private-holder-callout">
+                <div className="holder-callout-header">
+                  <span className="holder-avatar-badge">@{user.username}</span>
+                  <strong>Channel Owner & Admin</strong>
                 </div>
+                <p>
+                  Just like YouTube channels, only you (the channel owner: <strong>@{user.username}</strong>) can upload videos. Viewers can subscribe, watch, like, comment, and share your content.
+                </p>
               </div>
 
               {/* Description */}
@@ -1368,20 +1317,18 @@ export function WatchView({
       )}
 
       {/* =========================================================================
-          MODAL 3: YOUTUBE VIDEO UPLOAD MODAL
+          MODAL 3: YOUTUBE STUDIO STYLE UPLOAD VIDEO MODAL
           ========================================================================= */}
       {isUploadVideoModal && (
         <div className="yt-modal-overlay" onClick={() => !uploadingVideo && setIsUploadVideoModal(false)}>
-          <div className="yt-modal-box yt-upload-video-modal" onClick={e => e.stopPropagation()}>
-            <div className="yt-modal-header">
-              <div className="yt-modal-title">
-                <span className="modal-title-icon">
-                  <IconVideoUpload size={20} />
-                </span>
-                <div>
-                  <h3>Upload Video</h3>
-                  <small>Publish a video to your page (YouTube style)</small>
-                </div>
+          <div
+            className="yt-modal-box yt-studio-upload-modal"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="yt-studio-modal-header">
+              <div className="yt-studio-header-title">
+                <h3>{selectedVideoFile ? (videoTitle || selectedVideoFile.name) : 'Upload videos'}</h3>
               </div>
               <button
                 type="button"
@@ -1394,182 +1341,352 @@ export function WatchView({
               </button>
             </div>
 
+            {/* Stepper Navigation (Only shown when file is selected) */}
+            {selectedVideoFile && (
+              <div className="yt-studio-stepper">
+                <div className="yt-studio-step active">
+                  <span className="step-num">1</span>
+                  <span className="step-label">Details</span>
+                </div>
+                <div className="yt-studio-step-line done" />
+                <div className="yt-studio-step active">
+                  <span className="step-num">2</span>
+                  <span className="step-label">Video elements</span>
+                </div>
+                <div className="yt-studio-step-line done" />
+                <div className="yt-studio-step active">
+                  <span className="step-num"><IconCheckSuccess size={13} /></span>
+                  <span className="step-label">Checks</span>
+                </div>
+                <div className="yt-studio-step-line active" />
+                <div className="yt-studio-step active">
+                  <span className="step-num">4</span>
+                  <span className="step-label">Visibility</span>
+                </div>
+              </div>
+            )}
+
             {uploadError && (
               <div className="yt-modal-error-banner">
                 <span>{uploadError}</span>
               </div>
             )}
 
-            <form onSubmit={handleUploadVideoSubmit} className="yt-modal-form">
-              {/* 1. Target Page Selection (User MUST have a page to upload) */}
-              <div className="form-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label>Select Your Page / Channel *</label>
-                  <button
-                    type="button"
-                    className="yt-view-all-link"
-                    style={{ fontSize: '11.5px' }}
-                    onClick={() => {
-                      setIsUploadVideoModal(false)
-                      setIsOpenPageModal(true)
-                    }}
-                  >
-                    + Open Another Page
-                  </button>
+            {/* Hidden file input */}
+            <input
+              type="file"
+              accept="video/*"
+              ref={videoInputRef}
+              onChange={handleVideoFileSelect}
+              style={{ display: 'none' }}
+            />
+
+            {!selectedVideoFile ? (
+              /* STAGE 1: YouTube Studio Initial Drag & Drop Zone */
+              <div
+                className={`yt-studio-dropzone-screen ${isDragging ? 'dragging' : ''}`}
+                onDragOver={e => {
+                  e.preventDefault()
+                  setIsDragging(true)
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={e => {
+                  e.preventDefault()
+                  setIsDragging(false)
+                  const file = e.dataTransfer.files?.[0]
+                  if (file) processVideoFile(file)
+                }}
+              >
+                <div
+                  className="yt-studio-upload-circle"
+                  onClick={() => videoInputRef.current?.click()}
+                  title="Click to select files"
+                >
+                  <IconStudioUpload size={64} />
                 </div>
 
-                {myPages.length === 0 ? (
-                  <div className="yt-no-pages-alert">
-                    <p>You must open a Page first to upload videos! Personal account video uploads are not allowed in Watch.</p>
-                    <button
-                      type="button"
-                      className="button button-primary button-small"
-                      onClick={() => {
-                        setIsUploadVideoModal(false)
-                        setIsOpenPageModal(true)
-                      }}
-                    >
-                      + Open a Page Now
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <select
-                      value={uploadTargetSlug}
-                      onChange={e => setUploadTargetSlug(e.target.value)}
-                      required
-                    >
-                      {myPages.map(p => {
-                        const isPrivate = p.privacy_type === 'private'
-                        return (
-                          <option
-                            key={p.id}
-                            value={p.slug}
-                          >
-                            {p.name} (@{p.slug}) — {isPrivate ? 'Private Page' : 'Public Page'}
-                          </option>
-                        )
-                      })}
-                    </select>
+                <h2 className="yt-studio-dropzone-title">Drag and drop video files to upload</h2>
+                <p className="yt-studio-dropzone-subtitle">Your videos will be private until you publish them.</p>
 
-                    <div className="yt-upload-channel-note">
-                      <IconPage size={13} />
-                      <span>
-                        This video will be published under your Page <strong>@{uploadTargetSlug}</strong> and will also appear on your personal profile timeline.
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* 2. Video File Picker */}
-              <div className="form-group">
-                <label>Select Video File (MP4, WebM, MOV - Max 250MB) *</label>
-                <input
-                  type="file"
-                  accept="video/*"
-                  ref={videoInputRef}
-                  onChange={handleVideoFileSelect}
-                  style={{ display: 'none' }}
-                />
-
-                {!selectedVideoFile ? (
-                  <div
-                    className="yt-dropzone"
-                    onClick={() => videoInputRef.current?.click()}
-                  >
-                    <div className="dropzone-icon">
-                      <IconUploadCloud size={46} />
-                    </div>
-                    <strong>Click or drag video here to upload</strong>
-                    <p>Supports MP4, WebM, MOV format up to 1080p</p>
-                    <button type="button" className="button button-secondary button-small">
-                      Browse Files
-                    </button>
-                  </div>
-                ) : (
-                  <div className="yt-selected-file-preview">
-                    {videoPreviewUrl && (
-                      <video
-                        src={videoPreviewUrl}
-                        controls
-                        className="yt-upload-preview-player"
-                      />
-                    )}
-                    <div className="yt-file-meta-bar">
-                      <div className="file-info">
-                        <strong>{selectedVideoFile.name}</strong>
-                        <span>{(selectedVideoFile.size / (1024 * 1024)).toFixed(2)} MB</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="button button-danger button-small"
-                        onClick={() => {
-                          setSelectedVideoFile(null)
-                          if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl)
-                          setVideoPreviewUrl(null)
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* 3. Title */}
-              <div className="form-group">
-                <label>Video Title *</label>
-                <input
-                  type="text"
-                  placeholder="Add a captivating video title..."
-                  value={videoTitle}
-                  onChange={e => setVideoTitle(e.target.value)}
-                  required
-                />
-              </div>
-
-              {/* 4. Description */}
-              <div className="form-group">
-                <label>Video Description & Tags</label>
-                <textarea
-                  rows={3}
-                  placeholder="Tell viewers what your video is about, links, hashtags..."
-                  value={videoDescription}
-                  onChange={e => setVideoDescription(e.target.value)}
-                />
-              </div>
-
-              {/* Uploading Status Bar */}
-              {uploadingVideo && (
-                <div className="yt-upload-progress-box">
-                  <div className="progress-spinner-row">
-                    <span className="spinner" />
-                    <strong>Uploading and encoding 1080p video...</strong>
-                  </div>
-                  <p>Please do not close this window while your video is processing.</p>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="yt-modal-actions">
                 <button
                   type="button"
-                  className="button button-secondary"
-                  disabled={uploadingVideo}
-                  onClick={() => setIsUploadVideoModal(false)}
+                  className="button button-primary yt-studio-select-btn"
+                  onClick={() => videoInputRef.current?.click()}
                 >
-                  Cancel
+                  SELECT FILES
                 </button>
-                <button
-                  type="submit"
-                  disabled={uploadingVideo || !selectedVideoFile || !videoTitle.trim()}
-                  className="button button-primary yt-upload-submit-btn"
-                >
-                  {uploadingVideo ? 'Uploading Video...' : 'Publish Video Now'}
-                </button>
+
+                <div className="yt-studio-disclaimer">
+                  <p>
+                    Supports MP4, WebM, MOV up to 250MB. Videos are automatically encoded into 1080p Full HD format.
+                  </p>
+                  <small>
+                    By submitting your videos to Gather Watch, you acknowledge that you agree to Gather's Terms of Service and Community Guidelines.
+                  </small>
+                </div>
               </div>
-            </form>
+            ) : (
+              /* STAGE 2: YouTube Studio 2-Column Details & Preview Screen */
+              <form onSubmit={handleUploadVideoSubmit} className="yt-studio-editor-form">
+                <div className="yt-studio-editor-scroll">
+                  <div className="yt-studio-editor-grid">
+                    {/* Left Column: Details & Settings */}
+                    <div className="yt-studio-left-col">
+                      <div className="yt-studio-section-heading">
+                        <h4>Details</h4>
+                      </div>
+
+                      {/* Title field */}
+                      <div className="yt-studio-field-card">
+                        <div className="yt-studio-field-header">
+                          <label>Title (required)</label>
+                          <span className="yt-char-counter">{videoTitle.length}/100</span>
+                        </div>
+                        <input
+                          type="text"
+                          maxLength={100}
+                          placeholder="Add a title that describes your video"
+                          value={videoTitle}
+                          onChange={e => setVideoTitle(e.target.value)}
+                          required
+                          className="yt-studio-input"
+                        />
+                      </div>
+
+                      {/* Description field */}
+                      <div className="yt-studio-field-card">
+                        <div className="yt-studio-field-header">
+                          <label>Description</label>
+                          <span className="yt-char-counter">{videoDescription.length}/5000</span>
+                        </div>
+                        <textarea
+                          rows={4}
+                          maxLength={5000}
+                          placeholder="Tell viewers about your video (type @ to mention a channel or # to add tags)"
+                          value={videoDescription}
+                          onChange={e => setVideoDescription(e.target.value)}
+                          className="yt-studio-textarea"
+                        />
+                      </div>
+
+                      {/* Publishing Channel Selector */}
+                      <div className="yt-studio-field-card">
+                        <div className="yt-studio-field-header">
+                          <label>Publish to Channel</label>
+                          <button
+                            type="button"
+                            className="yt-view-all-link"
+                            style={{ fontSize: '11.5px' }}
+                            onClick={() => {
+                              setIsUploadVideoModal(false)
+                              setIsOpenPageModal(true)
+                            }}
+                          >
+                            + Open Another Page
+                          </button>
+                        </div>
+                        <select
+                          value={uploadTargetSlug}
+                          onChange={e => setUploadTargetSlug(e.target.value)}
+                          className="yt-studio-select"
+                        >
+                          {/* If no custom channels yet, user's default channel is available */}
+                          {myPages.length === 0 ? (
+                            <option value={user.username}>
+                              Personal Creator Channel (@{user.username})
+                            </option>
+                          ) : (
+                            <>
+                              <option value={user.username}>
+                                Personal Creator Channel (@{user.username})
+                              </option>
+                              {myPages.map(p => (
+                                <option key={p.id} value={p.slug}>
+                                  {p.name} (@{p.slug})
+                                </option>
+                              ))}
+                            </>
+                          )}
+                        </select>
+                        <div className="yt-upload-channel-note" style={{ marginTop: '6px' }}>
+                          <IconShieldCheck size={14} />
+                          <span>
+                            Channel Owner: <strong>@{user.username}</strong>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Category & Tags Row */}
+                      <div className="yt-studio-two-inputs">
+                        <div className="yt-studio-field-card" style={{ flex: 1 }}>
+                          <label>Category</label>
+                          <select
+                            value={videoCategory}
+                            onChange={e => setVideoCategory(e.target.value)}
+                            className="yt-studio-select"
+                          >
+                            {CATEGORIES.filter(c => c !== 'All' && c !== 'My Pages').map(c => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="yt-studio-field-card" style={{ flex: 1 }}>
+                          <label>Tags (Comma separated)</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. tech, review, tutorial"
+                            value={videoTags}
+                            onChange={e => setVideoTags(e.target.value)}
+                            className="yt-studio-input"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Audience Section (YouTube style) */}
+                      <div className="yt-studio-audience-card">
+                        <h5>Audience</h5>
+                        <p>Is this video "Made for Kids"? (Required by YouTube & global standards)</p>
+                        <div className="yt-audience-options">
+                          <label className="yt-radio-label">
+                            <input
+                              type="radio"
+                              name="audience"
+                              value="not-for-kids"
+                              checked={videoAudience === 'not-for-kids'}
+                              onChange={() => setVideoAudience('not-for-kids')}
+                            />
+                            <span>No, it's not made for kids (Default)</span>
+                          </label>
+                          <label className="yt-radio-label">
+                            <input
+                              type="radio"
+                              name="audience"
+                              value="kids"
+                              checked={videoAudience === 'kids'}
+                              onChange={() => setVideoAudience('kids')}
+                            />
+                            <span>Yes, it's made for kids</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Mini Video Card & Preview */}
+                    <div className="yt-studio-right-col">
+                      <div className="yt-studio-preview-card">
+                        {videoPreviewUrl && (
+                          <div className="yt-studio-video-wrapper">
+                            <video
+                              src={videoPreviewUrl}
+                              controls
+                              className="yt-studio-video-player"
+                            />
+                            <span className="yt-badge-resolution">1080p FHD</span>
+                          </div>
+                        )}
+
+                        <div className="yt-studio-card-meta">
+                          <div className="yt-studio-link-box">
+                            <span className="link-title">Video link</span>
+                            <div className="link-row">
+                              <span className="link-text">
+                                {window.location.origin}/#video-preview
+                              </span>
+                              <button
+                                type="button"
+                                className="yt-copy-btn"
+                                onClick={() => {
+                                  navigator.clipboard?.writeText(`${window.location.origin}/#video-preview`)
+                                  setCopiedPreviewLink(true)
+                                  setTimeout(() => setCopiedPreviewLink(false), 2500)
+                                }}
+                                title="Copy video link"
+                              >
+                                {copiedPreviewLink ? '✓' : <IconCopyBtn size={15} />}
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="yt-studio-info-row">
+                            <span className="info-label">Filename</span>
+                            <span className="info-val" title={selectedVideoFile.name}>
+                              {selectedVideoFile.name}
+                            </span>
+                          </div>
+
+                          <div className="yt-studio-info-row">
+                            <span className="info-label">File size</span>
+                            <span className="info-val">
+                              {(selectedVideoFile.size / (1024 * 1024)).toFixed(2)} MB
+                            </span>
+                          </div>
+
+                          <div className="yt-studio-checks-badge">
+                            <IconCheckSuccess size={16} />
+                            <div>
+                              <strong>Checks complete</strong>
+                              <small>No copyright or encoding issues found.</small>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Uploading Status Progress */}
+                {uploadingVideo && (
+                  <div className="yt-upload-progress-box" style={{ margin: '0 24px 16px' }}>
+                    <div className="progress-spinner-row">
+                      <span className="spinner" />
+                      <strong>Uploading & encoding 1080p Full HD video...</strong>
+                    </div>
+                    <p>Please keep this tab open while your video is processed and published.</p>
+                  </div>
+                )}
+
+                {/* Modal Footer */}
+                <div className="yt-studio-footer">
+                  <div className="yt-studio-footer-status">
+                    <IconCheckSuccess size={16} />
+                    <span>Saved as draft • Ready to publish</span>
+                  </div>
+
+                  <div className="yt-studio-footer-actions">
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      disabled={uploadingVideo}
+                      onClick={() => {
+                        setSelectedVideoFile(null)
+                        if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl)
+                        setVideoPreviewUrl(null)
+                      }}
+                    >
+                      Change Video
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      disabled={uploadingVideo}
+                      onClick={() => setIsUploadVideoModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={uploadingVideo || !videoTitle.trim()}
+                      className="button button-primary yt-upload-submit-btn"
+                    >
+                      {uploadingVideo ? 'Uploading...' : 'Publish Video'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

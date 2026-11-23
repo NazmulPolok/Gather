@@ -24,7 +24,9 @@ class CommunitySummary(BaseModel):
     member_count: int = 0
     is_member: bool = False
     is_admin: bool = False
-    can_upload_video: bool = True
+    can_upload_video: bool = False
+    creator_username: str | None = None
+    creator_name: str | None = None
 
     model_config = {"from_attributes": True}
 

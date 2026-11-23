@@ -1,6 +1,43 @@
 import { useState, type FormEvent } from 'react'
 import { api, type AuthResponse } from '../api/client'
 
+function EyeIcon({ visible }: { visible: boolean }) {
+  if (visible) {
+    return (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+        <line x1="1" y1="1" x2="23" y2="23" />
+      </svg>
+    )
+  }
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
 export function AuthForm({ onSignedIn }: { onSignedIn: (result: AuthResponse) => void }) {
   const [mode, setMode] = useState<'signup' | 'login' | 'forgot'>('signup')
   const [forgotStep, setForgotStep] = useState<'request' | 'verify'>('request')
@@ -12,6 +49,8 @@ export function AuthForm({ onSignedIn }: { onSignedIn: (result: AuthResponse) =>
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -24,6 +63,8 @@ export function AuthForm({ onSignedIn }: { onSignedIn: (result: AuthResponse) =>
     setOtp('')
     setPassword('')
     setConfirmPassword('')
+    setShowPassword(false)
+    setShowConfirmPassword(false)
   }
 
   async function handleRequestOTP(event: FormEvent<HTMLFormElement>) {
@@ -145,8 +186,8 @@ export function AuthForm({ onSignedIn }: { onSignedIn: (result: AuthResponse) =>
 
         {mode !== 'forgot' ? (
           <div className="auth-tabs" role="tablist" aria-label="Account access">
-            <button type="button" role="tab" aria-selected={mode === 'signup'} className={mode === 'signup' ? 'selected' : ''} onClick={() => { setMode('signup'); setError('') }}>Create account</button>
-            <button type="button" role="tab" aria-selected={mode === 'login'} className={mode === 'login' ? 'selected' : ''} onClick={() => { setMode('login'); setError('') }}>Sign in</button>
+            <button type="button" role="tab" aria-selected={mode === 'signup'} className={mode === 'signup' ? 'selected' : ''} onClick={() => { setMode('signup'); setError(''); setShowPassword(false) }}>Create account</button>
+            <button type="button" role="tab" aria-selected={mode === 'login'} className={mode === 'login' ? 'selected' : ''} onClick={() => { setMode('login'); setError(''); setShowPassword(false) }}>Sign in</button>
           </div>
         ) : (
           <div className="auth-back-row">
@@ -206,28 +247,54 @@ export function AuthForm({ onSignedIn }: { onSignedIn: (result: AuthResponse) =>
               <label htmlFor="new-password">New password</label>
               <span>At least 8 characters</span>
             </div>
-            <input
-              id="new-password"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              placeholder="Enter new password"
-              required
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-            />
+            <div className="password-input-wrapper">
+              <input
+                id="new-password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                minLength={8}
+                placeholder="Enter new password"
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
+              {password.length > 0 && (
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword(prev => !prev)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  <EyeIcon visible={showPassword} />
+                </button>
+              )}
+            </div>
 
             <label htmlFor="confirm-new-password">Confirm new password</label>
-            <input
-              id="confirm-new-password"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              placeholder="Re-enter new password"
-              required
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-            />
+            <div className="password-input-wrapper">
+              <input
+                id="confirm-new-password"
+                type={showConfirmPassword ? 'text' : 'password'}
+                autoComplete="new-password"
+                minLength={8}
+                placeholder="Re-enter new password"
+                required
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+              />
+              {confirmPassword.length > 0 && (
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowConfirmPassword(prev => !prev)}
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  <EyeIcon visible={showConfirmPassword} />
+                </button>
+              )}
+            </div>
 
             {error && <div className="alert" role="alert">{error}</div>}
 
@@ -270,6 +337,8 @@ export function AuthForm({ onSignedIn }: { onSignedIn: (result: AuthResponse) =>
                     setNotice('')
                     setPassword('')
                     setConfirmPassword('')
+                    setShowPassword(false)
+                    setShowConfirmPassword(false)
                   }}
                 >
                   Forgot password?
@@ -277,16 +346,29 @@ export function AuthForm({ onSignedIn }: { onSignedIn: (result: AuthResponse) =>
               )}
               {mode === 'signup' && <span>At least 8 characters</span>}
             </div>
-            <input
-              id="password"
-              type="password"
-              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-              minLength={mode === 'signup' ? 8 : undefined}
-              placeholder="Enter your password"
-              required
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-            />
+            <div className="password-input-wrapper">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                minLength={mode === 'signup' ? 8 : undefined}
+                placeholder="Enter your password"
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
+              {password.length > 0 && (
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword(prev => !prev)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  <EyeIcon visible={showPassword} />
+                </button>
+              )}
+            </div>
 
             {error && <div className="alert" role="alert">{error}</div>}
             <button className="button button-primary auth-submit" disabled={busy}>

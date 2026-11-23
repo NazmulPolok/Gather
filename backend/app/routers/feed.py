@@ -66,8 +66,16 @@ def _build_community_summary(community: Community, current_user_id: int, db: Ses
     privacy_type = getattr(community, "privacy_type", "public") or "public"
     category = getattr(community, "category", "General") or "General"
 
-    # Private pages: only admins can upload videos. Public pages: any user/member can upload videos.
-    can_upload_video = is_admin if privacy_type == "private" else True
+    # In Watch: only channel owners/admins can upload videos (like YouTube)
+    can_upload_video = is_admin
+
+    creator_username = None
+    creator_name = None
+    if community.created_by_id:
+        creator_user = community.creator or db.get(User, community.created_by_id)
+        if creator_user:
+            creator_username = creator_user.username
+            creator_name = f"{creator_user.first_name} {creator_user.last_name}".strip()
 
     return CommunitySummary(
         id=community.id,
@@ -82,6 +90,8 @@ def _build_community_summary(community: Community, current_user_id: int, db: Ses
         is_member=is_member,
         is_admin=is_admin,
         can_upload_video=can_upload_video,
+        creator_username=creator_username,
+        creator_name=creator_name,
     )
 
 
@@ -470,19 +480,42 @@ def create_post(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> PostResponse:
+    community = None
     if payload.community_id:
         community = db.scalar(select(Community).where(Community.id == payload.community_id))
-    elif payload.community_slug:
-        community = db.scalar(select(Community).where(Community.slug == payload.community_slug.lower()))
-    else:
-        raise HTTPException(status_code=400, detail="Community is required")
+    elif payload.community_slug and payload.community_slug.strip():
+        community = db.scalar(select(Community).where(Community.slug == payload.community_slug.strip().lower()))
+
+    # If community not found and video is being uploaded, check or auto-create user's creator channel
+    if not community and payload.video_url:
+        community = db.scalar(select(Community).where(Community.created_by_id == user.id))
+        if not community:
+            import re
+            default_slug = re.sub(r'[^a-z0-9_]', '', user.username.lower()) or f"user_{user.id}"
+            existing = db.scalar(select(Community).where(Community.slug == default_slug))
+            if existing:
+                default_slug = f"{default_slug}_{user.id}"
+            channel_name = f"{user.first_name} {user.last_name}".strip() or user.username
+            community = Community(
+                name=channel_name,
+                slug=default_slug,
+                description=f"Official channel of @{user.username}",
+                privacy_type="private",
+                category="General",
+                created_by_id=user.id,
+            )
+            db.add(community)
+            db.flush()
+            db.add(CommunityMember(community_id=community.id, user_id=user.id, role="admin"))
+            db.commit()
+            db.refresh(community)
 
     if not community:
-        raise HTTPException(status_code=404, detail="Community not found")
+        raise HTTPException(status_code=400, detail="Community is required")
 
-    # Private Page Video Upload Restriction:
-    # If the page/community is private, ONLY admins/creator can upload videos.
-    if payload.video_url and getattr(community, "privacy_type", "public") == "private":
+    # Watch Video Upload Restriction:
+    # Like YouTube, only the channel owner or admin can upload videos.
+    if payload.video_url:
         is_creator = community.created_by_id == user.id
         role = db.scalar(
             select(CommunityMember.role).where(
@@ -493,7 +526,7 @@ def create_post(
         if not (is_creator or role == "admin"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="This is a private page. Only the page admin can upload videos.",
+                detail="In Watch, only the channel owner or admin can upload videos.",
             )
 
     post = Post(
