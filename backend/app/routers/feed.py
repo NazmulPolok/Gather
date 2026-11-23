@@ -23,6 +23,7 @@ from app.schemas.feed import (
     CommentResponse,
     CommunityCreate,
     CommunitySummary,
+    JoinRequestResponse,
     PostCreate,
     PostResponse,
     PostUpdate,
@@ -50,8 +51,12 @@ def _get_author_summary(user: User) -> AuthorSummary:
 
 
 def _build_community_summary(community: Community, current_user_id: int, db: Session) -> CommunitySummary:
+    # Only active members (not pending)
     member_count = db.scalar(
-        select(func.count(CommunityMember.id)).where(CommunityMember.community_id == community.id)
+        select(func.count(CommunityMember.id)).where(
+            CommunityMember.community_id == community.id,
+            CommunityMember.role.in_(["member", "admin"]),
+        )
     ) or 0
 
     role = db.scalar(
@@ -61,13 +66,31 @@ def _build_community_summary(community: Community, current_user_id: int, db: Ses
         )
     )
     is_admin = (community.created_by_id == current_user_id) or (role == "admin")
-    is_member = (role is not None) or is_admin
+    is_pending = role == "pending"
+    is_member = (role in ["member", "admin"]) or is_admin
 
     privacy_type = getattr(community, "privacy_type", "public") or "public"
+    join_rule = getattr(community, "join_rule", "open") or "open"
     category = getattr(community, "category", "General") or "General"
 
-    # In Watch: only channel owners/admins can upload videos (like YouTube)
+    # In Private Community: only admin can post.
+    # In Public Page: all members can post.
+    if privacy_type == "private":
+        can_post = is_admin
+    else:
+        can_post = True
+
+    # In Watch: only channel owners/admins can upload videos
     can_upload_video = is_admin
+
+    pending_requests_count = 0
+    if is_admin:
+        pending_requests_count = db.scalar(
+            select(func.count(CommunityMember.id)).where(
+                CommunityMember.community_id == community.id,
+                CommunityMember.role == "pending",
+            )
+        ) or 0
 
     creator_username = None
     creator_name = None
@@ -85,11 +108,15 @@ def _build_community_summary(community: Community, current_user_id: int, db: Ses
         avatar_url=community.avatar_url,
         banner_url=community.banner_url,
         privacy_type=privacy_type,
+        join_rule=join_rule,
         category=category,
         member_count=member_count,
         is_member=is_member,
         is_admin=is_admin,
+        is_pending=is_pending,
+        can_post=can_post,
         can_upload_video=can_upload_video,
+        pending_requests_count=pending_requests_count,
         creator_username=creator_username,
         creator_name=creator_name,
     )
@@ -190,6 +217,7 @@ def create_community(
         slug=payload.slug,
         description=payload.description,
         privacy_type=payload.privacy_type or "public",
+        join_rule=payload.join_rule or "open",
         category=payload.category or "General",
         avatar_url=payload.avatar_url,
         banner_url=payload.banner_url,
@@ -243,18 +271,147 @@ def join_community(
             CommunityMember.user_id == user.id,
         )
     )
+
+    is_private_approval = (
+        getattr(community, "privacy_type", "public") == "private"
+        and getattr(community, "join_rule", "open") == "approval"
+    )
+
     if not existing:
+        new_role = "pending" if is_private_approval else "member"
         member = CommunityMember(
             community_id=community.id,
             user_id=user.id,
-            role="member",
+            role=new_role,
         )
         db.add(member)
         db.commit()
         cache.delete_pattern("gather:communities:*")
         invalidate_feed()
+        return {"status": "pending" if is_private_approval else "joined", "slug": slug}
+
+    if existing.role == "pending":
+        return {"status": "pending", "slug": slug}
 
     return {"status": "joined", "slug": slug}
+
+
+@router.get("/feed/communities/{slug}/requests", response_model=list[JoinRequestResponse])
+def get_pending_join_requests(
+    slug: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[JoinRequestResponse]:
+    community = db.scalar(select(Community).where(Community.slug == slug.lower()))
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found")
+
+    is_admin = (community.created_by_id == user.id) or (
+        db.scalar(
+            select(CommunityMember.role).where(
+                CommunityMember.community_id == community.id,
+                CommunityMember.user_id == user.id,
+            )
+        ) == "admin"
+    )
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Only admins can view join requests.")
+
+    pending_rows = db.execute(
+        select(CommunityMember, User)
+        .join(User, CommunityMember.user_id == User.id)
+        .where(
+            CommunityMember.community_id == community.id,
+            CommunityMember.role == "pending",
+        )
+        .order_by(CommunityMember.joined_at.desc())
+    ).all()
+
+    return [
+        JoinRequestResponse(
+            user_id=u.id,
+            name=f"{u.first_name} {u.last_name}".strip() or u.username,
+            username=u.username,
+            avatar_url=u.avatar_url,
+            requested_at=cm.joined_at,
+        )
+        for cm, u in pending_rows
+    ]
+
+
+@router.post("/feed/communities/{slug}/requests/{target_user_id}/approve")
+def approve_join_request(
+    slug: str,
+    target_user_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, str]:
+    community = db.scalar(select(Community).where(Community.slug == slug.lower()))
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found")
+
+    is_admin = (community.created_by_id == user.id) or (
+        db.scalar(
+            select(CommunityMember.role).where(
+                CommunityMember.community_id == community.id,
+                CommunityMember.user_id == user.id,
+            )
+        ) == "admin"
+    )
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Only admins can approve join requests.")
+
+    membership = db.scalar(
+        select(CommunityMember).where(
+            CommunityMember.community_id == community.id,
+            CommunityMember.user_id == target_user_id,
+        )
+    )
+    if not membership:
+        raise HTTPException(status_code=404, detail="Join request not found.")
+
+    membership.role = "member"
+    db.commit()
+    cache.delete_pattern("gather:communities:*")
+    invalidate_feed()
+    return {"status": "approved", "user_id": str(target_user_id)}
+
+
+@router.post("/feed/communities/{slug}/requests/{target_user_id}/reject")
+def reject_join_request(
+    slug: str,
+    target_user_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, str]:
+    community = db.scalar(select(Community).where(Community.slug == slug.lower()))
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found")
+
+    is_admin = (community.created_by_id == user.id) or (
+        db.scalar(
+            select(CommunityMember.role).where(
+                CommunityMember.community_id == community.id,
+                CommunityMember.user_id == user.id,
+            )
+        ) == "admin"
+    )
+    if not is_admin:
+        raise HTTPException(status_code=403, detail="Only admins can reject join requests.")
+
+    membership = db.scalar(
+        select(CommunityMember).where(
+            CommunityMember.community_id == community.id,
+            CommunityMember.user_id == target_user_id,
+        )
+    )
+    if membership:
+        db.delete(membership)
+        db.commit()
+        cache.delete_pattern("gather:communities:*")
+        invalidate_feed()
+
+    return {"status": "rejected", "user_id": str(target_user_id)}
 
 
 @router.post("/communities/{slug}/leave")
@@ -513,21 +670,28 @@ def create_post(
     if not community:
         raise HTTPException(status_code=400, detail="Community is required")
 
-    # Watch Video Upload Restriction:
-    # Like YouTube, only the channel owner or admin can upload videos.
-    if payload.video_url:
-        is_creator = community.created_by_id == user.id
-        role = db.scalar(
-            select(CommunityMember.role).where(
-                CommunityMember.community_id == community.id,
-                CommunityMember.user_id == user.id,
-            )
+    # Posting Permission Rules:
+    # 1. Private Community: Only admin can post! (Admin can post text, images, and videos).
+    # 2. Public Page: Open for all and every member can post text, images, and videos!
+    is_creator = community.created_by_id == user.id
+    role = db.scalar(
+        select(CommunityMember.role).where(
+            CommunityMember.community_id == community.id,
+            CommunityMember.user_id == user.id,
         )
-        if not (is_creator or role == "admin"):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="In Watch, only the channel owner or admin can upload videos.",
-            )
+    )
+    is_admin = is_creator or (role == "admin")
+
+    if community.privacy_type == "private" and not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="In a Private Community, only the Admin can create posts. Members can view, like, and comment.",
+        )
+
+    # In Public Page: every member can post. If not joined yet, auto-join as member
+    if community.privacy_type == "public" and not role and not is_creator:
+        db.add(CommunityMember(community_id=community.id, user_id=user.id, role="member"))
+        db.commit()
 
     post = Post(
         community_id=community.id,

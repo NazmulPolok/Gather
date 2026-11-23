@@ -32,6 +32,45 @@ Build a group chat web app (the original request said “group cheating”; inte
 - Version 2 media storage: use object storage (for example S3-compatible storage); PostgreSQL should store media metadata/object keys, not image/video binaries.
 - Vercel hosts the frontend. The Dockerized backend runs separately and is reached through HTTPS/WSS. Do not assume Vercel will run the backend's Docker container.
 
+## Professional & Realistic Design Standards (Engineering & UX Guidelines)
+
+Any feature, component, modal, or UI update implemented in this repository must follow strict professional standards and must never look like an unpolished, naive, or generic AI-generated prototype. All interfaces must feel as if they were designed and crafted by a Senior Product Designer and Senior Frontend Engineer at a tier-1 technology company (benchmarked against Meta/Facebook, Reddit, Discord, YouTube, Twitter/X, Stripe, and GitHub).
+
+### Core Design Rules for Every Feature
+
+1. **Real-Life UX Patterns & Hierarchy:**
+   - Always study and reference real-world social platforms for user interaction flows (e.g. Reddit's community creator, Facebook's page setup, Discord's server creation, Twitter's space settings).
+   - Never use raw/unformatted inputs, disconnected floating badges, misaligned prefixes, or naive emojis as primary UI scaffolding.
+   - Use clean, accessible SVG vector icons (Lucide / Heroicons style) encased in subtle tinted badges instead of cheesy raw emojis.
+
+2. **Form Controls & Input Groups:**
+   - **Unified Input Groups:** Web addresses, handles, or slugs must use single-container input groups with an integrated prefix addon (e.g., `[ https://gather.app/p/ | photography ]`) rather than floating disconnected badges or mismatched boxes.
+   - **Custom Styled Selects:** Never leave raw browser `<select>` controls unstyled. Wrap with custom SVG carets, border-radius, clean hover and focus rings.
+   - **Character Counters & Hints:** Provide clear character indicators (e.g., `12/60`), subtle validation rules, and context helper text.
+   - **Focus & Hover States:** Subtle, smooth transitions with brand focus rings (`box-shadow: 0 0 0 3px rgba(37,99,235,0.15)`), never harsh browser default outlines.
+
+3. **Interactive Selection Cards:**
+   - Multi-option selectors (e.g., Public vs Private spaces, membership policies) must be designed as cohesive option cards with:
+     - Clear title, 1-line sub-tagline, and concise value proposition.
+     - Subtle tinted vector icon box.
+     - Radio or checkmark indicator showing active state.
+     - Smooth hover elevation and brand accent border on selection.
+
+4. **Action Buttons & Feedback:**
+   - **High-contrast, intentional buttons:** Never use faded, washed-out, or disabled-looking pastel colors for active action buttons.
+   - Clear visual hierarchy: Solid brand primary button (`#2563eb` with active/hover transitions and subtle shadow) vs clean ghost/outline secondary button.
+   - Interactive loading states with animated spinners (`Creating…`) and proper disabled state styling when invalid.
+
+5. **Live Previews & Real-time Context:**
+   - When users configure a space, page, profile, or post, provide an inline or live preview card displaying how the final item will appear to other users.
+
+6. **Modals & Overlays:**
+   - Modern modal styling: `backdrop-filter: blur(8px)`, generous rounded corners (16–20px), multi-layer depth shadows (`box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25)`).
+   - Structured layout: Header with title, context subtitle, and accessible `✕` close button; scrollable body; and sticky/anchored footer with actions.
+   - Full dark mode (`:root[data-theme="dark"]`) compatibility for all borders, backgrounds, text contrasts, and states.
+
+---
+
 ## Product requirements
 
 - Sign up and sign in.
@@ -229,3 +268,13 @@ These entries summarize prior work and requests gathered before this maintenance
 - Outcome: Removed the VS Code/Codex-terminal requirement from the status and Codex setup history.
 - Outcome: Added a clear rule that project-aware agents, including Antigravity and future coding assistants, must follow this file.
 - Files changed: `CODEX.md`.
+
+### 2026-11-23: Professional & Realistic UI Standards and Create Modal Redesign
+
+- Request: Redesign the "Create Page or Community" modal so it looks realistic, polished, and built by a senior professional developer rather than an AI generator, benchmarking top social platforms (Reddit, Facebook, Discord, Twitter). Add explicit permanent engineering guidelines in `CODEX.md` so all future additions/updates adhere to realistic, professional standards.
+- Outcome:
+  - Documented permanent "Professional & Realistic Design Standards (Engineering & UX Guidelines)" in `CODEX.md`.
+  - Redesigned the "Create Space" modal in `frontend/src/feed/NewsFeed.tsx` with modern SVG icons, clean segmented option cards, integrated URL input group (`gather.app/p/slug`), custom styled selects, character counters, live preview card, and crisp action buttons.
+  - Added modern, high-contrast, production-ready styles in `frontend/src/styles.css` with full light/dark mode support.
+- Files changed: `CODEX.md`, `frontend/src/feed/NewsFeed.tsx`, `frontend/src/styles.css`.
+- Verification: Built frontend with `npm run build` (0 TypeScript / Vite errors) and tested live HMR.

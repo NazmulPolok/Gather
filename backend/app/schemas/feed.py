@@ -20,13 +20,27 @@ class CommunitySummary(BaseModel):
     avatar_url: str | None = None
     banner_url: str | None = None
     privacy_type: str = "public"
+    join_rule: str = "open"
     category: str | None = "General"
     member_count: int = 0
     is_member: bool = False
     is_admin: bool = False
+    is_pending: bool = False
+    can_post: bool = True
     can_upload_video: bool = False
+    pending_requests_count: int = 0
     creator_username: str | None = None
     creator_name: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class JoinRequestResponse(BaseModel):
+    user_id: int
+    name: str
+    username: str
+    avatar_url: str | None = None
+    requested_at: datetime
 
     model_config = {"from_attributes": True}
 
@@ -36,6 +50,7 @@ class CommunityCreate(BaseModel):
     slug: str = Field(min_length=2, max_length=32)
     description: str | None = Field(default=None, max_length=1000)
     privacy_type: str = Field(default="public", pattern="^(public|private)$")
+    join_rule: str = Field(default="open", pattern="^(open|approval)$")
     category: str | None = Field(default="General", max_length=64)
     avatar_url: str | None = Field(default=None, max_length=512)
     banner_url: str | None = Field(default=None, max_length=512)

@@ -13,6 +13,7 @@ class Community(Base):
     slug: Mapped[str] = mapped_column(String(32), unique=True, index=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     privacy_type: Mapped[str] = mapped_column(String(16), default="public", nullable=False)
+    join_rule: Mapped[str] = mapped_column(String(16), default="open", nullable=False)
     category: Mapped[str | None] = mapped_column(String(64), default="General", nullable=True)
     avatar_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     banner_url: Mapped[str | None] = mapped_column(String(512), nullable=True)

@@ -162,6 +162,14 @@ export type AuthorSummary = {
   avatar_url?: string | null
 }
 
+export type JoinRequestItem = {
+  user_id: number
+  name: string
+  username: string
+  avatar_url?: string | null
+  requested_at: string
+}
+
 export type CommunitySummary = {
   id: number
   name: string
@@ -170,11 +178,15 @@ export type CommunitySummary = {
   avatar_url?: string | null
   banner_url?: string | null
   privacy_type?: 'public' | 'private'
+  join_rule?: 'open' | 'approval'
   category?: string | null
   member_count: number
   is_member: boolean
   is_admin?: boolean
+  is_pending?: boolean
+  can_post?: boolean
   can_upload_video?: boolean
+  pending_requests_count?: number
   creator_username?: string | null
   creator_name?: string | null
 }
@@ -303,7 +315,17 @@ export const api = {
     request<{ status: string; user_id: number; role: string }>(`/api/groups/${groupId}/members/${userId}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }, token),
   getCommunities: (token: string) =>
     request<CommunitySummary[]>('/api/communities', {}, token),
-  createCommunity: (token: string, name: string, slug: string, description?: string, privacy_type: 'public' | 'private' = 'public', category?: string, avatar_url?: string, banner_url?: string) =>
+  createCommunity: (
+    token: string,
+    name: string,
+    slug: string,
+    description?: string,
+    privacy_type: 'public' | 'private' = 'public',
+    join_rule: 'open' | 'approval' = 'open',
+    category?: string,
+    avatar_url?: string,
+    banner_url?: string
+  ) =>
     request<CommunitySummary>('/api/communities', {
       method: 'POST',
       body: JSON.stringify({
@@ -311,10 +333,21 @@ export const api = {
         slug,
         description: description || null,
         privacy_type,
+        join_rule,
         category: category || 'General',
         avatar_url: avatar_url || null,
         banner_url: banner_url || null,
       }),
+    }, token),
+  getJoinRequests: (token: string, slug: string) =>
+    request<JoinRequestItem[]>(`/api/feed/communities/${encodeURIComponent(slug)}/requests`, {}, token),
+  approveJoinRequest: (token: string, slug: string, userId: number) =>
+    request<{ status: string; user_id: string }>(`/api/feed/communities/${encodeURIComponent(slug)}/requests/${userId}/approve`, {
+      method: 'POST',
+    }, token),
+  rejectJoinRequest: (token: string, slug: string, userId: number) =>
+    request<{ status: string; user_id: string }>(`/api/feed/communities/${encodeURIComponent(slug)}/requests/${userId}/reject`, {
+      method: 'POST',
     }, token),
   uploadPageAvatar: (token: string, slug: string, file: File) => {
     const formData = new FormData()

@@ -614,6 +614,7 @@ export function WatchView({
         pageSlug.trim().toLowerCase(),
         pageDescription.trim() || undefined,
         'private',
+        'open',
         pageCategory
       )
       setPages(prev => [created, ...prev])
