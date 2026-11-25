@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type FormEvent } from 'react'
+import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react'
 import {
   api,
   getMediaUrl,
@@ -28,6 +28,30 @@ function formatRelativeTime(dateStr: string): string {
   }
 }
 
+// Skeleton card for zero-layout-shift professional loading experience
+function PostSkeleton() {
+  return (
+    <div className="pro-skeleton-card">
+      <div className="pro-skeleton-header">
+        <div className="pro-skeleton-avatar"></div>
+        <div className="pro-skeleton-lines">
+          <div className="pro-skeleton-line short"></div>
+          <div className="pro-skeleton-line tiny"></div>
+        </div>
+      </div>
+      <div className="pro-skeleton-line title"></div>
+      <div className="pro-skeleton-line"></div>
+      <div className="pro-skeleton-line medium"></div>
+      <div className="pro-skeleton-media"></div>
+      <div className="pro-skeleton-footer">
+        <div className="pro-skeleton-pill"></div>
+        <div className="pro-skeleton-pill"></div>
+        <div className="pro-skeleton-pill"></div>
+      </div>
+    </div>
+  )
+}
+
 export function NewsFeed({
   token,
   user,
@@ -48,7 +72,7 @@ export function NewsFeed({
   // Feeds & Community navigation
   const [feedType, setFeedType] = useState<'all' | 'home'>('all')
   const [selectedCommunitySlug, setSelectedCommunitySlug] = useState<string | null>(null)
-  const [sortBy, setSortBy] = useState<'new' | 'top'>('new')
+  const [sortBy, setSortBy] = useState<'new' | 'top' | 'media'>('new')
 
   // Create Modal state (Public Page vs Private Community)
   const [showCreateCommunity, setShowCreateCommunity] = useState(false)
@@ -113,7 +137,7 @@ export function NewsFeed({
     api.getNewsFeed(token, {
       feed_type: selectedCommunitySlug ? undefined : feedType,
       community_slug: selectedCommunitySlug || undefined,
-      sort: sortBy,
+      sort: sortBy === 'media' ? 'new' : sortBy,
     })
       .then(res => {
         if (live) setPosts(res)
@@ -125,70 +149,75 @@ export function NewsFeed({
         if (live) setLoading(false)
       })
     return () => { live = false }
-  }, [token, feedType, selectedCommunitySlug, sortBy])
+  }, [token, feedType, selectedCommunitySlug, sortBy === 'media' ? 'new' : sortBy])
 
-  // Set default target community when selectedCommunitySlug changes
-  useEffect(() => {
-    if (selectedCommunitySlug) {
-      setTargetCommunitySlug(selectedCommunitySlug)
+  // Current selected community object
+  const currentCommunity = useMemo(() => {
+    return selectedCommunitySlug ? communities.find(c => c.slug === selectedCommunitySlug) || null : null
+  }, [communities, selectedCommunitySlug])
+
+  // Filtered posts based on active tab
+  const displayPosts = useMemo(() => {
+    if (sortBy === 'media') {
+      return posts.filter(p => Boolean(p.video_url || p.image_url))
     }
-  }, [selectedCommunitySlug])
+    return posts
+  }, [posts, sortBy])
 
-  // Community / Page Join, Leave, or Cancel Request
-  async function handleToggleJoinCommunity(slug: string, currentlyJoined: boolean, isPending: boolean = false) {
+  // Other recommended spaces
+  const recommendedCommunities = useMemo(() => {
+    return communities.filter(c => c.slug !== selectedCommunitySlug).slice(0, 4)
+  }, [communities, selectedCommunitySlug])
+
+  // Handle Join / Leave / Pending request
+  async function handleToggleJoinCommunity(slug: string, isMember: boolean, isPending: boolean = false) {
     try {
-      if (currentlyJoined || isPending) {
+      if (isPending) {
+        await api.leaveCommunity(token, slug)
+        setCommunities(curr =>
+          curr.map(c => c.slug === slug ? { ...c, is_pending: false, is_member: false } : c)
+        )
+        setNotice('Join request cancelled.')
+        setTimeout(() => setNotice(''), 3000)
+        return
+      }
+
+      if (isMember) {
         await api.leaveCommunity(token, slug)
         setCommunities(curr =>
           curr.map(c =>
             c.slug === slug
-              ? {
-                  ...c,
-                  is_member: false,
-                  is_pending: false,
-                  member_count: currentlyJoined ? Math.max(0, c.member_count - 1) : c.member_count,
-                }
+              ? { ...c, is_member: false, is_admin: false, is_pending: false, member_count: Math.max(0, c.member_count - 1) }
               : c
           )
         )
-        setNotice(currentlyJoined ? `Left r/${slug}` : `Cancelled request for r/${slug}`)
+        setNotice('You left this space.')
+        setTimeout(() => setNotice(''), 3000)
       } else {
         const res = await api.joinCommunity(token, slug)
         if (res.status === 'pending') {
           setCommunities(curr =>
-            curr.map(c =>
-              c.slug === slug
-                ? {
-                    ...c,
-                    is_pending: true,
-                  }
-                : c
-            )
+            curr.map(c => c.slug === slug ? { ...c, is_pending: true } : c)
           )
-          setNotice(`Join request submitted to admin for r/${slug}!`)
+          setNotice('Join request submitted! Awaiting admin approval.')
         } else {
           setCommunities(curr =>
             curr.map(c =>
               c.slug === slug
-                ? {
-                    ...c,
-                    is_member: true,
-                    is_pending: false,
-                    member_count: c.member_count + 1,
-                  }
+                ? { ...c, is_member: true, is_pending: false, member_count: c.member_count + 1 }
                 : c
             )
           )
-          setNotice(`Joined r/${slug}!`)
+          setNotice('Welcome! You joined this space.')
         }
+        setTimeout(() => setNotice(''), 3000)
       }
-      setTimeout(() => setNotice(''), 3500)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Action failed')
+      setError(err instanceof Error ? err.message : 'Could not update membership')
     }
   }
 
-  // Admin Request Handlers
+  // Open Requests Modal
   async function handleOpenRequestsModal(slug: string) {
     setShowRequestsModal(true)
     setLoadingRequests(true)
@@ -196,7 +225,7 @@ export function NewsFeed({
       const list = await api.getJoinRequests(token, slug)
       setPendingRequests(list)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not load join requests')
+      setError(err instanceof Error ? err.message : 'Could not fetch requests')
     } finally {
       setLoadingRequests(false)
     }
@@ -249,7 +278,7 @@ export function NewsFeed({
   async function handleCreateCommunitySubmit(e: FormEvent) {
     e.preventDefault()
     if (!newCommunityName.trim() || !newCommunitySlug.trim()) {
-      setCreateCommunityError('Name and slug are required.')
+      setCreateCommunityError('Name and URL slug are required.')
       return
     }
     setCreatingCommunity(true)
@@ -261,52 +290,37 @@ export function NewsFeed({
         newCommunitySlug.trim().toLowerCase(),
         newCommunityDesc.trim() || undefined,
         newType,
-        newType === 'private' ? newJoinRule : 'open',
+        newJoinRule,
         newCategory
       )
-      setCommunities(curr => [...curr, created])
+      setCommunities(curr => [created, ...curr])
       setShowCreateCommunity(false)
       setNewCommunityName('')
       setNewCommunitySlug('')
       setNewCommunityDesc('')
-      setNewType('public')
-      setNewJoinRule('open')
       setSelectedCommunitySlug(created.slug)
-      setNotice(
-        newType === 'public'
-          ? `Public Page "${created.name}" (r/${created.slug}) created! All members can post.`
-          : `Private Community "${created.name}" (r/${created.slug}) created! Only admin can post.`
-      )
-      setTimeout(() => setNotice(''), 5000)
+      setTargetCommunitySlug(created.slug)
+      setNotice(`"${created.name}" created successfully!`)
+      setTimeout(() => setNotice(''), 3500)
     } catch (err) {
-      setCreateCommunityError(err instanceof Error ? err.message : 'Could not create')
+      setCreateCommunityError(err instanceof Error ? err.message : 'Could not create space')
     } finally {
       setCreatingCommunity(false)
     }
   }
 
-  // Handle Media Selection (Image / Video)
+  // Image / Video selection
   function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    const isVideo = file.type.startsWith('video/')
-    if (isVideo && file.size > 250 * 1024 * 1024) {
-      setError('Video cannot exceed 250MB')
-      return
-    }
-    if (!isVideo && file.size > 15 * 1024 * 1024) {
-      setError('Image cannot exceed 15MB')
-      return
-    }
-    if (attachedPreview) URL.revokeObjectURL(attachedPreview)
     setAttachedImage(file)
-    setAttachedPreview(URL.createObjectURL(file))
-    setError('')
+    const preview = URL.createObjectURL(file)
+    setAttachedPreview(preview)
   }
 
   function clearImage() {
-    if (attachedPreview) URL.revokeObjectURL(attachedPreview)
     setAttachedImage(null)
+    if (attachedPreview) URL.revokeObjectURL(attachedPreview)
     setAttachedPreview(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
@@ -316,12 +330,12 @@ export function NewsFeed({
     e.preventDefault()
     const title = postTitle.trim()
     if (!title) {
-      setError('Please provide a post title.')
+      setError('Post title is required.')
       return
     }
     const slug = targetCommunitySlug || selectedCommunitySlug || communities[0]?.slug
     if (!slug) {
-      setError('Please choose a community to post in.')
+      setError('Please select a space to post in.')
       return
     }
 
@@ -350,7 +364,7 @@ export function NewsFeed({
       setPostTitle('')
       setPostContent('')
       clearImage()
-      setNotice('Post published to r/' + slug + '!')
+      setNotice(`Post published to ${newPost.community.privacy_type === 'public' ? 'p/' : 'c/'}${slug}!`)
       setTimeout(() => setNotice(''), 3000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not submit post')
@@ -364,9 +378,12 @@ export function NewsFeed({
     setPosts(curr =>
       curr.map(p => {
         if (p.id === postId) {
-          const nextUpvoted = !p.has_upvoted
-          const nextCount = nextUpvoted ? p.upvote_count + 1 : Math.max(0, p.upvote_count - 1)
-          return { ...p, has_upvoted: nextUpvoted, upvote_count: nextCount }
+          const nextVoted = !p.has_upvoted
+          return {
+            ...p,
+            has_upvoted: nextVoted,
+            upvote_count: nextVoted ? p.upvote_count + 1 : Math.max(0, p.upvote_count - 1),
+          }
         }
         return p
       })
@@ -375,17 +392,22 @@ export function NewsFeed({
       const res = await api.togglePostReact(token, postId)
       setPosts(curr =>
         curr.map(p =>
-          p.id === postId ? { ...p, has_upvoted: res.has_upvoted, upvote_count: res.upvote_count } : p
+          p.id === postId
+            ? { ...p, has_upvoted: res.has_upvoted, upvote_count: res.upvote_count }
+            : p
         )
       )
     } catch {
-      // Revert if error
+      // Revert on failure
       setPosts(curr =>
         curr.map(p => {
           if (p.id === postId) {
-            const revertUpvoted = !p.has_upvoted
-            const revertCount = revertUpvoted ? p.upvote_count + 1 : Math.max(0, p.upvote_count - 1)
-            return { ...p, has_upvoted: revertUpvoted, upvote_count: revertCount }
+            const prevVoted = !p.has_upvoted
+            return {
+              ...p,
+              has_upvoted: prevVoted,
+              upvote_count: prevVoted ? p.upvote_count + 1 : Math.max(0, p.upvote_count - 1),
+            }
           }
           return p
         })
@@ -393,20 +415,7 @@ export function NewsFeed({
     }
   }
 
-  // Handle Delete Post
-  async function handleDeletePost(postId: number) {
-    if (!window.confirm('Delete this post permanently?')) return
-    try {
-      await api.deletePost(token, postId)
-      setPosts(curr => curr.filter(p => p.id !== postId))
-      setNotice('Post deleted.')
-      setTimeout(() => setNotice(''), 3000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not delete post')
-    }
-  }
-
-  // Handle Edit Post
+  // Inline edit
   function startEditPost(post: PostItem) {
     setEditingPostId(post.id)
     setEditTitle(post.title)
@@ -414,18 +423,33 @@ export function NewsFeed({
   }
 
   async function handleSaveEdit(postId: number) {
-    if (!editTitle.trim()) return
+    if (!editTitle.trim()) {
+      setError('Title cannot be empty')
+      return
+    }
     try {
       const updated = await api.editPost(token, postId, {
         title: editTitle.trim(),
         content: editContent.trim() || undefined,
       })
-      setPosts(curr => curr.map(p => (p.id === postId ? updated : p)))
+      setPosts(curr => curr.map(p => (p.id === postId ? { ...p, ...updated } : p)))
       setEditingPostId(null)
-      setNotice('Post updated!')
+      setNotice('Post updated successfully.')
       setTimeout(() => setNotice(''), 3000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update post')
+    }
+  }
+
+  async function handleDeletePost(postId: number) {
+    if (!window.confirm('Are you sure you want to delete this post?')) return
+    try {
+      await api.deletePost(token, postId)
+      setPosts(curr => curr.filter(p => p.id !== postId))
+      setNotice('Post deleted.')
+      setTimeout(() => setNotice(''), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not delete post')
     }
   }
 
@@ -460,7 +484,6 @@ export function NewsFeed({
   }
 
   async function handleDeleteComment(postId: number, commentId: number) {
-    if (!window.confirm('Delete comment?')) return
     try {
       await api.deleteComment(token, commentId)
       setPosts(curr =>
@@ -479,95 +502,111 @@ export function NewsFeed({
     }
   }
 
-  const currentCommunity = selectedCommunitySlug
-    ? communities.find(c => c.slug === selectedCommunitySlug)
-    : null
-
   return (
     <div className="feed-layout-container">
       {/* ====================================================
-          LEFT SIDEBAR: Reddit Feeds & Communities
+          LEFT SIDEBAR: Spaces & Feed Navigation
           ==================================================== */}
       <aside className="feed-left-sidebar">
-        <span className="feed-sidebar-title">FEEDS</span>
-        <div className="feed-filter-menu">
-          <button
-            type="button"
-            className={`feed-filter-btn ${!selectedCommunitySlug && feedType === 'all' ? 'active' : ''}`}
-            onClick={() => {
-              setSelectedCommunitySlug(null)
-              setFeedType('all')
-            }}
-          >
-            <span className="feed-filter-icon">🔥</span>
-            <div className="feed-filter-copy">
-              <strong>Popular</strong>
-              <small>All open communities</small>
-            </div>
-          </button>
-          <button
-            type="button"
-            className={`feed-filter-btn ${!selectedCommunitySlug && feedType === 'home' ? 'active' : ''}`}
-            onClick={() => {
-              setSelectedCommunitySlug(null)
-              setFeedType('home')
-            }}
-          >
-            <span className="feed-filter-icon">🏠</span>
-            <div className="feed-filter-copy">
-              <strong>Home</strong>
-              <small>Joined communities</small>
-            </div>
-          </button>
+        <div className="pro-sidebar-section">
+          <span className="feed-sidebar-title">DISCOVERY FEEDS</span>
+          <div className="feed-filter-menu">
+            <button
+              type="button"
+              className={`feed-filter-btn ${!selectedCommunitySlug && feedType === 'all' ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedCommunitySlug(null)
+                setFeedType('all')
+              }}
+            >
+              <span className="feed-filter-icon">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon>
+                </svg>
+              </span>
+              <div className="feed-filter-copy">
+                <strong>Explore Feed</strong>
+                <small>Trending across all spaces</small>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className={`feed-filter-btn ${!selectedCommunitySlug && feedType === 'home' ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedCommunitySlug(null)
+                setFeedType('home')
+              }}
+            >
+              <span className="feed-filter-icon">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+              </span>
+              <div className="feed-filter-copy">
+                <strong>My Feed</strong>
+                <small>Joined pages & communities</small>
+              </div>
+            </button>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 8px 4px' }}>
-          <span className="feed-filter-sublabel" style={{ padding: 0 }}>PAGES & COMMUNITIES</span>
-          <button
-            type="button"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              fontSize: '11px',
-              fontWeight: 700,
-              color: '#2563eb',
-              cursor: 'pointer',
-            }}
-            onClick={() => setShowCreateCommunity(true)}
-            title="Create a Public Page or Private Community"
-          >
-            + Create
-          </button>
-        </div>
+        <div className="pro-sidebar-section" style={{ marginTop: '6px' }}>
+          <div className="pro-sidebar-header-row">
+            <span className="feed-sidebar-title" style={{ padding: 0 }}>PAGES & SPACES</span>
+            <button
+              type="button"
+              className="pro-create-space-pill-btn"
+              onClick={() => setShowCreateCommunity(true)}
+              title="Create a Public Page or Private Community"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              <span>Create</span>
+            </button>
+          </div>
 
-        <div className="feed-filter-menu" style={{ maxHeight: '420px', overflowY: 'auto' }}>
-          {communities.map(comm => {
-            const isPrivate = comm.privacy_type === 'private'
-            return (
-              <button
-                key={comm.id}
-                type="button"
-                className={`feed-filter-btn ${selectedCommunitySlug === comm.slug ? 'active' : ''}`}
-                onClick={() => setSelectedCommunitySlug(comm.slug)}
-              >
-                <span className="feed-filter-icon" style={{ fontSize: '13px' }}>
-                  {isPrivate ? '🔒' : '🌐'}
-                </span>
-                <div className="feed-filter-copy">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <strong>r/{comm.slug}</strong>
-                    <span className={`comm-type-pill ${isPrivate ? 'private' : 'public'}`}>
-                      {isPrivate ? 'Community' : 'Page'}
-                    </span>
+          <div className="feed-filter-menu custom-scrollbar" style={{ maxHeight: '420px', overflowY: 'auto' }}>
+            {communities.map(comm => {
+              const isPrivate = comm.privacy_type === 'private'
+              const isSelected = selectedCommunitySlug === comm.slug
+              return (
+                <button
+                  key={comm.id}
+                  type="button"
+                  className={`feed-filter-btn space-btn ${isSelected ? 'active' : ''}`}
+                  onClick={() => setSelectedCommunitySlug(comm.slug)}
+                >
+                  <div className={`space-avatar-circle ${isPrivate ? 'private' : 'public'}`}>
+                    {(comm.name || comm.slug)[0].toUpperCase()}
                   </div>
-                  <small>{comm.member_count} {comm.member_count === 1 ? 'member' : 'members'}</small>
-                </div>
-              </button>
-            )
-          })}
-          {communities.length === 0 && (
-            <span style={{ fontSize: '11px', color: '#888', padding: '8px' }}>No spaces yet. Click + Create above.</span>
-          )}
+                  <div className="feed-filter-copy">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+                      <strong className="space-name-text">{comm.name}</strong>
+                      <span className={`comm-type-pill ${isPrivate ? 'private' : 'public'}`}>
+                        {isPrivate ? 'Community' : 'Page'}
+                      </span>
+                    </div>
+                    <small className="space-subtext">
+                      {isPrivate ? 'c/' : 'p/'}{comm.slug} • {comm.member_count} {comm.member_count === 1 ? 'member' : 'members'}
+                    </small>
+                  </div>
+                </button>
+              )
+            })}
+            {communities.length === 0 && (
+              <div className="empty-sidebar-spaces">
+                <p>No spaces created yet.</p>
+                <button type="button" onClick={() => setShowCreateCommunity(true)}>
+                  + Create First Space
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </aside>
 
@@ -575,128 +614,216 @@ export function NewsFeed({
           CENTER MAIN FEED & POST COMPOSER
           ==================================================== */}
       <main className="feed-main-stream">
+        {/* Banner Alert Notices */}
         {notice && (
           <div className="feed-banner-notice">
-            <span>✓</span> {notice}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <span>{notice}</span>
           </div>
         )}
         {error && (
           <div className="feed-banner-error">
-            <span>⚠</span> {error}
-            <button type="button" onClick={() => setError('')}>✕</button>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span>{error}</span>
+            <button type="button" onClick={() => setError('')} aria-label="Close error">✕</button>
           </div>
         )}
 
-        {/* Selected Community / Page Header Banner */}
+        {/* Selected Community / Page Header Banner (Pro Redesign) */}
         {currentCommunity && (
-          <div className="reddit-community-banner">
-            <div className="reddit-banner-text">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                <h2>r/{currentCommunity.slug}</h2>
-                <span className={`reddit-type-tag ${currentCommunity.privacy_type === 'private' ? 'private' : 'public'}`}>
-                  {currentCommunity.privacy_type === 'private' ? '🔒 Private Community' : '🌐 Public Page'}
-                </span>
-                {currentCommunity.privacy_type === 'private' && (
-                  <span className="reddit-rule-tag">
-                    {currentCommunity.join_rule === 'approval' ? 'Admin Approval Required' : 'Open for All'}
-                  </span>
-                )}
+          <div className="pro-community-banner">
+            <div className="pro-community-banner-top">
+              <div className={`pro-banner-avatar ${currentCommunity.privacy_type === 'private' ? 'private' : 'public'}`}>
+                {(currentCommunity.name || currentCommunity.slug)[0].toUpperCase()}
               </div>
-              <p>{currentCommunity.description || currentCommunity.name}</p>
-              <div style={{ marginTop: '8px', fontSize: '11.5px', color: '#bfdbfe', display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <span>👥 {currentCommunity.member_count} {currentCommunity.member_count === 1 ? 'member' : 'members'}</span>
-                <span>•</span>
-                <span>{currentCommunity.privacy_type === 'private' ? 'Admin-Only Posting (Text, Media & Video)' : 'Open Posting for All Members'}</span>
+              <div className="pro-banner-meta">
+                <div className="pro-banner-title-line">
+                  <h2>{currentCommunity.name}</h2>
+                  <span className={`reddit-type-tag ${currentCommunity.privacy_type === 'private' ? 'private' : 'public'}`}>
+                    {currentCommunity.privacy_type === 'private' ? '🔒 Private Community' : '🌐 Public Page'}
+                  </span>
+                  {currentCommunity.privacy_type === 'private' && (
+                    <span className="reddit-rule-tag">
+                      {currentCommunity.join_rule === 'approval' ? 'Requires Approval' : 'Instant Access'}
+                    </span>
+                  )}
+                </div>
+                <div className="pro-banner-sub-meta">
+                  <span className="pro-banner-slug">
+                    {currentCommunity.privacy_type === 'private' ? 'c/' : 'p/'}{currentCommunity.slug}
+                  </span>
+                  <span>•</span>
+                  <span>{currentCommunity.category || 'General'}</span>
+                  <span>•</span>
+                  <span>{currentCommunity.member_count} {currentCommunity.member_count === 1 ? 'member' : 'members'}</span>
+                  <span>•</span>
+                  <span className="pro-banner-rule-pill">
+                    {currentCommunity.privacy_type === 'private' ? 'Admin Publishing Only' : 'Open Posting for All'}
+                  </span>
+                </div>
+                <p className="pro-banner-desc">
+                  {currentCommunity.description || (currentCommunity.privacy_type === 'public'
+                    ? 'Welcome to this public page! Members can share discussions, photos, and videos.'
+                    : 'Welcome to this private community! Admins publish curated posts and members interact.')}
+                </p>
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <div className="pro-banner-actions-row">
               {currentCommunity.is_member ? (
                 <button
                   type="button"
-                  className="reddit-join-btn joined"
+                  className="pro-action-btn joined"
                   onClick={() => handleToggleJoinCommunity(currentCommunity.slug, true)}
                 >
-                  Joined
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <span>Joined</span>
                 </button>
               ) : currentCommunity.is_pending ? (
                 <button
                   type="button"
-                  className="reddit-join-btn pending"
+                  className="pro-action-btn pending"
                   onClick={() => handleToggleJoinCommunity(currentCommunity.slug, false, true)}
                   title="Click to cancel join request"
                 >
-                  ⏳ Pending (Cancel)
+                  <span className="spinner-dot"></span>
+                  <span>Pending (Cancel)</span>
                 </button>
               ) : (
                 <button
                   type="button"
-                  className="reddit-join-btn"
+                  className="pro-action-btn primary"
                   onClick={() => handleToggleJoinCommunity(currentCommunity.slug, false)}
                 >
-                  {currentCommunity.privacy_type === 'private' && currentCommunity.join_rule === 'approval'
-                    ? '+ Request to Join'
-                    : currentCommunity.privacy_type === 'private'
-                    ? '+ Join Community'
-                    : '+ Join Page'}
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  <span>
+                    {currentCommunity.privacy_type === 'private' && currentCommunity.join_rule === 'approval'
+                      ? 'Request to Join'
+                      : `Join ${currentCommunity.privacy_type === 'public' ? 'Page' : 'Community'}`}
+                  </span>
                 </button>
               )}
 
-              {/* Admin Join Requests Button for Private Community with Approval */}
-              {currentCommunity.is_admin && currentCommunity.privacy_type === 'private' && currentCommunity.join_rule === 'approval' && (
+              {/* Admin Requests Button */}
+              {currentCommunity.is_admin && currentCommunity.privacy_type === 'private' && (
                 <button
                   type="button"
-                  className="reddit-admin-requests-btn"
+                  className="pro-action-btn secondary"
                   onClick={() => handleOpenRequestsModal(currentCommunity.slug)}
                 >
-                  Requests {currentCommunity.pending_requests_count ? `(${currentCommunity.pending_requests_count})` : ''}
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                  <span>Member Requests {(currentCommunity.pending_requests_count ?? 0) > 0 ? `(${currentCommunity.pending_requests_count})` : ''}</span>
                 </button>
               )}
+
+              <button
+                type="button"
+                className="pro-action-btn ghost"
+                onClick={() => {
+                  navigator.clipboard?.writeText(window.location.href)
+                  setNotice('Space link copied to clipboard!')
+                  setTimeout(() => setNotice(''), 3000)
+                }}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                  <polyline points="16 6 12 2 8 6"></polyline>
+                  <line x1="12" y1="2" x2="12" y2="15"></line>
+                </svg>
+                <span>Share</span>
+              </button>
             </div>
           </div>
         )}
 
-        {/* Reddit Sort Bar */}
-        <div className="reddit-sort-bar">
-          <button
-            type="button"
-            className={`reddit-sort-btn ${sortBy === 'new' ? 'active' : ''}`}
-            onClick={() => setSortBy('new')}
-          >
-            🕒 New
-          </button>
-          <button
-            type="button"
-            className={`reddit-sort-btn ${sortBy === 'top' ? 'active' : ''}`}
-            onClick={() => setSortBy('top')}
-          >
-            🔥 Top Upvoted
-          </button>
+        {/* Pro Filter & Sort Tabs */}
+        <div className="pro-filter-bar">
+          <div className="pro-filter-tabs">
+            <button
+              type="button"
+              className={`pro-tab-btn ${sortBy === 'new' ? 'active' : ''}`}
+              onClick={() => setSortBy('new')}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span>Recent</span>
+            </button>
+            <button
+              type="button"
+              className={`pro-tab-btn ${sortBy === 'top' ? 'active' : ''}`}
+              onClick={() => setSortBy('top')}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+              <span>Top Voted</span>
+            </button>
+            <button
+              type="button"
+              className={`pro-tab-btn ${sortBy === 'media' ? 'active' : ''}`}
+              onClick={() => setSortBy('media')}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                <line x1="7" y1="2" x2="7" y2="22"></line>
+                <line x1="17" y1="2" x2="17" y2="22"></line>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <line x1="2" y1="7" x2="7" y2="7"></line>
+                <line x1="2" y1="17" x2="7" y2="17"></line>
+                <line x1="17" y1="17" x2="22" y2="17"></line>
+                <line x1="17" y1="7" x2="22" y2="7"></line>
+              </svg>
+              <span>Media Only</span>
+            </button>
+          </div>
+
+          <div className="pro-filter-status">
+            <span>{displayPosts.length} {displayPosts.length === 1 ? 'post' : 'posts'}</span>
+          </div>
         </div>
 
-        {/* Post Composer with Permissions based on Page vs Community */}
+        {/* Post Composer Card (Pro Redesign) */}
         {(() => {
           const targetComm = communities.find(c => c.slug === (targetCommunitySlug || selectedCommunitySlug || communities[0]?.slug))
           const isTargetPrivate = targetComm?.privacy_type === 'private'
           const canPost = targetComm ? (targetComm.can_post ?? (isTargetPrivate ? targetComm.is_admin : true)) : true
 
           return (
-            <section className="premium-composer-card">
-              <div className="composer-user-row">
-                <UserAvatar avatarUrl={user.avatar_url} fallback={user.nickname || user.username} />
-                <div className="composer-user-details">
-                  <strong>Create a Post</strong>
-                  <div className="composer-group-badge">
-                    <span>Post in:</span>
+            <section className="pro-composer-card">
+              <div className="pro-composer-header">
+                <UserAvatar avatarUrl={user.avatar_url} fallback={user.nickname || user.username} size={40} />
+                <div className="pro-composer-dest">
+                  <span className="pro-composer-user-name">{user.nickname || user.username}</span>
+                  <div className="pro-composer-select-pill">
+                    <span>Posting in:</span>
                     <select
-                      className="composer-group-dropdown"
+                      className="pro-composer-dropdown"
                       value={targetCommunitySlug || targetComm?.slug || ''}
                       onChange={e => setTargetCommunitySlug(e.target.value)}
                     >
                       {communities.map(comm => (
                         <option key={comm.id} value={comm.slug}>
                           {comm.privacy_type === 'private' ? '🔒 Community: ' : '🌐 Page: '}
-                          {comm.name} (r/{comm.slug})
+                          {comm.name} ({comm.privacy_type === 'private' ? 'c/' : 'p/'}{comm.slug})
                         </option>
                       ))}
                     </select>
@@ -706,199 +833,253 @@ export function NewsFeed({
 
               {/* Locked Notice for Regular Members in Private Community */}
               {isTargetPrivate && !canPost ? (
-                <div className="composer-locked-box">
-                  <span className="locked-icon" style={{ fontSize: '24px' }}>🔒</span>
-                  <div className="locked-text">
-                    <strong>Only Admins can post in the "{targetComm?.name}" Private Community</strong>
-                    <p style={{ margin: '4px 0 0', fontSize: '12px' }}>
-                      Community Admins can publish posts (text, photos, and videos). As a member, you can read, upvote, and comment on all posts.
+                <div className="pro-composer-locked-box">
+                  <div className="pro-locked-icon-wrap">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                  </div>
+                  <div className="pro-locked-content">
+                    <strong>Admin-Curated Community ({targetComm?.name})</strong>
+                    <p>
+                      In this Private Community, only Admins can publish posts and media. You can freely read, upvote, and comment on discussions below.
                     </p>
                   </div>
                 </div>
               ) : (
-                <>
-                  {/* Status Helper Badge */}
-                  {isTargetPrivate ? (
-                    <div className="composer-perm-badge admin">
-                      <span>★ Community Admin</span>
-                      <small>You can publish posts with text, images, and videos in this Private Community.</small>
-                    </div>
-                  ) : (
-                    <div className="composer-perm-badge public">
-                      <span>🌐 Public Page</span>
-                      <small>Open for all members to share text, photos, and videos!</small>
-                    </div>
-                  )}
-
-                  <form className="composer-inner-form" onSubmit={handleCreatePost}>
+                <form className="pro-composer-form" onSubmit={handleCreatePost}>
+                  <div className="pro-composer-input-group">
                     <input
                       type="text"
-                      placeholder="Title (required)"
+                      placeholder="Title of your post..."
                       value={postTitle}
                       onChange={e => setPostTitle(e.target.value)}
-                      className="composer-textarea"
-                      style={{ minHeight: 'auto', padding: '10px 14px', fontWeight: 600, fontSize: '14.5px' }}
+                      className="pro-composer-title-input"
                       maxLength={300}
                       required
                     />
                     <textarea
-                      placeholder="Text (optional markdown or details)..."
+                      placeholder="Share your thoughts, ask a question, or describe your media..."
                       value={postContent}
                       onChange={e => setPostContent(e.target.value)}
-                      className="composer-textarea"
-                      rows={3}
+                      className="pro-composer-body-textarea"
+                      rows={2}
                     />
+                  </div>
 
-                    {attachedPreview && (
-                      <div className="composer-attachment-card">
-                        {attachedImage?.type.startsWith('video/') ? (
-                          <video
-                            src={attachedPreview}
-                            controls
-                            playsInline
-                            className="composer-attachment-img"
-                            style={{ maxHeight: '320px', width: '100%', borderRadius: '8px', backgroundColor: '#000' }}
-                          />
-                        ) : (
-                          <img src={attachedPreview} alt="Preview" className="composer-attachment-img" />
-                        )}
-                        <button type="button" className="attachment-close-pill" onClick={clearImage}>
-                          ✕ Remove
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="composer-bottom-bar">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime,video/x-matroska,video/avi"
-                        style={{ display: 'none' }}
-                        onChange={handleImageSelect}
-                      />
-                      <button
-                        type="button"
-                        className="composer-photo-btn"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        📷 Photo / Media
-                      </button>
-
-                      <button
-                        type="submit"
-                        className="composer-publish-btn"
-                        disabled={submittingPost || !postTitle.trim()}
-                      >
-                        {submittingPost ? 'Posting…' : 'Post'}
+                  {/* Attached Media Preview Box */}
+                  {attachedPreview && (
+                    <div className="pro-composer-media-preview">
+                      {attachedImage?.type.startsWith('video/') ? (
+                        <video
+                          src={attachedPreview}
+                          controls
+                          playsInline
+                          className="pro-composer-media-element"
+                        />
+                      ) : (
+                        <img src={attachedPreview} alt="Upload preview" className="pro-composer-media-element" />
+                      )}
+                      <button type="button" className="pro-remove-attachment-btn" onClick={clearImage}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                        <span>Remove</span>
                       </button>
                     </div>
-                  </form>
-                </>
+                  )}
+
+                  <div className="pro-composer-footer">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/webm,video/quicktime,video/x-matroska,video/avi"
+                      style={{ display: 'none' }}
+                      onChange={handleImageSelect}
+                    />
+
+                    <div className="pro-composer-media-actions">
+                      <button
+                        type="button"
+                        className="pro-media-pill-btn"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                          <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                        <span>Photo</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="pro-media-pill-btn"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                          <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                        </svg>
+                        <span>Video</span>
+                      </button>
+                    </div>
+
+                    <div className="pro-composer-submit-wrap">
+                      <span className="pro-composer-badge">
+                        {isTargetPrivate ? '★ Admin Post' : '🌐 Open Page'}
+                      </span>
+                      <button
+                        type="submit"
+                        className="pro-publish-submit-btn"
+                        disabled={submittingPost || !postTitle.trim()}
+                      >
+                        {submittingPost ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <span className="spinner" style={{ width: '13px', height: '13px', borderWidth: '2px' }}></span>
+                            Publishing…
+                          </span>
+                        ) : (
+                          <span>Publish Post</span>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </form>
               )}
             </section>
           )
         })()}
 
-        {/* Posts Stack */}
+        {/* Posts Stream */}
         {loading ? (
-          <div className="feed-spinner-container">
-            <span className="spinner" /> Loading posts…
+          <div className="pro-skeleton-feed">
+            <PostSkeleton />
+            <PostSkeleton />
+            <PostSkeleton />
           </div>
-        ) : posts.length === 0 ? (
-          <div className="feed-empty-container">
-            <div style={{ fontSize: '38px', marginBottom: '10px' }}>📰</div>
-            <h3>No posts yet in this feed</h3>
-            <p>Be the first one to create a post or join communities to populate your home feed!</p>
+        ) : displayPosts.length === 0 ? (
+          <div className="pro-feed-empty-card">
+            <div className="pro-empty-icon-wrap">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+            </div>
+            <h3>No posts found in this feed</h3>
+            <p>
+              {selectedCommunitySlug
+                ? `Be the first one to share an update, photo, or discussion in this space!`
+                : `Join pages and communities or share your first post to populate your feed.`}
+            </p>
           </div>
         ) : (
-          <div className="feed-cards-stack">
-            {posts.map(post => (
-              <article key={post.id} className="reddit-card">
-                {/* Left Upvote Pillar */}
-                <div className="reddit-vote-col">
-                  <button
-                    type="button"
-                    className={`reddit-up-btn ${post.has_upvoted ? 'upvoted' : ''}`}
-                    onClick={() => handleToggleUpvote(post.id)}
-                    title="Upvote"
-                  >
-                    ▲
-                  </button>
-                  <span className={`reddit-vote-col-score ${post.has_upvoted ? 'upvoted' : ''}`}>
-                    {post.upvote_count}
-                  </span>
-                </div>
+          <div className="pro-feed-cards-stack">
+            {displayPosts.map(post => {
+              const isAuthor = post.author.user_id === user.id
+              const isOP = post.author.user_id === post.community.id // or creator
+              return (
+                <article key={post.id} className="pro-post-card">
+                  {/* Post Top Header */}
+                  <div className="pro-post-header">
+                    <div className="pro-post-header-left">
+                      <div
+                        className={`pro-post-space-chip ${post.community.privacy_type === 'private' ? 'private' : 'public'}`}
+                        onClick={() => setSelectedCommunitySlug(post.community.slug)}
+                        title={`View ${post.community.name}`}
+                      >
+                        <span className="space-chip-icon">
+                          {post.community.privacy_type === 'private' ? '🔒' : '🌐'}
+                        </span>
+                        <strong className="space-chip-slug">
+                          {post.community.privacy_type === 'private' ? 'c/' : 'p/'}{post.community.slug}
+                        </strong>
+                      </div>
 
-                {/* Right Post Body */}
-                <div className="reddit-body-col">
-                  {/* Metadata header */}
-                  <div className="reddit-post-meta">
-                    <span
-                      className="reddit-sub-pill"
-                      onClick={() => setSelectedCommunitySlug(post.community.slug)}
-                    >
-                      r/{post.community.slug}
-                    </span>
-                    <span>•</span>
-                    <span
-                      className="reddit-author-handle"
-                      style={onOpenProfile ? { cursor: 'pointer', textDecoration: 'underline' } : undefined}
-                      onClick={() => onOpenProfile?.(post.author.username)}
-                      title={`View ${post.author.username}'s profile`}
-                    >
-                      Posted by u/{post.author.username}
-                    </span>
-                    <span>•</span>
-                    <span>{formatRelativeTime(post.created_at)}</span>
-                    {post.updated_at && <span className="post-edited-badge">(edited)</span>}
+                      <span className="pro-meta-dot">•</span>
 
-                    {/* Author or Admin Delete / Edit actions */}
-                    {(post.author.user_id === user.id) && (
-                      <div className="post-header-actions" style={{ marginLeft: 'auto' }}>
+                      <div className="pro-author-meta">
+                        <UserAvatar avatarUrl={post.author.avatar_url} fallback={post.author.username} size={24} />
+                        <span
+                          className="pro-author-link"
+                          style={onOpenProfile ? { cursor: 'pointer' } : undefined}
+                          onClick={() => onOpenProfile?.(post.author.username)}
+                          title={`View ${post.author.username}'s profile`}
+                        >
+                          @{post.author.username}
+                        </span>
+                      </div>
+
+                      <span className="pro-meta-dot">•</span>
+                      <span className="pro-post-time">{formatRelativeTime(post.created_at)}</span>
+
+                      {post.updated_at && <span className="pro-edited-tag">(edited)</span>}
+                      {post.source === 'watch' && (
+                        <span className="pro-watch-source-pill">🎬 Watch Video</span>
+                      )}
+                    </div>
+
+                    {/* Author Post Actions */}
+                    {isAuthor && (
+                      <div className="pro-post-actions-menu">
                         <button
                           type="button"
-                          className="post-card-edit-btn"
+                          className="pro-post-icon-btn edit"
                           onClick={() => startEditPost(post)}
+                          title="Edit post"
                         >
-                          ✏ Edit
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9"></path>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                          </svg>
+                          <span>Edit</span>
                         </button>
                         <button
                           type="button"
-                          className="post-card-delete-btn"
+                          className="pro-post-icon-btn delete"
                           onClick={() => handleDeletePost(post.id)}
+                          title="Delete post"
                         >
-                          ✕ Delete
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                          </svg>
                         </button>
                       </div>
                     )}
                   </div>
 
-                  {/* Inline Editor */}
+                  {/* Inline Post Editor */}
                   {editingPostId === post.id ? (
-                    <div className="post-inline-editor">
+                    <div className="pro-post-inline-editor">
                       <input
                         type="text"
                         value={editTitle}
                         onChange={e => setEditTitle(e.target.value)}
-                        className="post-inline-edit-textarea"
-                        style={{ minHeight: 'auto', fontWeight: 700 }}
+                        className="pro-inline-edit-input"
                       />
                       <textarea
                         value={editContent}
                         onChange={e => setEditContent(e.target.value)}
-                        className="post-inline-edit-textarea"
+                        className="pro-inline-edit-textarea"
+                        rows={3}
                       />
-                      <div className="post-inline-edit-actions">
+                      <div className="pro-inline-edit-actions">
                         <button
                           type="button"
-                          className="post-edit-cancel-btn"
+                          className="pro-btn-secondary"
                           onClick={() => setEditingPostId(null)}
                         >
                           Cancel
                         </button>
                         <button
                           type="button"
-                          className="post-edit-save-btn"
+                          className="pro-btn-primary"
                           onClick={() => handleSaveEdit(post.id)}
                         >
                           Save Changes
@@ -907,101 +1088,132 @@ export function NewsFeed({
                     </div>
                   ) : (
                     <>
-                      {/* Title */}
-                      <h3 className="reddit-title">{post.title}</h3>
+                      {/* Post Title */}
+                      <h3 className="pro-post-title">{post.title}</h3>
 
-                      {/* Content */}
+                      {/* Post Content */}
                       {post.content && (
-                        <p className="post-body-text">{post.content}</p>
+                        <p className="pro-post-body-text">{post.content}</p>
                       )}
 
-                      {/* Media Image */}
+                      {/* Post Media: Image */}
                       {post.image_url && (
                         <div
-                          className="post-media-frame"
+                          className="pro-post-media-frame"
                           onClick={() => setFullImageUrl(getMediaUrl(post.image_url))}
                         >
-                          <img src={getMediaUrl(post.image_url)} alt="Post upload" loading="lazy" />
-                          <span className="media-zoom-hint">🔍 Click to enlarge</span>
+                          <img src={getMediaUrl(post.image_url)} alt={post.title} loading="lazy" />
+                          <div className="pro-media-zoom-pill">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="11" cy="11" r="8"></circle>
+                              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                              <line x1="11" y1="8" x2="11" y2="14"></line>
+                              <line x1="8" y1="11" x2="14" y2="11"></line>
+                            </svg>
+                            <span>Click to enlarge</span>
+                          </div>
                         </div>
                       )}
 
-                      {/* Media Video */}
+                      {/* Post Media: Video */}
                       {post.video_url && (
-                        <div className="post-media-frame post-video-frame" style={{ cursor: 'default' }}>
+                        <div className="pro-post-video-container">
                           <video
                             src={getMediaUrl(post.video_url)}
                             controls
                             playsInline
                             preload="metadata"
-                            style={{ width: '100%', maxHeight: '480px', borderRadius: '8px', display: 'block', backgroundColor: '#000' }}
+                            className="pro-post-video-player"
                           />
                         </div>
                       )}
                     </>
                   )}
 
-                  {/* Actions Toolbar */}
-                  <div className="post-actions-toolbar">
+                  {/* Post Bottom Toolbar */}
+                  <div className="pro-post-toolbar">
                     <button
                       type="button"
-                      className={`reddit-vote-pill ${post.has_upvoted ? 'active-upvoted' : ''}`}
+                      className={`pro-toolbar-pill vote ${post.has_upvoted ? 'active-voted' : ''}`}
                       onClick={() => handleToggleUpvote(post.id)}
                     >
-                      <span className="vote-arrow-glyph">▲</span>
-                      <span>{post.upvote_count} {post.upvote_count === 1 ? 'Upvote' : 'Upvotes'}</span>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill={post.has_upvoted ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+                      </svg>
+                      <strong>{post.upvote_count}</strong>
+                      <span>{post.upvote_count === 1 ? 'Upvote' : 'Upvotes'}</span>
                     </button>
 
                     <button
                       type="button"
-                      className={`reddit-comment-pill ${expandedComments[post.id] ? 'active' : ''}`}
+                      className={`pro-toolbar-pill comments ${expandedComments[post.id] ? 'active-comments' : ''}`}
                       onClick={() => toggleComments(post.id)}
                     >
-                      <span>💬</span>
-                      <span>{post.comment_count} Comments</span>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                      </svg>
+                      <strong>{post.comment_count}</strong>
+                      <span>{post.comment_count === 1 ? 'Comment' : 'Comments'}</span>
                     </button>
+
+                    {(post.views_count ?? 0) > 0 && (
+                      <div className="pro-toolbar-pill views">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <span>{post.views_count} views</span>
+                      </div>
+                    )}
 
                     <button
                       type="button"
-                      className="reddit-share-pill"
+                      className="pro-toolbar-pill share"
                       onClick={() => {
                         navigator.clipboard?.writeText(window.location.href)
                         setNotice('Post link copied!')
                         setTimeout(() => setNotice(''), 3000)
                       }}
                     >
-                      🔗 Share
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="18" cy="5" r="3"></circle>
+                        <circle cx="6" cy="12" r="3"></circle>
+                        <circle cx="18" cy="19" r="3"></circle>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                      </svg>
+                      <span>Share</span>
                     </button>
                   </div>
 
-                  {/* Comments Drawer */}
+                  {/* Comments Thread Drawer */}
                   {expandedComments[post.id] && (
-                    <div className="post-comments-drawer">
-                      <div className="comments-thread-list">
+                    <div className="pro-comments-drawer">
+                      <div className="pro-comments-list">
                         {post.comments.map(c => (
-                          <div key={c.id} className="comment-thread-item">
+                          <div key={c.id} className="pro-comment-item">
                             <UserAvatar
                               avatarUrl={c.author.avatar_url}
                               fallback={c.author.username}
-                              size={28}
+                              size={32}
                             />
-                            <div className="comment-speech-bubble">
-                              <div className="comment-header-row">
+                            <div className="pro-comment-bubble">
+                              <div className="pro-comment-head">
                                 <span
-                                  className="comment-author-title"
-                                  style={onOpenProfile ? { cursor: 'pointer', textDecoration: 'underline' } : undefined}
+                                  className="pro-comment-author"
+                                  style={onOpenProfile ? { cursor: 'pointer' } : undefined}
                                   onClick={() => onOpenProfile?.(c.author.username)}
                                   title={`View ${c.author.username}'s profile`}
                                 >
-                                  u/{c.author.username}
+                                  @{c.author.username}
                                 </span>
-                                <span className="comment-timestamp">
+                                <span className="pro-comment-time">
                                   {formatRelativeTime(c.created_at)}
                                 </span>
                                 {(c.author.user_id === user.id || post.author.user_id === user.id) && (
                                   <button
                                     type="button"
-                                    className="comment-inline-delete"
+                                    className="pro-comment-delete-btn"
                                     onClick={() => handleDeleteComment(post.id, c.id)}
                                     title="Delete comment"
                                   >
@@ -1009,111 +1221,106 @@ export function NewsFeed({
                                   </button>
                                 )}
                               </div>
-                              <p className="comment-text-body">{c.content}</p>
+                              <p className="pro-comment-text">{c.content}</p>
                             </div>
                           </div>
                         ))}
                         {post.comments.length === 0 && (
-                          <div className="comments-blank-note">
-                            No comments yet. Start the conversation!
+                          <div className="pro-comments-empty">
+                            <span>💬</span> No comments yet. Be the first to start the conversation!
                           </div>
                         )}
                       </div>
 
-                      {/* Add comment input */}
-                      <div className="comment-composer-bar">
-                        <UserAvatar avatarUrl={user.avatar_url} fallback={user.username} size={26} />
-                        <input
-                          type="text"
-                          placeholder="Write a comment…"
-                          className="comment-text-input"
-                          value={commentInputs[post.id] || ''}
-                          onChange={e =>
-                            setCommentInputs(curr => ({ ...curr, [post.id]: e.target.value }))
-                          }
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              handleAddComment(post.id)
+                      {/* Comment Composer */}
+                      <div className="pro-comment-compose-row">
+                        <UserAvatar avatarUrl={user.avatar_url} fallback={user.username} size={30} />
+                        <div className="pro-comment-input-wrap">
+                          <input
+                            type="text"
+                            placeholder="Write a thoughtful comment…"
+                            className="pro-comment-input"
+                            value={commentInputs[post.id] || ''}
+                            onChange={e =>
+                              setCommentInputs(curr => ({ ...curr, [post.id]: e.target.value }))
                             }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="comment-submit-action"
-                          disabled={submittingComment[post.id] || !(commentInputs[post.id] || '').trim()}
-                          onClick={() => handleAddComment(post.id)}
-                        >
-                          {submittingComment[post.id] ? '…' : 'Comment'}
-                        </button>
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                handleAddComment(post.id)
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="pro-comment-send-btn"
+                            disabled={submittingComment[post.id] || !(commentInputs[post.id] || '').trim()}
+                            onClick={() => handleAddComment(post.id)}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="22" y1="2" x2="11" y2="13"></line>
+                              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                            </svg>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
-                </div>
-              </article>
-            ))}
+                </article>
+              )
+            })}
           </div>
         )}
       </main>
 
       {/* ====================================================
-          RIGHT SIDEBAR: Reddit Community Info
+          RIGHT SIDEBAR: Space Info & Platform Discovery
           ==================================================== */}
       <aside className="feed-right-sidebar">
         {currentCommunity ? (
-          <div className="community-info-card">
-            <div className="community-info-header">
-              <div className="community-info-title">
-                <h4>
-                  {currentCommunity.privacy_type === 'public' ? 'About Page' : 'About Community'}{' '}
-                  <span style={{ color: '#2563eb', fontWeight: 600 }}>
-                    ({currentCommunity.privacy_type === 'public' ? 'p/' : 'c/'}{currentCommunity.slug})
-                  </span>
-                </h4>
-                {currentCommunity.privacy_type === 'public' ? (
-                  <span className="community-policy-badge" style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }}>
-                    🌐 Public Page
-                  </span>
-                ) : (
-                  <span className="community-policy-badge" style={{ background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>
-                    🔒 Private Community
-                  </span>
-                )}
-              </div>
+          <div className="pro-sidebar-card">
+            <div className="pro-sidebar-card-header">
+              <span className="pro-card-title">
+                {currentCommunity.privacy_type === 'public' ? 'About this Page' : 'About this Community'}
+              </span>
+              <span className={`comm-type-pill ${currentCommunity.privacy_type === 'private' ? 'private' : 'public'}`}>
+                {currentCommunity.privacy_type === 'private' ? 'Community' : 'Page'}
+              </span>
             </div>
-            <p className="community-about-copy">
-              {currentCommunity.description || (currentCommunity.privacy_type === 'public' 
-                ? 'Welcome to this public page! All members can create posts, share images, videos, and discussions.' 
+
+            <p className="pro-sidebar-about-text">
+              {currentCommunity.description || (currentCommunity.privacy_type === 'public'
+                ? 'Welcome to this public page! All members can create posts, share images, videos, and discussions.'
                 : 'Welcome to this private community! Only admins can post content. Members can view, like, and comment.')}
             </p>
 
-            <div style={{ marginBottom: '12px', padding: '8px 10px', background: '#f8fafc', borderRadius: '8px', fontSize: '11.5px', color: '#475569', border: '1px solid #e2e8f0' }}>
+            <div className="pro-sidebar-rule-box">
               {currentCommunity.privacy_type === 'public' ? (
                 <div>
-                  <strong>👥 Posting Rule:</strong> Everyone who joins this Page can freely post text, images, and videos.
+                  <strong>👥 Posting Rule:</strong> Open for all members to publish text, photos, and videos.
                 </div>
               ) : (
                 <div>
-                  <strong>🔒 Posting Rule:</strong> <em>Admin only</em>. Regular members can view, upvote/like, and comment.
+                  <strong>🔒 Posting Rule:</strong> <em>Admin only</em>. Members can read, like, and comment.
                   <div style={{ marginTop: '4px' }}>
-                    <strong>Access:</strong> {currentCommunity.join_rule === 'approval' ? 'Admin approval required to join' : 'Open for anyone to join'}
+                    <strong>Access:</strong> {currentCommunity.join_rule === 'approval' ? 'Admin approval required' : 'Open for anyone to join'}
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="community-stats-row">
-              <div className="stat-item">
+            <div className="pro-sidebar-stats-grid">
+              <div className="pro-stat-box">
                 <strong>{currentCommunity.member_count}</strong>
                 <small>Members</small>
               </div>
-              <div className="stat-item">
+              <div className="pro-stat-box">
                 <strong>{currentCommunity.category || 'General'}</strong>
                 <small>Category</small>
               </div>
             </div>
 
-            {/* Admin Pending Requests Button */}
+            {/* Admin Requests Button */}
             {currentCommunity.is_admin && currentCommunity.privacy_type === 'private' && (
               <button
                 type="button"
@@ -1126,7 +1333,7 @@ export function NewsFeed({
 
             <button
               type="button"
-              className={`switch-to-chat-btn ${currentCommunity.is_pending ? 'pending' : ''}`}
+              className={`pro-sidebar-main-btn ${currentCommunity.is_pending ? 'pending' : currentCommunity.is_member ? 'leave' : 'join'}`}
               onClick={() => handleToggleJoinCommunity(currentCommunity.slug, currentCommunity.is_member, currentCommunity.is_pending)}
             >
               {currentCommunity.is_pending
@@ -1135,11 +1342,11 @@ export function NewsFeed({
                 ? `Leave ${currentCommunity.privacy_type === 'public' ? 'Page' : 'Community'}`
                 : `+ Join ${currentCommunity.privacy_type === 'public' ? 'Page' : (currentCommunity.join_rule === 'approval' ? ' (Request to Join)' : 'Community')}`}
             </button>
+
             {onOpenGroupChat && (
               <button
                 type="button"
-                className="switch-to-chat-btn"
-                style={{ background: '#f5f7f5', color: '#333', borderColor: '#ccc' }}
+                className="pro-sidebar-chat-btn"
                 onClick={onOpenGroupChat}
               >
                 💬 Open Messenger Chat
@@ -1147,60 +1354,106 @@ export function NewsFeed({
             )}
           </div>
         ) : (
-          <div className="community-info-card">
-            <div className="community-info-header">
-              <div className="community-info-title">
-                <h4>Pages & Communities</h4>
-                <span className="community-policy-badge">Hub</span>
-              </div>
+          <div className="pro-sidebar-card">
+            <div className="pro-sidebar-card-header">
+              <span className="pro-card-title">Pages & Communities</span>
+              <span className="comm-type-pill public">Explore</span>
             </div>
-            <p className="community-about-copy">
-              Explore Public Pages where everyone shares and posts, or Private Communities where admins post curated updates and media!
+            <p className="pro-sidebar-about-text">
+              Discover Public Pages where members share posts, and Private Communities where creators publish curated updates!
             </p>
-            <div className="community-stats-row">
-              <div className="stat-item">
+            <div className="pro-sidebar-stats-grid">
+              <div className="pro-stat-box">
                 <strong>{communities.length}</strong>
-                <small>Spaces</small>
+                <small>Total Spaces</small>
               </div>
-              <div className="stat-item">
+              <div className="pro-stat-box">
                 <strong>{posts.length}</strong>
                 <small>Posts loaded</small>
               </div>
             </div>
             <button
               type="button"
-              className="switch-to-chat-btn"
+              className="pro-sidebar-main-btn join"
               onClick={() => setShowCreateCommunity(true)}
             >
-              + Create Page or Community
+              + Create a Space
             </button>
             {onOpenGroupChat && (
               <button
                 type="button"
-                className="switch-to-chat-btn"
-                style={{ background: '#f5f7f5', color: '#333', borderColor: '#ccc' }}
+                className="pro-sidebar-chat-btn"
                 onClick={onOpenGroupChat}
               >
-                💬 Switch to Messenger Chat
+                💬 Open Messenger Chat
               </button>
             )}
           </div>
         )}
 
-        {/* Community Rules card */}
-        <div className="community-info-card">
-          <h4 style={{ margin: 0, fontSize: '13px', color: '#444' }}>Guidelines & Rules</h4>
-          <ol style={{ margin: 0, paddingLeft: '18px', fontSize: '11.5px', color: '#666', lineHeight: 1.6 }}>
-            <li><strong>Public Page:</strong> Open for all. Any member can post text, images, and videos.</li>
-            <li><strong>Private Community:</strong> Admin-only posting (text, images, videos). Members can comment and react.</li>
-            <li>Admin can choose Open join or Admin Approval for Private Community.</li>
-            <li>Be respectful and constructive across all spaces.</li>
-          </ol>
+        {/* Recommended Spaces widget */}
+        {recommendedCommunities.length > 0 && (
+          <div className="pro-sidebar-card">
+            <span className="pro-card-title">Discover Spaces</span>
+            <div className="pro-recommended-list">
+              {recommendedCommunities.map(rc => (
+                <div key={rc.id} className="pro-recommended-item">
+                  <div
+                    className="pro-recommended-info"
+                    onClick={() => setSelectedCommunitySlug(rc.slug)}
+                  >
+                    <div className={`space-avatar-circle small ${rc.privacy_type === 'private' ? 'private' : 'public'}`}>
+                      {(rc.name || rc.slug)[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <strong className="rec-name">{rc.name}</strong>
+                      <small className="rec-sub">{rc.privacy_type === 'private' ? 'c/' : 'p/'}{rc.slug} • {rc.member_count} members</small>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="rec-join-btn"
+                    onClick={() => handleToggleJoinCommunity(rc.slug, rc.is_member, rc.is_pending)}
+                  >
+                    {rc.is_member ? '✓' : '+'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Community Guidelines widget */}
+        <div className="pro-sidebar-card">
+          <span className="pro-card-title">Community Guidelines</span>
+          <div className="pro-guidelines-list">
+            <div className="pro-guideline-item">
+              <span className="pro-guideline-num">1</span>
+              <div>
+                <strong>Public Page:</strong> Open for all. Any member can publish text, photos, and videos.
+              </div>
+            </div>
+            <div className="pro-guideline-item">
+              <span className="pro-guideline-num">2</span>
+              <div>
+                <strong>Private Community:</strong> Admin-only publishing. Members can read, react, and comment.
+              </div>
+            </div>
+            <div className="pro-guideline-item">
+              <span className="pro-guideline-num">3</span>
+              <div>
+                <strong>Respectful interaction:</strong> Constructive conversations and helpful feedback.
+              </div>
+            </div>
+          </div>
+          <div className="pro-sidebar-footer-links">
+            <span>Gather Social © 2026</span>
+          </div>
         </div>
       </aside>
 
       {/* ====================================================
-          MODAL: Create Page or Community (Professional Redesign)
+          MODAL: Create Page or Community (Professional Modal)
           ==================================================== */}
       {showCreateCommunity && (
         <div className="modal-overlay" onClick={() => setShowCreateCommunity(false)}>
@@ -1235,7 +1488,6 @@ export function NewsFeed({
             )}
 
             <form onSubmit={handleCreateCommunitySubmit} className="pro-modal-form">
-              
               {/* Type Selection: Public Page vs Private Community */}
               <div className="space-type-grid">
                 <div

@@ -1,5 +1,15 @@
 # Project Agent Instructions
 
+## Mandate: Expert Full-Stack Web Developer & Senior Software Engineer Persona
+
+- **Operating Persona:** The AI assistant MUST always act strictly as an **Expert Senior Full-Stack Web Developer and Software Engineer**.
+- **No AI-Generated Look or Feel:** Any code, component, endpoint, database migration, or UI delivered must look and perform as if it was authored by a seasoned senior engineer at a tier-1 technology company (e.g., Stripe, Meta, GitHub, Discord, Linear). No naive prototypes, no sloppy hacks, and no generic AI boilerplate.
+- **Strict Iconography Standard (NO STICKER-STYLE ICONS):**
+  - **Forbidden:** Never use sticker-style graphics, cartoonish illustrations, childish clipart, or raw emojis as primary UI icons.
+  - **Required:** Use clean, professional, minimalist SVG vector icons (outline/stroke style, 1.5px to 2px stroke width, rounded caps/joins, benchmarked against Lucide Icons, Heroicons, or Feather Icons).
+  - When colored accents are needed, place the monochrome SVG icon inside a subtly tinted background container (e.g., squircle or rounded circle with `#eff6ff` background and `#2563eb` icon stroke) rather than using multi-colored sticker graphics.
+  - All icons must be crisp, resolution-independent, properly aligned, and paired with responsive typography.
+
 ## Project
 
 Build a group chat web app (the original request said “group cheating”; interpreted as group chatting).
@@ -38,33 +48,39 @@ Any feature, component, modal, or UI update implemented in this repository must 
 
 ### Core Design Rules for Every Feature
 
-1. **Real-Life UX Patterns & Hierarchy:**
-   - Always study and reference real-world social platforms for user interaction flows (e.g. Reddit's community creator, Facebook's page setup, Discord's server creation, Twitter's space settings).
-   - Never use raw/unformatted inputs, disconnected floating badges, misaligned prefixes, or naive emojis as primary UI scaffolding.
-   - Use clean, accessible SVG vector icons (Lucide / Heroicons style) encased in subtle tinted badges instead of cheesy raw emojis.
+1. **Real-Life UX Patterns & Non-AI Code Standard:**
+   - Always study and reference real-world tier-1 platforms for user interaction flows (e.g., Reddit, Meta/Facebook, Discord, YouTube, Twitter/X, Stripe, Linear).
+   - Code must be production-grade, maintainable, fully typed, resilient, and architecturally clean. Never produce generic AI boilerplate or half-baked prototype code.
+   - Never use raw/unformatted inputs, disconnected floating badges, misaligned prefixes, or browser-default unstyled fallback elements.
 
-2. **Form Controls & Input Groups:**
+2. **Professional Iconography Standard (Strictly No Sticker-Type or Cartoonish Icons):**
+   - **No Sticker Graphics or Emojis:** Never use cartoonish sticker-type graphics, flat clip-art illustrations, or raw emojis as primary UI icons or scaffolding.
+   - **Precision SVG Vectors:** Always use sleek, minimalist, scalable SVG vector icons (outline/stroke style, 1.5px to 2px stroke width, rounded caps and joins, benchmarked against Lucide, Feather, or Heroicons).
+   - **Modern Enclosures:** When colored emphasis is needed, enclose the monochromatic SVG vector inside a subtly tinted squircle or circle container (e.g., soft background like `#eff6ff` or `#ede9fe` with brand icon stroke like `#2563eb` or `#6d28d9`), rather than using multi-colored sticker art.
+   - **Accessibility & Alignment:** Ensure icons are crisp, resolution-independent, vertically aligned with flexbox/inline-flex, and accompanied by accessible text labels or aria-labels.
+
+3. **Form Controls & Input Groups:**
    - **Unified Input Groups:** Web addresses, handles, or slugs must use single-container input groups with an integrated prefix addon (e.g., `[ https://gather.app/p/ | photography ]`) rather than floating disconnected badges or mismatched boxes.
    - **Custom Styled Selects:** Never leave raw browser `<select>` controls unstyled. Wrap with custom SVG carets, border-radius, clean hover and focus rings.
    - **Character Counters & Hints:** Provide clear character indicators (e.g., `12/60`), subtle validation rules, and context helper text.
    - **Focus & Hover States:** Subtle, smooth transitions with brand focus rings (`box-shadow: 0 0 0 3px rgba(37,99,235,0.15)`), never harsh browser default outlines.
 
-3. **Interactive Selection Cards:**
+4. **Interactive Selection Cards:**
    - Multi-option selectors (e.g., Public vs Private spaces, membership policies) must be designed as cohesive option cards with:
      - Clear title, 1-line sub-tagline, and concise value proposition.
      - Subtle tinted vector icon box.
      - Radio or checkmark indicator showing active state.
      - Smooth hover elevation and brand accent border on selection.
 
-4. **Action Buttons & Feedback:**
+5. **Action Buttons & Feedback:**
    - **High-contrast, intentional buttons:** Never use faded, washed-out, or disabled-looking pastel colors for active action buttons.
    - Clear visual hierarchy: Solid brand primary button (`#2563eb` with active/hover transitions and subtle shadow) vs clean ghost/outline secondary button.
    - Interactive loading states with animated spinners (`Creating…`) and proper disabled state styling when invalid.
 
-5. **Live Previews & Real-time Context:**
+6. **Live Previews & Real-time Context:**
    - When users configure a space, page, profile, or post, provide an inline or live preview card displaying how the final item will appear to other users.
 
-6. **Modals & Overlays:**
+7. **Modals & Overlays:**
    - Modern modal styling: `backdrop-filter: blur(8px)`, generous rounded corners (16–20px), multi-layer depth shadows (`box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25)`).
    - Structured layout: Header with title, context subtitle, and accessible `✕` close button; scrollable body; and sticky/anchored footer with actions.
    - Full dark mode (`:root[data-theme="dark"]`) compatibility for all borders, backgrounds, text contrasts, and states.
@@ -301,3 +317,21 @@ These entries summarize prior work and requests gathered before this maintenance
   - Updated `NewsFeed.tsx`: posts created in Newsfeed are explicitly marked `source: 'feed'`, so they will never appear in YouTube/Watch.
 - Files changed: `backend/app/models/post.py`, `backend/app/schemas/feed.py`, `backend/app/routers/feed.py`, `frontend/src/api/client.ts`, `frontend/src/videos/WatchView.tsx`, `frontend/src/feed/NewsFeed.tsx`, `CODEX.md`.
 - Verification: Executed backend isolation tests in container verifying that watch videos appear in Newsfeed while Newsfeed posts are excluded from Watch; Frontend built cleanly with `npm run build` (0 errors).
+
+### 2026-11-25: Enterprise NewsFeed UI & Professional Design System Overhaul
+
+- Request: Make the entire Newsfeed look and feel like it was crafted by an expert developer at a top-tier tech company (Reddit/Meta/Discord standard), and upgrade the "Create Page or Community" modal, composer, cards, and sidebar to eliminate any generic or AI-generated appearance.
+- Outcome:
+  - **Create Modal Architecture (`.pro-space-modal`):** Upgraded the space creation dialog with a dual-card type selector (Public Page vs Private Community) featuring custom vector icons, radio badges, clean access policy cards (`Instant Access` vs `Admin Approval Required`), character counter badges, custom select dropdown with SVG caret, live interactive preview card (`.pro-live-preview-box`), and high-contrast submit button.
+  - **Unified Input Groups:** Integrated URL slug input group (`gather.app/p/` or `gather.app/c/`) with seamless domain addon prefix and validation helper hints.
+  - **Three-Column Social Layout (`.feed-layout-container`):** Clean 260px left sidebar, 680px central feed, and 300px right sidebar with sticky positioning, smooth scrollbars, and responsive tablet/mobile fallbacks.
+  - **Hero Space Banner (`.pro-community-banner`):** Custom banner backdrop gradients, squircle avatar badge, category pill, access policy tag, member stats, admin pending request actions, and clean join/joined toggles.
+  - **Segmented Filter Bar (`.pro-filter-bar`):** Tabbed sorting for Recent (`new`), Top Voted (`top`), and Media Only (`media`) with real-time post count indicator.
+  - **Pro Post Composer (`.pro-composer-card`):** User avatar, active space dropdown selector, title input with character indicator, auto-resizable textarea, photo & video drop previews with instant dismiss, and gradient publish button.
+  - **Post Cards & Interaction Suite (`.pro-post-card`):** Space chips, author avatar & profile handles, OP badge, timestamp, Watch video cross-post badge (`🎬 Watch Video`), edit & delete controls, zoom overlay on media, video player container, and reaction pills (upvote, comments count, views indicator).
+  - **Threaded Comments Drawer (`.pro-comments-drawer`):** Avatar squircle, styled comment bubbles with author metadata, and rounded comment composer.
+  - **Right Sidebar Widgets:** Space details card, Discover Spaces list with quick-join pill buttons, and Community Guidelines checklist.
+  - **Shimmer Skeletons (`.pro-skeleton-card`):** Replaced harsh loading spinners with smooth gradient shimmer animation (`@keyframes proShimmer`) for zero layout shifts.
+  - **Full Theme Fidelity:** Complete dark mode (`:root[data-theme="dark"]`) implementation across all cards, modals, borders, and controls.
+- Files changed: `frontend/src/feed/NewsFeed.tsx`, `frontend/src/styles.css`, `CODEX.md`.
+- Verification: Built frontend bundle with `npm run build` (0 TypeScript / Vite errors, 1.06s build); HMR running live on `http://127.0.0.1:5173/`.
