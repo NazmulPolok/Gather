@@ -344,6 +344,7 @@ export function NewsFeed({
         content: postContent.trim() || undefined,
         image_url: imageUrl,
         video_url: videoUrl,
+        source: 'feed',
       })
       setPosts(curr => [newPost, ...curr])
       setPostTitle('')

@@ -289,3 +289,15 @@ These entries summarize prior work and requests gathered before this maintenance
   - Preserved all active application code, models, schemas, and routes intact.
 - Files changed: `frontend/src/styles.css`, `backend/app/core/cache.py`, `backend/app/core/ws_manager.py`, `CODEX.md`.
 - Verification: Backend container recompiled and restarted with 200 OK responses; Frontend compiled with `npm run build` (0 errors).
+
+### 2026-11-25: YouTube Watch vs Newsfeed Cross-Posting and Isolation Rule
+
+- Request: When a user uploads a video from a YouTube channel/page in Watch, it must automatically appear on that page's Newsfeed. However, when users create a post from the Newsfeed page, it must NOT appear on the YouTube/Watch page.
+- Outcome:
+  - Added `source VARCHAR(32) NOT NULL DEFAULT 'feed'` column to PostgreSQL `posts` table and SQLAlchemy `Post` model.
+  - Updated `PostCreate` and `PostResponse` schemas with `source: str = "feed"`.
+  - Updated `create_post` and `get_news_feed` endpoints: supports filtering by `source="watch"`. Newsfeed without `source` parameter naturally receives all posts (both feed and watch uploads).
+  - Updated `WatchView.tsx`: passes `source: 'watch'` on video uploads and queries `/api/feed?source=watch`, filtering strictly to `p.source === 'watch'`.
+  - Updated `NewsFeed.tsx`: posts created in Newsfeed are explicitly marked `source: 'feed'`, so they will never appear in YouTube/Watch.
+- Files changed: `backend/app/models/post.py`, `backend/app/schemas/feed.py`, `backend/app/routers/feed.py`, `frontend/src/api/client.ts`, `frontend/src/videos/WatchView.tsx`, `frontend/src/feed/NewsFeed.tsx`, `CODEX.md`.
+- Verification: Executed backend isolation tests in container verifying that watch videos appear in Newsfeed while Newsfeed posts are excluded from Watch; Frontend built cleanly with `npm run build` (0 errors).

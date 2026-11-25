@@ -139,6 +139,7 @@ def _build_post_response(post: Post, current_user_id: int, db: Session) -> PostR
 
     # Views count
     views_count = getattr(post, "views_count", 0) or 0
+    source = getattr(post, "source", "feed") or "feed"
 
     # Comments
     comments_query = (
@@ -168,6 +169,7 @@ def _build_post_response(post: Post, current_user_id: int, db: Session) -> PostR
         image_url=post.image_url,
         video_url=post.video_url,
         views_count=views_count,
+        source=source,
         upvote_count=upvote_count,
         has_upvoted=has_upvoted,
         comment_count=len(comment_responses),
@@ -556,12 +558,13 @@ def get_news_feed(
     feed_type: str = Query(default="all"),  # 'all' (Popular), 'home' (Joined)
     community_slug: str | None = Query(default=None),
     author_username: str | None = Query(default=None),
+    source: str | None = Query(default=None),  # 'watch' (for YouTube/Watch), 'feed', or None (all)
     sort: str = Query(default="new"),  # 'new', 'top'
     limit: int = Query(default=50, ge=1, le=100),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> list[PostResponse]:
-    cache_key = make_key("feed", feed_type, community_slug or "all", author_username or "all", sort, limit, user.id)
+    cache_key = make_key("feed", feed_type, community_slug or "all", author_username or "all", source or "all", sort, limit, user.id)
     cached = cache.get_json(cache_key)
     if cached is not None:
         try:
@@ -570,6 +573,11 @@ def get_news_feed(
             pass
 
     query = select(Post).join(Community)
+
+    if source == "watch":
+        query = query.where(Post.source == "watch", Post.video_url.isnot(None))
+    elif source:
+        query = query.where(Post.source == source)
 
     if author_username:
         target_author = db.scalar(select(User).where(func.lower(User.username) == author_username.lower()))
@@ -700,6 +708,7 @@ def create_post(
         content=payload.content,
         image_url=payload.image_url,
         video_url=payload.video_url,
+        source=payload.source or "feed",
     )
     db.add(post)
     db.commit()

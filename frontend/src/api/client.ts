@@ -213,6 +213,7 @@ export type PostItem = {
   content?: string | null
   image_url?: string | null
   video_url?: string | null
+  source?: string | null
   views_count?: number
   upvote_count: number
   has_upvoted: boolean
@@ -369,17 +370,18 @@ export const api = {
     request<UserProfile>(`/api/auth/users/${encodeURIComponent(username)}/profile`, {}, token),
   getUserPosts: (token: string, username: string) =>
     request<PostItem[]>(`/api/feed/users/${encodeURIComponent(username)}/posts`, {}, token),
-  getNewsFeed: (token: string, params?: { feed_type?: string; community_slug?: string; author_username?: string; sort?: string; limit?: number }) => {
+  getNewsFeed: (token: string, params?: { feed_type?: string; community_slug?: string; author_username?: string; sort?: string; limit?: number; source?: string }) => {
     const q = new URLSearchParams()
     if (params?.feed_type) q.set('feed_type', params.feed_type)
     if (params?.community_slug) q.set('community_slug', params.community_slug)
     if (params?.author_username) q.set('author_username', params.author_username)
+    if (params?.source) q.set('source', params.source)
     if (params?.sort) q.set('sort', params.sort)
     if (params?.limit) q.set('limit', String(params.limit))
     const qs = q.toString()
     return request<PostItem[]>(qs ? `/api/feed?${qs}` : '/api/feed', {}, token)
   },
-  createPost: (token: string, data: { community_slug?: string; community_id?: number; title: string; content?: string; image_url?: string; video_url?: string }) =>
+  createPost: (token: string, data: { community_slug?: string; community_id?: number; title: string; content?: string; image_url?: string; video_url?: string; source?: string }) =>
     request<PostItem>('/api/feed/posts', {
       method: 'POST',
       body: JSON.stringify(data),

@@ -360,7 +360,7 @@ export function WatchView({
     try {
       const [loadedPages, loadedFeed] = await Promise.all([
         api.getCommunities(token),
-        api.getNewsFeed(token, { limit: 100 }),
+        api.getNewsFeed(token, { limit: 100, source: 'watch' }),
       ])
       setPages(loadedPages)
       setPosts(loadedFeed)
@@ -398,9 +398,9 @@ export function WatchView({
     setIsUploadVideoModal(true)
   }
 
-  // All video posts
+  // All video posts uploaded from YouTube channels / Watch Studio
   const videoPosts = useMemo(() => {
-    return posts.filter(p => Boolean(p.video_url))
+    return posts.filter(p => Boolean(p.video_url) && p.source === 'watch')
   }, [posts])
 
   // Active channel slug in Studio Dashboard
@@ -709,6 +709,7 @@ export function WatchView({
         title: videoTitle.trim(),
         content: finalContent || undefined,
         video_url: uploadRes.video_url,
+        source: 'watch',
       })
 
       // Refresh pages list in case user's personal channel was created

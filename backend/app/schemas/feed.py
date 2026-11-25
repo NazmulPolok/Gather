@@ -101,6 +101,7 @@ class PostCreate(BaseModel):
     content: str | None = Field(default=None, max_length=10000)
     image_url: str | None = Field(default=None, max_length=512)
     video_url: str | None = Field(default=None, max_length=512)
+    source: str = Field(default="feed", max_length=32)
 
     @field_validator("title")
     @classmethod
@@ -163,6 +164,7 @@ class PostResponse(BaseModel):
     image_url: str | None = None
     video_url: str | None = None
     views_count: int = 0
+    source: str = "feed"
     upvote_count: int = 0
     has_upvoted: bool = False
     comment_count: int = 0
