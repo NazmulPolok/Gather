@@ -126,6 +126,17 @@ function IconClose({ size = 16, className = '' }: { size?: number; className?: s
   )
 }
 
+function IconRefresh({ size = 15, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M21 2v6h-6" />
+      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+      <path d="M3 22v-6h6" />
+      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+    </svg>
+  )
+}
+
 function IconPin({ size = 16, className = '' }: { size?: number; className?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -331,165 +342,6 @@ export interface MerchantAnalytics {
   totalProducts: number
 }
 
-const SAMPLE_PRODUCTS: Product[] = [
-  {
-    id: 'prod-1',
-    name: 'Sony WH-1000XM5 Wireless Headphones',
-    category: 'Electronics',
-    price: 349,
-    originalPrice: 399,
-    rating: 4.9,
-    reviewsCount: 1420,
-    badge: 'Best Seller',
-    description: 'Industry-leading noise cancellation, 30-hour battery life, ultra-comfortable lightweight design.',
-    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=700',
-    inStock: true,
-  },
-  {
-    id: 'prod-2',
-    name: 'Keychron Q1 Pro Wireless Custom Keyboard',
-    category: 'Gaming',
-    price: 199,
-    originalPrice: 229,
-    rating: 4.8,
-    reviewsCount: 856,
-    badge: 'Popular',
-    description: 'CNC aluminum body, QMK/VIA programmable, hot-swappable mechanical switches, RGB backlight.',
-    image: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=700',
-    inStock: true,
-  },
-  {
-    id: 'prod-3',
-    name: 'Logitech MX Master 3S Ergonomic Mouse',
-    category: 'Electronics',
-    price: 99,
-    originalPrice: 119,
-    rating: 4.9,
-    reviewsCount: 2310,
-    badge: 'Top Rated',
-    description: 'Quiet clicks, 8K DPI track-on-glass sensor, ultra-fast MagSpeed electromagnetic scrolling.',
-    image: 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=700',
-    inStock: true,
-  },
-  {
-    id: 'prod-4',
-    name: 'PlayStation DualSense Wireless Controller',
-    category: 'Gaming',
-    price: 74,
-    originalPrice: 89,
-    rating: 4.8,
-    reviewsCount: 1140,
-    badge: 'Sale',
-    description: 'Haptic feedback, dynamic adaptive triggers, built-in microphone and signature comfort grip.',
-    image: 'https://images.unsplash.com/photo-1606318801954-d46d46d3360a?w=700',
-    inStock: true,
-  },
-  {
-    id: 'prod-5',
-    name: 'Apple Watch Ultra 2 Titanium Case',
-    category: 'Gadgets',
-    price: 799,
-    originalPrice: 849,
-    rating: 4.9,
-    reviewsCount: 780,
-    badge: 'Flagship',
-    description: '49mm aerospace titanium case, precision dual-frequency GPS, up to 72 hours battery in low-power.',
-    image: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=700',
-    inStock: true,
-  },
-  {
-    id: 'prod-6',
-    name: 'Razer BlackShark V2 Pro Wireless Headset',
-    category: 'Gaming',
-    price: 149,
-    originalPrice: 179,
-    rating: 4.7,
-    reviewsCount: 530,
-    badge: 'Esports Pro',
-    description: 'HyperClear super wideband mic, TriForce titanium 50mm drivers, ultra-soft breathable memory foam cushions.',
-    image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=700',
-    inStock: true,
-  },
-  {
-    id: 'prod-7',
-    name: 'Nomad Rugged Horween Leather iPhone Case',
-    category: 'Gadgets',
-    price: 59,
-    originalPrice: 69,
-    rating: 4.6,
-    reviewsCount: 320,
-    badge: 'Handcrafted',
-    description: 'Full-grain Horween leather that patinas with time, 10ft drop protection, MagSafe neodymium array.',
-    image: 'https://images.unsplash.com/photo-1580910051074-3eb694886505?w=700',
-    inStock: true,
-  },
-  {
-    id: 'prod-8',
-    name: 'Marshall Stanmore III Bluetooth Speaker',
-    category: 'Electronics',
-    price: 379,
-    originalPrice: 420,
-    rating: 4.8,
-    reviewsCount: 610,
-    badge: 'Premium Sound',
-    description: 'Iconic vintage styling, wider stereo soundstage, dynamic loudness, Bluetooth 5.2 connectivity.',
-    image: 'https://images.unsplash.com/photo-1545454675-3531b543be5d?w=700',
-    inStock: true,
-  },
-  {
-    id: 'prod-9',
-    name: 'Anker Prime 20,000mAh 200W Power Bank',
-    category: 'Gadgets',
-    price: 129,
-    originalPrice: 149,
-    rating: 4.9,
-    reviewsCount: 940,
-    badge: 'Ultra Fast',
-    description: '200W total output, smart digital display, charges a MacBook Pro to 50% in just 28 minutes.',
-    image: 'https://images.unsplash.com/photo-1609592424109-dd9892f1b177?w=700',
-    inStock: true,
-  },
-  {
-    id: 'prod-10',
-    name: 'Minimalist Polarized Titanium Sunglasses',
-    category: 'Apparel',
-    price: 65,
-    originalPrice: 85,
-    rating: 4.6,
-    reviewsCount: 230,
-    badge: 'Summer Drop',
-    description: 'Ultra-light aerospace titanium frame, 100% UV400 anti-glare polarized lenses.',
-    image: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=700',
-    inStock: true,
-  },
-  {
-    id: 'prod-11',
-    name: 'Smart RGB Ambient Light Bar with Camera Sync',
-    category: 'Gadgets',
-    price: 49,
-    originalPrice: 69,
-    rating: 4.8,
-    reviewsCount: 720,
-    badge: 'RGB Sync',
-    description: 'Screen color sampling camera, 16 million colors, voice control compatible with Alexa and Google.',
-    image: 'https://images.unsplash.com/photo-1507499739999-097706ad8914?w=700',
-    inStock: true,
-  },
-  {
-    id: 'prod-12',
-    name: 'Ergonomic Gas-Spring Dual Monitor Arm',
-    category: 'Gaming',
-    price: 119,
-    originalPrice: 149,
-    rating: 4.7,
-    reviewsCount: 410,
-    badge: 'Desk Setup',
-    description: 'Heavy duty steel & aluminum, supports screens up to 32", built-in cable management channels.',
-    image: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=700',
-    inStock: true,
-  },
-]
-
 // Preset logo options for quick store setup
 const LOGO_PRESETS = [
   { label: 'Cyber Tech', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150' },
@@ -529,7 +381,22 @@ export function ShopView({
   openShopTrigger,
   onOpenShopTriggerHandled,
 }: ShopViewProps) {
-  const [activeTab, setActiveTab] = useState<'browse' | 'orders' | 'myshop' | 'publicShop'>('browse')
+  const [activeTab, setActiveTabState] = useState<'browse' | 'orders' | 'myshop' | 'publicShop'>(() => {
+    try {
+      const saved = sessionStorage.getItem('gather_shop_active_tab')
+      if (saved && ['browse', 'orders', 'myshop', 'publicShop'].includes(saved)) {
+        return saved as 'browse' | 'orders' | 'myshop' | 'publicShop'
+      }
+    } catch {}
+    return 'browse'
+  })
+
+  const setActiveTab = (tab: 'browse' | 'orders' | 'myshop' | 'publicShop') => {
+    setActiveTabState(tab)
+    try {
+      sessionStorage.setItem('gather_shop_active_tab', tab)
+    } catch {}
+  }
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
   const [sortBy, setSortBy] = useState<'featured' | 'price-low' | 'price-high' | 'rating'>('featured')
@@ -569,7 +436,7 @@ export function ShopView({
   )
 
   // Products from backend
-  const [products, setProducts] = useState<Product[]>(SAMPLE_PRODUCTS)
+  const [products, setProducts] = useState<Product[]>([])
   const [isLoadingProducts, setIsLoadingProducts] = useState(false)
 
   // Open Shop Modal states
@@ -676,9 +543,11 @@ export function ShopView({
             shopName: p.shop_name ?? undefined,
           }))
         )
+      } else {
+        setProducts([])
       }
     } catch {
-      // Keep sample products if offline
+      setProducts([])
     } finally {
       setIsLoadingProducts(false)
     }
@@ -887,6 +756,74 @@ export function ShopView({
       fetchMerchantAnalytics()
     }
   }, [activeTab, isShopOwner])
+
+  // 1. Real-time background polling: automatically update orders & analytics every 3.5 seconds
+  useEffect(() => {
+    if (!token || !isShopOwner) return
+
+    const pollTimer = setInterval(() => {
+      fetchMerchantOrders()
+      fetchMerchantAnalytics()
+      fetchProducts()
+    }, 3500)
+
+    return () => clearInterval(pollTimer)
+  }, [token, isShopOwner])
+
+  // 2. Re-fetch when user switches back to this tab / window gains focus
+  useEffect(() => {
+    if (!token) return
+
+    const handleFocusSync = () => {
+      if (document.visibilityState === 'visible') {
+        fetchProducts()
+        fetchOrders()
+        if (isShopOwner) {
+          fetchMerchantOrders()
+          fetchMerchantAnalytics()
+        }
+      }
+    }
+
+    window.addEventListener('visibilitychange', handleFocusSync)
+    window.addEventListener('focus', handleFocusSync)
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleFocusSync)
+      window.removeEventListener('focus', handleFocusSync)
+    }
+  }, [token, isShopOwner])
+
+  // 3. Instant cross-tab sync via BroadcastChannel
+  useEffect(() => {
+    let channel: BroadcastChannel | null = null
+    try {
+      channel = new BroadcastChannel('gather_merchant_order_sync')
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'ORDER_PLACED') {
+          fetchProducts()
+          fetchOrders()
+          if (isShopOwner) {
+            fetchMerchantOrders()
+            fetchMerchantAnalytics()
+          }
+        }
+      }
+    } catch {}
+
+    return () => {
+      channel?.close()
+    }
+  }, [token, isShopOwner])
+
+  // 4. Fresh fetch whenever switching merchant subtabs or opening KPI product modal
+  useEffect(() => {
+    if (isShopOwner && activeTab === 'myshop') {
+      fetchMerchantOrders()
+      fetchMerchantAnalytics()
+      fetchProducts()
+    }
+  }, [merchantSubTab, kpiModal])
 
   // Handle trigger from Settings button
   useEffect(() => {
@@ -1233,6 +1170,19 @@ export function ShopView({
         }
 
         const resp = await api.createOrder(token, orderReq)
+
+        // Broadcast to all open tabs and immediately sync merchant dashboard
+        try {
+          const syncChan = new BroadcastChannel('gather_merchant_order_sync')
+          syncChan.postMessage({ type: 'ORDER_PLACED', orderCode: resp.order_code })
+          syncChan.close()
+        } catch {}
+
+        if (isShopOwner) {
+          fetchMerchantOrders()
+          fetchMerchantAnalytics()
+        }
+
         const placedOrder: Order = {
           id: resp.order_code,
           date: new Date(resp.created_at).toLocaleDateString('en-US', {
@@ -1604,6 +1554,20 @@ export function ShopView({
             >
               <IconShieldCheck size={15} />
               <span>Store Policies & Info</span>
+            </button>
+
+            <button
+              type="button"
+              className="merchant-sync-btn"
+              onClick={() => {
+                fetchMerchantOrders()
+                fetchMerchantAnalytics()
+                fetchProducts()
+              }}
+              title="Click to sync and refresh customer orders and analytics"
+            >
+              <IconRefresh size={14} className={isLoadingMerchantOrders ? 'spin-anim' : ''} />
+              <span>{isLoadingMerchantOrders ? 'Syncing…' : 'Sync Orders'}</span>
             </button>
           </div>
 

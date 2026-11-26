@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 import re
 import secrets
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.dependencies import get_current_user
@@ -417,9 +417,15 @@ def create_order(
 
     order_items: list[OrderItem] = []
     for item in payload.items:
+        resolved_pid = item.product_id
+        if not resolved_pid and item.product_name:
+            matched_prod = db.scalar(select(Product).where(func.lower(Product.name) == item.product_name.strip().lower()))
+            if matched_prod:
+                resolved_pid = matched_prod.id
+
         oi = OrderItem(
             order_id=order.id,
-            product_id=item.product_id,
+            product_id=resolved_pid,
             product_name=item.product_name,
             price=item.price,
             quantity=max(1, item.quantity),
@@ -512,13 +518,21 @@ def get_merchant_orders(
             detail="You do not have an active merchant shop.",
         )
 
-    shop_product_ids = db.scalars(select(Product.id).where(Product.shop_id == shop.id)).all()
-    if not shop_product_ids:
+    shop_products = db.scalars(select(Product).where(Product.shop_id == shop.id)).all()
+    if not shop_products:
         return []
+
+    shop_product_ids = {p.id for p in shop_products}
+    shop_product_names = {p.name.strip().lower() for p in shop_products if p.name}
 
     order_ids = db.scalars(
         select(OrderItem.order_id)
-        .where(OrderItem.product_id.in_(shop_product_ids))
+        .where(
+            or_(
+                OrderItem.product_id.in_(shop_product_ids),
+                func.lower(OrderItem.product_name).in_(shop_product_names),
+            )
+        )
         .distinct()
     ).all()
 
@@ -534,7 +548,11 @@ def get_merchant_orders(
 
     results: list[MerchantOrderResponse] = []
     for o in orders:
-        merchant_items = [it for it in o.items if it.product_id in shop_product_ids]
+        merchant_items = [
+            it for it in o.items
+            if (it.product_id and it.product_id in shop_product_ids)
+            or (it.product_name and it.product_name.strip().lower() in shop_product_names)
+        ]
         if not merchant_items:
             continue
         merchant_subtotal = sum(it.price * it.quantity for it in merchant_items)
@@ -560,7 +578,9 @@ def get_merchant_orders(
                         price=it.price,
                         quantity=it.quantity,
                         image_url=it.image_url,
-                        description=it.product.description if it.product else None,
+                        description=it.product.description if it.product else (
+                            next((p.description for p in shop_products if p.name.strip().lower() == it.product_name.strip().lower()), None)
+                        ),
                     )
                     for it in merchant_items
                 ],
@@ -591,8 +611,14 @@ def update_merchant_order_status(
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found.")
 
-    shop_product_ids = set(db.scalars(select(Product.id).where(Product.shop_id == shop.id)).all())
-    merchant_items = [it for it in order.items if it.product_id in shop_product_ids]
+    shop_products = db.scalars(select(Product).where(Product.shop_id == shop.id)).all()
+    shop_product_ids = {p.id for p in shop_products}
+    shop_product_names = {p.name.strip().lower() for p in shop_products if p.name}
+    merchant_items = [
+        it for it in order.items
+        if (it.product_id and it.product_id in shop_product_ids)
+        or (it.product_name and it.product_name.strip().lower() in shop_product_names)
+    ]
     if not merchant_items:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -660,10 +686,10 @@ def get_merchant_analytics(
             detail="You do not have an active merchant shop.",
         )
 
-    shop_product_ids = db.scalars(select(Product.id).where(Product.shop_id == shop.id)).all()
-    total_products = len(shop_product_ids)
+    shop_products = db.scalars(select(Product).where(Product.shop_id == shop.id)).all()
+    total_products = len(shop_products)
 
-    if not shop_product_ids:
+    if not shop_products:
         return MerchantAnalyticsResponse(
             total_orders=0,
             total_revenue=0.0,
@@ -673,9 +699,17 @@ def get_merchant_analytics(
             total_products=0,
         )
 
+    shop_product_ids = {p.id for p in shop_products}
+    shop_product_names = {p.name.strip().lower() for p in shop_products if p.name}
+
     order_ids = db.scalars(
         select(OrderItem.order_id)
-        .where(OrderItem.product_id.in_(shop_product_ids))
+        .where(
+            or_(
+                OrderItem.product_id.in_(shop_product_ids),
+                func.lower(OrderItem.product_name).in_(shop_product_names),
+            )
+        )
         .distinct()
     ).all()
 
@@ -701,7 +735,11 @@ def get_merchant_analytics(
     delivered_count = 0
 
     for o in orders:
-        merchant_items = [it for it in o.items if it.product_id in shop_product_ids]
+        merchant_items = [
+            it for it in o.items
+            if (it.product_id and it.product_id in shop_product_ids)
+            or (it.product_name and it.product_name.strip().lower() in shop_product_names)
+        ]
         total_revenue += sum(it.price * it.quantity for it in merchant_items)
         if o.status.lower() in ["processing"]:
             processing_count += 1

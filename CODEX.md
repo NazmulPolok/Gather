@@ -547,3 +547,39 @@ These entries summarize prior work and requests gathered before this maintenance
   - End-to-end backend test verified `GET /api/shop/merchant/orders` now returns `description` for order items.
   - TypeScript compilation completed with 0 errors (`tsc --noEmit`).
   - Vite production build succeeded cleanly (`npm run build`) in 1.05s.
+
+### 2026-11-26: Profile Post Composer Layout Styling & Complete Demo Shop Data Purge
+- **Issues Addressed:**
+  1. **Profile "Create a Post" UI Layout Disruption:**
+     - The post composer on the user's profile was previously missing dedicated CSS classes, causing the post title input, body textarea, media button, and publish button to render as unstyled, inline elements squished side-by-side.
+     - Added comprehensive, modern CSS rules in `frontend/src/styles.css` for `.fb-composer-box`, `.composer-user-row`, `.composer-user-details`, `.composer-title-heading`, `.composer-group-badge`, `.composer-group-dropdown`, `.composer-inner-form`, `.composer-title-input`, `.composer-body-textarea`, `.composer-attachment-card`, `.composer-bottom-bar`, `.composer-photo-btn`, `.composer-publish-btn`, and `.fb-intro-icon-wrap`.
+     - Full support for dark mode, mobile responsiveness, input focus halos, and disabled state styling.
+  2. **Complete Demo Shop Data Purge:**
+     - Removed all demo marketplace products (IDs 1-12) and test products from the PostgreSQL database (`products` table).
+     - Deleted test customer orders and order line items (`orders` and `order_items` tables) to reset `total_orders`, `processing_orders`, `on_the_way_orders`, `delivered_orders`, and `total_revenue` to clean zero state.
+     - Neutralized `backend/app/db/seed_shop.py` to prevent any automated re-seeding of sample demo products on container startup.
+     - Removed `SAMPLE_PRODUCTS` mock array and fallback references from `frontend/src/shop/ShopView.tsx`. The shop products state now initializes to `[]` and gracefully renders the dedicated empty state when no products are present.
+- **Verification:**
+  - Database audit verified: 0 remaining demo/test products, 0 remaining orders, and authentic shop `Rabby Tech Hub` preserved.
+  - Analytics API `GET /api/shop/merchant/analytics` verified returning clean metrics: `total_orders: 0`, `total_revenue: 0.0`, `total_products: 0`.
+  - Frontend TypeScript validation and Vite build succeeded with 0 errors (`npm run build` completed in 915ms).
+
+### 2026-11-26: Real-Time Order Synchronization & Robust Merchant Order Matching
+- **Root Cause of Issue:**
+  1. The merchant shop view had no real-time polling or cross-tab synchronization. When another user placed an order in another browser window, session, or device, the merchant dashboard stayed stale and never fetched new orders unless manually hard-reloaded.
+  2. Sub-tab transitions (`dashboard` <-> `orders` <-> `inventory`) and KPI modal buttons (`setKpiModal`) did not trigger a fresh fetch, leading to stale order products and counters.
+  3. In the backend, `get_merchant_orders` and `get_merchant_analytics` previously performed an inner join strictly on `OrderItem.product_id.in_(shop_product_ids)`. If an order item was submitted without an explicit numeric `product_id` (or if it was placed via alternate routes), the item was completely omitted from the merchant dashboard.
+- **Backend Enhancements (`backend/app/routers/shop.py`):**
+  - Updated `create_order` to automatically resolve and backfill `product_id` by matching product name if `product_id` was omitted or null.
+  - Updated `get_merchant_orders` and `get_merchant_analytics` to match order items using both `OrderItem.product_id.in_(shop_product_ids)` and case-insensitive fallback matching `func.lower(OrderItem.product_name).in_(shop_product_names)`.
+  - Added fallback product description resolution so items without loaded relationships still display their merchant catalog description.
+- **Frontend Real-Time Synchronization (`frontend/src/shop/ShopView.tsx` & `frontend/src/styles.css`):**
+  - **Automated Background Polling:** Configured a light 3.5-second polling interval in `ShopView.tsx` that re-syncs merchant orders, analytics, and products whenever the merchant view is active.
+  - **Cross-Tab & Window Sync:** Implemented `BroadcastChannel('gather_merchant_order_sync')` so orders placed in any open tab immediately notify open merchant dashboards within milliseconds.
+  - **Tab Visibility / Focus Sync:** Added window `focus` and `visibilitychange` listeners to immediately re-fetch the moment the merchant returns to the Gather tab.
+  - **Interactive Sync Button:** Added `.merchant-sync-btn` ("↻ Sync Orders") in the merchant subtabs header with animated loading state.
+  - **Sub-Tab & Modal Triggers:** Switching between subtabs or opening any of the 6 KPI breakdown modals now triggers an immediate background data refresh.
+  - **Session Tab Persistence:** Saved `activeTab` into `sessionStorage` so refreshing the browser retains the merchant on `'myshop'` without resetting to `'browse'`.
+- **Verification:**
+  - Full end-to-end multi-user test verified in Docker container: simulated customer order placement with both direct product ID and product name fallback; verified merchant orders count, subtotal, and analytics updated to 2 orders with complete item descriptions.
+  - TypeScript validation (`tsc --noEmit`) and production build (`npm run build`) succeeded with 0 errors in 937ms.
