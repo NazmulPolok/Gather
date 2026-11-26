@@ -374,3 +374,47 @@ These entries summarize prior work and requests gathered before this maintenance
   - Enforced that all future responses, explanations, and engineering documentation must be delivered strictly in professional English.
 - Files changed: `frontend/src/feed/NewsFeed.tsx`, `frontend/src/styles.css`, `CODEX.md`.
 - Verification: Clean TypeScript compilation (`tsc --noEmit`), Vite production build succeeded in 942ms (0 errors), HMR running live on `http://127.0.0.1:5173/`.
+
+### 2026-11-26: UI Glitch & Posting Permission Fixes
+- **Root Cause Analysis from User Screenshot:**
+  1. Default browser button styling appeared on sidebar navigation buttons (`.pro-nav-btn`) and space items (`.pro-space-list-item`) due to missing CSS definitions in `styles.css`.
+  2. The composer defaulted to `Test Channel` (`testchannel`), a private community created by another user (`testuser1`), which locked `rabby70` out with "Admin-Curated Private Community" because no public page existed by default.
+  3. The right sidebar was hidden prematurely on standard screens due to a `@media (max-width: 1200px)` query.
+  4. Light-theme styling lacked proper borders, background colors, and badge separations (e.g., "Test ChannelCommunity" text collision).
+- **Engineering Solutions Implemented:**
+  1. **Seeded Global Public Space:** Added `General Discussions` (`p/general`, `privacy_type='public'`) to the database so all users have an immediate, open destination to author and share posts.
+  2. **Smart Space Selection:** Updated `NewsFeed.tsx` to automatically default to spaces where `can_post` is true or public pages, avoiding locked private channels on load.
+  3. **Interactive Locked Box Actions:** When viewing an admin-curated space, users now receive an actionable one-click `"Switch to General Discussions"` or `"+ Create a Public Page to Post"` CTA instead of a dead-end banner.
+  4. **Annotated Space Dropdown:** Shows `[Admin Only]` tags next to private spaces where the current user is not an admin.
+  5. **Complete 262-Class CSS Suite:** Styled all 46 missing classes in `styles.css` with dual Light & Dark mode support, pill navigation buttons, rounded card elevations, clear space item headers, and status badges.
+  6. **Responsive Layout Grid:** Preserved the 3-column layout down to standard laptop screen widths (1120px) before gracefully transitioning.
+- Files changed: `frontend/src/feed/NewsFeed.tsx`, `frontend/src/styles.css`, `CODEX.md`.
+- Verification: 0 TypeScript errors, Vite build succeeded in 984ms, Dev server live on `http://127.0.0.1:5173/`.
+
+### 2026-11-26: Profile View Overhaul & Composer Form Alignment Fixes
+- **Root Cause Analysis from User Screenshot (`media_1795667757466_6558e75a.png`):**
+  1. In `src/profile/ProfileView.tsx`, the composer form elements (`<input>` title and `<textarea>` body) were missing block and flex container styles, causing them to sit side-by-side on the same line, squished and overlapping each other awkwardly.
+  2. The Intro card used cartoonish emojis (`👤`, `📝`, `🔺`, `📅`) and Reddit legacy terminology (`Karma`, `r/`).
+  3. Action buttons throughout the profile (`📷`, `✏ Edit Profile`, `💬 Message`, `📰 News Feed`, `▲`, `🔗 Share`) lacked vector icons.
+  4. 46 CSS classes for `ProfileView` had no definitions in `src/styles.css`, causing elements to default to unstyled browser defaults.
+- **Engineering Solutions Implemented:**
+  1. **Form Layout Correction:** Refactored `.composer-inner-form` to a clean flex column layout (`display: flex; flex-direction: column; gap: 12px; width: 100%`) with dedicated `.composer-title-input` (full width, rounded, focus ring) and `.composer-body-textarea` (full width, auto-resizable, 85px minimum height).
+  2. **Modern Vector Icon Suite:** Replaced all emojis in the Intro card and cover banner with precision outline SVG icons (User, Post Document, Reputation Star, Calendar, Camera, Pencil, Message, Feed).
+  3. **Space Nomenclature Alignment:** Replaced Reddit-style `r/` prefix with modern `p/` (Public Page) and `c/` (Private Community) in the profile post composer dropdown and post cards.
+  4. **Post Actions & Comments Suite:** Added complete styling for `.post-actions-toolbar`, `.reddit-vote-pill`, `.reddit-comment-pill`, `.reddit-share-pill`, and threaded comment bubbles with full dark and light mode support.
+- Files changed: `frontend/src/profile/ProfileView.tsx`, `frontend/src/styles.css`, `CODEX.md`.
+- Verification: 0 TypeScript errors (`tsc --noEmit`), Vite production build succeeded in 990ms, dev server live on `http://127.0.0.1:5173/`.
+
+### 2026-11-26: Removal of All Demo Accounts & Mock Stories
+- **Removal of Mock/Demo Stories:**
+  - Removed all hardcoded mock stories (`Sarah Jenkins`, `Alex Rivera`, `Elena Rostova`, `Devon Vance`).
+  - Stories shelf now initializes strictly from live user activity (persisted in local storage). If no stories are active, an invitation card prompts users to share the first story.
+- **Removal of Demo Accounts & Live Database Recommendations:**
+  - Removed all hardcoded mock friend recommendations (`marcus_code`, `priya_sharma`, `daniel_k`).
+  - Added `@router.get("/recommendations")` endpoint in `backend/app/routers/auth.py` and `api.getUserRecommendations` in `frontend/src/api/client.ts` to populate "People You May Know" strictly from real registered members in the PostgreSQL database.
+- **Removal of Demo Community Events:**
+  - Removed hardcoded events (`Global Web Developers Summit 2026`, `Full-Stack Architecture & Microservices Jam`). Clean empty state displayed when no real community events have been hosted.
+- **Disabled Mock Memories:**
+  - Disabled default mock 1-year memory banner to prevent showing synthetic past memories.
+- Files changed: `backend/app/routers/auth.py`, `frontend/src/api/client.ts`, `frontend/src/feed/NewsFeed.tsx`, `frontend/src/styles.css`, `CODEX.md`.
+- Verification: 0 TypeScript errors, Vite production build succeeded in 918ms, dev server live on `http://127.0.0.1:5173/`.

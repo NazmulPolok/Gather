@@ -308,6 +308,21 @@ def get_user_profile(
     )
 
 
+@router.get("/recommendations", response_model=list[UserResponse])
+def get_user_recommendations(
+    limit: int = 6,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[UserResponse]:
+    users = db.scalars(
+        select(User)
+        .where(User.id != current_user.id)
+        .order_by(User.created_at.desc())
+        .limit(limit)
+    ).all()
+    return list(users)
+
+
 @router.post("/heartbeat")
 def heartbeat(
     db: Session = Depends(get_db),

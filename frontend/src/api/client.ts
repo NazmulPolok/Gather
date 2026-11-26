@@ -368,6 +368,8 @@ export const api = {
     request<{ status: string; slug: string }>(`/api/communities/${slug}/leave`, { method: 'POST' }, token),
   getUserProfile: (token: string, username: string) =>
     request<UserProfile>(`/api/auth/users/${encodeURIComponent(username)}/profile`, {}, token),
+  getUserRecommendations: (token: string, limit: number = 6) =>
+    request<AuthUser[]>(`/api/auth/recommendations?limit=${limit}`, {}, token),
   getUserPosts: (token: string, username: string) =>
     request<PostItem[]>(`/api/feed/users/${encodeURIComponent(username)}/posts`, {}, token),
   getNewsFeed: (token: string, params?: { feed_type?: string; community_slug?: string; author_username?: string; sort?: string; limit?: number; source?: string }) => {

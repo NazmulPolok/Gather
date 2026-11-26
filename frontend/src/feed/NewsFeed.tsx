@@ -225,81 +225,28 @@ export function NewsFeed({
   const [isCreatorMode, setIsCreatorMode] = useState(false)
 
   // Daily Memories ("On This Day")
-  const [showMemoryBanner, setShowMemoryBanner] = useState(true)
+  const [showMemoryBanner, setShowMemoryBanner] = useState(false)
 
-  // Stories Shelf State
-  const [stories, setStories] = useState<StoryItem[]>([
-    {
-      id: 's1',
-      authorName: 'Sarah Jenkins',
-      authorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-      background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-      content: 'Just launched our brand new open-source engine! 🚀✨',
-      timeAgo: '2h ago',
-      hasUnread: true,
-      pollQuestion: 'Excited for the demo?',
-      pollOptions: ['Yes! 🔥', 'Can’t wait 💡'],
-    },
-    {
-      id: 's2',
-      authorName: 'Alex Rivera',
-      authorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-      content: 'Late night debugging in Dhaka. Coffee is our real savior ☕💻',
-      timeAgo: '5h ago',
-      hasUnread: true,
-    },
-    {
-      id: 's3',
-      authorName: 'Elena Rostova',
-      authorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      content: 'Sunset hike in the mountains. Disconnecting for the weekend 🏔️🌲',
-      timeAgo: '8h ago',
-      hasUnread: false,
-    },
-    {
-      id: 's4',
-      authorName: 'Devon Vance',
-      authorAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
-      background: 'linear-gradient(135deg, #0ba360 0%, #3cba92 100%)',
-      content: 'Shipped v2.4 with WebRTC and Live Streaming support! 🎉',
-      timeAgo: '12h ago',
-      hasUnread: false,
-    },
-  ])
+  // Stories Shelf State (Persistent live user stories, zero mock/demo data)
+  const [stories, setStories] = useState<StoryItem[]>(() => {
+    try {
+      const stored = localStorage.getItem('gather_active_stories_v1')
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  })
   const [viewingStoryIndex, setViewingStoryIndex] = useState<number | null>(null)
   const [storyProgress, setStoryProgress] = useState(0)
   const [showCreateStoryModal, setShowCreateStoryModal] = useState(false)
   const [newStoryContent, setNewStoryContent] = useState('')
   const [newStoryGradient, setNewStoryGradient] = useState('linear-gradient(135deg, #f093fb 0%, #f5576c 100%)')
 
-  // Community Events State
-  const [events, setEvents] = useState<CommunityEventItem[]>([
-    {
-      id: 'e1',
-      title: 'Global Web Developers Summit 2026',
-      date: 'Sat, Dec 5 • 6:00 PM',
-      location: 'Live Stream & Tech Hub Hall',
-      attendeesCount: 342,
-      rsvpStatus: 'going',
-    },
-    {
-      id: 'e2',
-      title: 'Full-Stack Architecture & Microservices Jam',
-      date: 'Wed, Dec 9 • 7:30 PM',
-      location: 'Virtual Workshop',
-      attendeesCount: 189,
-      rsvpStatus: 'none',
-    },
-  ])
+  // Community Events State (Live real community events, zero mock data)
+  const [events, setEvents] = useState<CommunityEventItem[]>([])
 
-  // "People You May Know" Recommendations
-  const [friendRecommendations, setFriendRecommendations] = useState<FriendRecommendation[]>([
-    { id: 'f1', username: 'marcus_code', name: 'Marcus Sterling', mutualCount: 6, isAdded: false },
-    { id: 'f2', username: 'priya_sharma', name: 'Priya Sharma', mutualCount: 14, isAdded: false },
-    { id: 'f3', username: 'daniel_k', name: 'Daniel Kim', mutualCount: 3, isAdded: false },
-  ])
+  // "People You May Know" Recommendations (Populated from live database users)
+  const [friendRecommendations, setFriendRecommendations] = useState<FriendRecommendation[]>([])
 
   // Comments state
   const [expandedComments, setExpandedComments] = useState<Record<number, boolean>>({})
@@ -314,7 +261,7 @@ export function NewsFeed({
   // Image lightbox
   const [fullImageUrl, setFullImageUrl] = useState<string | null>(null)
 
-  // 1. Fetch Communities
+  // 1. Fetch Communities and Real User Recommendations
   useEffect(() => {
     let live = true
     api.getCommunities(token)
@@ -322,12 +269,35 @@ export function NewsFeed({
         if (!live) return
         setCommunities(res)
         if (res.length > 0 && !targetCommunitySlug) {
-          setTargetCommunitySlug(res[0].slug)
+          // Prefer a space where the user has posting privileges, or a public page
+          const preferred = res.find(c => c.can_post) || res.find(c => c.privacy_type === 'public') || res[0]
+          setTargetCommunitySlug(preferred.slug)
         }
       })
       .catch(err => {
         if (live) setError(err instanceof Error ? err.message : 'Could not load communities')
       })
+
+    // Fetch real registered users from the database
+    api.getUserRecommendations(token, 6)
+      .then(recUsers => {
+        if (!live) return
+        const mapped: FriendRecommendation[] = recUsers
+          .filter(u => !u.username.startsWith('test'))
+          .map(u => ({
+            id: `user-${u.id}`,
+            username: u.username,
+            name: u.nickname || `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username,
+            avatarUrl: u.avatar_url || undefined,
+            mutualCount: 1,
+            isAdded: false,
+          }))
+        setFriendRecommendations(mapped)
+      })
+      .catch(() => {
+        // Fallback gracefully if endpoint is unavailable
+      })
+
     return () => { live = false }
   }, [token])
 
@@ -780,7 +750,13 @@ export function NewsFeed({
       hasUnread: true,
       isMine: true,
     }
-    setStories(prev => [newStory, ...prev])
+    setStories(prev => {
+      const updated = [newStory, ...prev]
+      try {
+        localStorage.setItem('gather_active_stories_v1', JSON.stringify(updated))
+      } catch {}
+      return updated
+    })
     setShowCreateStoryModal(false)
     setNewStoryContent('')
     setNotice('Your story is live for 24 hours! 🌟')
@@ -1119,7 +1095,7 @@ export function NewsFeed({
               </div>
             </div>
 
-            {/* Friend Stories List */}
+            {/* User Stories List */}
             {stories.map((story, idx) => (
               <div
                 key={story.id}
@@ -1140,6 +1116,22 @@ export function NewsFeed({
                 <strong className="pro-story-author-name">{story.authorName}</strong>
               </div>
             ))}
+
+            {stories.length === 0 && (
+              <div className="pro-story-card pro-story-empty-hint" onClick={() => setShowCreateStoryModal(true)}>
+                <div className="pro-story-empty-icon-wrap">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                </div>
+                <div className="pro-story-empty-label">
+                  <strong>No Stories Yet</strong>
+                  <span>Click to add yours</span>
+                </div>
+              </div>
+            )}
           </section>
 
           {/* 2. DAILY MEMORIES ("ON THIS DAY") BANNER */}
@@ -1269,12 +1261,16 @@ export function NewsFeed({
                           value={targetCommunitySlug || targetComm?.slug || ''}
                           onChange={e => setTargetCommunitySlug(e.target.value)}
                         >
-                          {communities.map(c => (
-                            <option key={c.id} value={c.slug}>
-                              {c.privacy_type === 'private' ? '🔒 Community: ' : '🌐 Page: '}
-                              {c.name} ({c.privacy_type === 'private' ? 'c/' : 'p/'}{c.slug})
-                            </option>
-                          ))}
+                          {communities.map(c => {
+                            const isPrivate = c.privacy_type === 'private'
+                            const canUserPost = c.can_post ?? (isPrivate ? c.is_admin : true)
+                            return (
+                              <option key={c.id} value={c.slug}>
+                                {isPrivate ? '🔒 Community: ' : '🌐 Page: '}
+                                {c.name} ({isPrivate ? 'c/' : 'p/'}{c.slug}){!canUserPost ? ' [Admin Only]' : ''}
+                              </option>
+                            )
+                          })}
                         </select>
                       </div>
 
@@ -1296,13 +1292,42 @@ export function NewsFeed({
 
                 {!canPost ? (
                   <div className="pro-composer-locked-box">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                    </svg>
-                    <div>
-                      <strong>Admin-Curated Private Community</strong>
-                      <p>In this private community, only administrators can publish posts. Members can view, react, and comment below.</p>
+                    <div className="pro-locked-icon-wrap">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                      </svg>
+                    </div>
+                    <div className="pro-locked-content">
+                      <div className="pro-locked-text">
+                        <strong>Admin-Curated Private Community ({targetComm?.name})</strong>
+                        <p>In this private community, only administrators can publish posts. Members can freely view, react, and comment below.</p>
+                      </div>
+                      <div className="pro-locked-actions">
+                        {(() => {
+                          const openSpace = communities.find(c => (c.can_post ?? true) && c.slug !== targetComm?.slug)
+                          if (openSpace) {
+                            return (
+                              <button
+                                type="button"
+                                className="pro-switch-space-btn"
+                                onClick={() => setTargetCommunitySlug(openSpace.slug)}
+                              >
+                                Switch to {openSpace.name} ({openSpace.privacy_type === 'public' ? 'p/' : 'c/'}{openSpace.slug})
+                              </button>
+                            )
+                          }
+                          return (
+                            <button
+                              type="button"
+                              className="pro-switch-space-btn"
+                              onClick={() => setShowCreateCommunity(true)}
+                            >
+                              + Create a Public Page to Post
+                            </button>
+                          )
+                        })()}
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -2183,26 +2208,36 @@ export function NewsFeed({
             </div>
 
             <div className="pro-friends-list">
-              {friendRecommendations.map(friend => (
-                <div key={friend.id} className="pro-friend-item">
-                  <UserAvatar avatarUrl={friend.avatarUrl} fallback={friend.name} size={38} />
-                  <div className="pro-friend-info">
-                    <strong className="pro-friend-name">{friend.name}</strong>
-                    <span className="pro-friend-mutual">{friend.mutualCount} mutual friends</span>
-                    {friend.isAdded ? (
-                      <span className="pro-friend-added-tag">Request Sent ✓</span>
-                    ) : (
-                      <button
-                        type="button"
-                        className="pro-add-friend-btn"
-                        onClick={() => handleAddFriend(friend.id)}
+              {friendRecommendations.length === 0 ? (
+                <div className="pro-empty-notice">No user recommendations right now. Invite friends to connect!</div>
+              ) : (
+                friendRecommendations.map(friend => (
+                  <div key={friend.id} className="pro-friend-item">
+                    <UserAvatar avatarUrl={friend.avatarUrl} fallback={friend.name} size={38} />
+                    <div className="pro-friend-info">
+                      <strong
+                        className="pro-friend-name"
+                        style={onOpenProfile ? { cursor: 'pointer' } : undefined}
+                        onClick={() => onOpenProfile?.(friend.username)}
                       >
-                        Add Friend
-                      </button>
-                    )}
+                        {friend.name}
+                      </strong>
+                      <span className="pro-friend-mutual">@{friend.username}</span>
+                      {friend.isAdded ? (
+                        <span className="pro-friend-added-tag">Request Sent ✓</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="pro-add-friend-btn"
+                          onClick={() => handleAddFriend(friend.id)}
+                        >
+                          Add Friend
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
@@ -2219,35 +2254,39 @@ export function NewsFeed({
             </div>
 
             <div className="pro-events-list">
-              {events.map(ev => (
-                <div key={ev.id} className="pro-event-card">
-                  <div className="pro-event-date-badge">
-                    <span className="pro-event-month">DEC</span>
-                    <strong className="pro-event-day">{ev.id === 'e1' ? '05' : '09'}</strong>
-                  </div>
-                  <div className="pro-event-details">
-                    <strong className="pro-event-title">{ev.title}</strong>
-                    <span className="pro-event-meta">{ev.date}</span>
-                    <span className="pro-event-sub">{ev.attendeesCount} going • {ev.location}</span>
-                    <div className="pro-event-actions">
-                      <button
-                        type="button"
-                        className={`pro-rsvp-btn ${ev.rsvpStatus === 'going' ? 'active' : ''}`}
-                        onClick={() => handleToggleEventRSVP(ev.id, ev.rsvpStatus === 'going' ? 'none' : 'going')}
-                      >
-                        {ev.rsvpStatus === 'going' ? 'Going ✓' : 'RSVP Going'}
-                      </button>
-                      <button
-                        type="button"
-                        className={`pro-rsvp-btn interested ${ev.rsvpStatus === 'interested' ? 'active' : ''}`}
-                        onClick={() => handleToggleEventRSVP(ev.id, ev.rsvpStatus === 'interested' ? 'none' : 'interested')}
-                      >
-                        Interested
-                      </button>
+              {events.length === 0 ? (
+                <div className="pro-empty-notice">No upcoming community events scheduled yet.</div>
+              ) : (
+                events.map(ev => (
+                  <div key={ev.id} className="pro-event-card">
+                    <div className="pro-event-date-badge">
+                      <span className="pro-event-month">DATE</span>
+                      <strong className="pro-event-day">EV</strong>
+                    </div>
+                    <div className="pro-event-details">
+                      <strong className="pro-event-title">{ev.title}</strong>
+                      <span className="pro-event-meta">{ev.date}</span>
+                      <span className="pro-event-sub">{ev.attendeesCount} going • {ev.location}</span>
+                      <div className="pro-event-actions">
+                        <button
+                          type="button"
+                          className={`pro-rsvp-btn ${ev.rsvpStatus === 'going' ? 'active' : ''}`}
+                          onClick={() => handleToggleEventRSVP(ev.id, ev.rsvpStatus === 'going' ? 'none' : 'going')}
+                        >
+                          {ev.rsvpStatus === 'going' ? 'Going ✓' : 'RSVP Going'}
+                        </button>
+                        <button
+                          type="button"
+                          className={`pro-rsvp-btn interested ${ev.rsvpStatus === 'interested' ? 'active' : ''}`}
+                          onClick={() => handleToggleEventRSVP(ev.id, ev.rsvpStatus === 'interested' ? 'none' : 'interested')}
+                        >
+                          Interested
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </aside>
