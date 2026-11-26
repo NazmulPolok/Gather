@@ -528,3 +528,22 @@ These entries summarize prior work and requests gathered before this maintenance
   - TypeScript type check (`tsc --noEmit`) completed with 0 errors.
   - Production build succeeded cleanly (`npm run build`) in 938ms.
   - Hot Module Replacement verified running on Vite dev server.
+
+### 2026-11-26: Interactive KPI Button Grid & Full Product Descriptions Modal
+- **Feature Overview:**
+  - Transformed all merchant overview KPI cards into interactive, clickable buttons with hover elevation, focus outlines, and floating action pills (`View Products →`).
+  - Added a dedicated, full-featured **Product Breakdown & Description Modal** triggered whenever the shop owner clicks on any KPI card (Active Store Catalog, In Processing, On the Way, Delivered, Total Orders, or Net Revenue).
+  - Displays complete product details including high-resolution thumbnails, names, categories, pricing, stock status, delivery positions, order codes, customer information, and **Full Product Descriptions** in dedicated quote-styled description cards.
+- **Backend Architecture (`backend/app/schemas/shop.py` & `backend/app/routers/shop.py`):**
+  - Updated `MerchantOrderItemResponse` schema to include `description: str | None = None`.
+  - Updated `GET /api/shop/merchant/orders` and `PATCH /api/shop/merchant/orders/{order_id}/status` to eager-load `selectinload(OrderItem.product)` and return `product.description` directly for every ordered line item.
+- **Frontend Architecture (`frontend/src/shop/ShopView.tsx`, `frontend/src/api/client.ts`, `frontend/src/styles.css`):**
+  - Updated `ApiMerchantOrderItem` and `MerchantOrderItem` interfaces to include `description?: string | null`.
+  - Added state `kpiModal` (`'revenue' | 'orders' | 'processing' | 'on_the_way' | 'delivered' | 'catalog' | null`).
+  - Added `getProductDescription(productId)` fallback resolver.
+  - Built `MODAL 5: KPI PRODUCT DESCRIPTIONS & BREAKDOWN MODAL` with responsive scrolling, category-colored badges, product cards, order metadata, and navigation shortcuts ("Manage in Customer Orders →" or "Go to Inventory & Catalog →").
+  - Embedded real-time product description previews in each ordered item row on the Customer Orders tab.
+- **Verification:**
+  - End-to-end backend test verified `GET /api/shop/merchant/orders` now returns `description` for order items.
+  - TypeScript compilation completed with 0 errors (`tsc --noEmit`).
+  - Vite production build succeeded cleanly (`npm run build`) in 1.05s.

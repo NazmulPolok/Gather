@@ -152,6 +152,7 @@ class MerchantOrderItemResponse(BaseModel):
     price: float
     quantity: int
     image_url: str | None = None
+    description: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

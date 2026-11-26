@@ -294,6 +294,7 @@ export interface ApiMerchantOrderItem {
   price: number
   quantity: number
   image_url: string | null
+  description?: string | null
 }
 
 export interface ApiMerchantOrder {

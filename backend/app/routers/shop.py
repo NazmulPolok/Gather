@@ -527,7 +527,7 @@ def get_merchant_orders(
 
     orders = db.scalars(
         select(Order)
-        .options(selectinload(Order.items))
+        .options(selectinload(Order.items).selectinload(OrderItem.product))
         .where(Order.id.in_(order_ids))
         .order_by(Order.created_at.desc())
     ).all()
@@ -560,6 +560,7 @@ def get_merchant_orders(
                         price=it.price,
                         quantity=it.quantity,
                         image_url=it.image_url,
+                        description=it.product.description if it.product else None,
                     )
                     for it in merchant_items
                 ],
@@ -584,7 +585,7 @@ def update_merchant_order_status(
 
     order = db.scalar(
         select(Order)
-        .options(selectinload(Order.items))
+        .options(selectinload(Order.items).selectinload(OrderItem.product))
         .where(Order.id == order_id)
     )
     if not order:
@@ -640,6 +641,7 @@ def update_merchant_order_status(
                 price=it.price,
                 quantity=it.quantity,
                 image_url=it.image_url,
+                description=it.product.description if it.product else None,
             )
             for it in merchant_items
         ],

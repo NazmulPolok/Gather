@@ -303,6 +303,7 @@ export interface MerchantOrderItem {
   price: number
   quantity: number
   imageUrl: string | null
+  description?: string | null
 }
 
 export interface MerchantOrder {
@@ -614,6 +615,14 @@ export function ShopView({
   const [merchantOrderStatusFilter, setMerchantOrderStatusFilter] = useState<'all' | 'Processing' | 'On the Way' | 'Delivered'>('all')
   const [merchantOrderSearch, setMerchantOrderSearch] = useState('')
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
+  const [kpiModal, setKpiModal] = useState<'revenue' | 'orders' | 'processing' | 'on_the_way' | 'delivered' | 'catalog' | null>(null)
+
+  // Helper to look up product description by product ID
+  const getProductDescription = (productId?: number | string | null): string => {
+    if (!productId) return ''
+    const found = products.find(p => String(p.id) === String(productId))
+    return found?.description || ''
+  }
 
   // Filtered merchant orders
   const filteredMerchantOrders = useMemo(() => {
@@ -799,6 +808,7 @@ export function ShopView({
               price: it.price,
               quantity: it.quantity,
               imageUrl: it.image_url,
+              description: it.description || null,
             })),
           }))
         )
@@ -1602,9 +1612,14 @@ export function ShopView({
               ========================================================= */}
           {merchantSubTab === 'dashboard' && (
             <div className="merchant-dashboard-view">
-              {/* Top Key Performance Indicators (KPIs) */}
+              {/* Top Key Performance Indicators (KPIs) - Clickable Interactive Buttons */}
               <div className="merchant-kpi-grid">
-                <div className="merchant-kpi-card kpi-revenue">
+                <button
+                  type="button"
+                  className="merchant-kpi-card kpi-revenue interactive-btn"
+                  onClick={() => setKpiModal('revenue')}
+                  title="Click to view sales and product revenue descriptions"
+                >
                   <div className="kpi-icon-bubble bubble-emerald">
                     <IconDollar size={20} />
                   </div>
@@ -1613,9 +1628,15 @@ export function ShopView({
                     <strong className="kpi-value">${merchantStats.totalRevenue.toFixed(2)}</strong>
                     <small className="kpi-helper">Net sales generated from your items</small>
                   </div>
-                </div>
+                  <span className="kpi-card-action-pill">View Products →</span>
+                </button>
 
-                <div className="merchant-kpi-card kpi-orders">
+                <button
+                  type="button"
+                  className="merchant-kpi-card kpi-orders interactive-btn"
+                  onClick={() => setKpiModal('orders')}
+                  title="Click to view all purchased products and descriptions"
+                >
                   <div className="kpi-icon-bubble bubble-blue">
                     <IconPackage size={20} />
                   </div>
@@ -1624,9 +1645,15 @@ export function ShopView({
                     <strong className="kpi-value">{merchantStats.totalOrders}</strong>
                     <small className="kpi-helper">Customer purchases received</small>
                   </div>
-                </div>
+                  <span className="kpi-card-action-pill">View Products →</span>
+                </button>
 
-                <div className="merchant-kpi-card kpi-processing">
+                <button
+                  type="button"
+                  className="merchant-kpi-card kpi-processing interactive-btn"
+                  onClick={() => setKpiModal('processing')}
+                  title="Click to view products currently in processing & packing"
+                >
                   <div className="kpi-icon-bubble bubble-amber">
                     <IconClock size={20} />
                   </div>
@@ -1635,9 +1662,15 @@ export function ShopView({
                     <strong className="kpi-value">{merchantStats.processingCount}</strong>
                     <small className="kpi-helper">Orders ready for dispatch</small>
                   </div>
-                </div>
+                  <span className="kpi-card-action-pill">View Products →</span>
+                </button>
 
-                <div className="merchant-kpi-card kpi-transit">
+                <button
+                  type="button"
+                  className="merchant-kpi-card kpi-transit interactive-btn"
+                  onClick={() => setKpiModal('on_the_way')}
+                  title="Click to view products currently on the way & in transit"
+                >
                   <div className="kpi-icon-bubble bubble-sky">
                     <IconTruck size={20} />
                   </div>
@@ -1646,9 +1679,15 @@ export function ShopView({
                     <strong className="kpi-value">{merchantStats.onTheWayCount}</strong>
                     <small className="kpi-helper">Packages with courier</small>
                   </div>
-                </div>
+                  <span className="kpi-card-action-pill">View Products →</span>
+                </button>
 
-                <div className="merchant-kpi-card kpi-delivered">
+                <button
+                  type="button"
+                  className="merchant-kpi-card kpi-delivered interactive-btn"
+                  onClick={() => setKpiModal('delivered')}
+                  title="Click to view delivered products and descriptions"
+                >
                   <div className="kpi-icon-bubble bubble-teal">
                     <IconCheckSuccess size={20} />
                   </div>
@@ -1657,9 +1696,15 @@ export function ShopView({
                     <strong className="kpi-value">{merchantStats.deliveredCount}</strong>
                     <small className="kpi-helper">Completed handovers</small>
                   </div>
-                </div>
+                  <span className="kpi-card-action-pill">View Products →</span>
+                </button>
 
-                <div className="merchant-kpi-card kpi-catalog">
+                <button
+                  type="button"
+                  className="merchant-kpi-card kpi-catalog interactive-btn"
+                  onClick={() => setKpiModal('catalog')}
+                  title="Click to view all active catalog items and full descriptions"
+                >
                   <div className="kpi-icon-bubble bubble-violet">
                     <IconGrid size={20} />
                   </div>
@@ -1668,7 +1713,8 @@ export function ShopView({
                     <strong className="kpi-value">{merchantStats.totalProducts}</strong>
                     <small className="kpi-helper">Products live on Gather</small>
                   </div>
-                </div>
+                  <span className="kpi-card-action-pill">View Products →</span>
+                </button>
               </div>
 
               {/* Recent Orders Overview Card */}
@@ -2022,6 +2068,11 @@ export function ShopView({
                               <div className="item-main-info">
                                 <strong className="item-title">{item.productName}</strong>
                                 <span className="item-qty-tag">Quantity: <strong>{item.quantity}</strong></span>
+                                {(item.description || getProductDescription(item.productId)) && (
+                                  <p className="merchant-item-desc-text">
+                                    {item.description || getProductDescription(item.productId)}
+                                  </p>
+                                )}
                               </div>
                               <div className="item-pricing">
                                 <span className="item-unit-price">${item.price.toFixed(2)} each</span>
@@ -3349,6 +3400,215 @@ export function ShopView({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL 5: KPI PRODUCT DESCRIPTIONS & BREAKDOWN MODAL
+          ========================================================= */}
+      {kpiModal && (
+        <div className="shop-modal-overlay" onClick={() => setKpiModal(null)}>
+          <div className="shop-modal-dialog shop-wide-modal kpi-products-modal" onClick={e => e.stopPropagation()}>
+            <div className="shop-modal-header">
+              <div className="kpi-modal-title-area">
+                <div className={`kpi-modal-badge badge-${kpiModal}`}>
+                  {kpiModal === 'catalog' && <IconGrid size={16} />}
+                  {kpiModal === 'processing' && <IconClock size={16} />}
+                  {kpiModal === 'on_the_way' && <IconTruck size={16} />}
+                  {kpiModal === 'delivered' && <IconCheckSuccess size={16} />}
+                  {kpiModal === 'orders' && <IconPackage size={16} />}
+                  {kpiModal === 'revenue' && <IconDollar size={16} />}
+                  <span>
+                    {kpiModal === 'catalog' && 'Store Catalog Overview'}
+                    {kpiModal === 'processing' && 'Processing Orders (Packing)'}
+                    {kpiModal === 'on_the_way' && 'In-Transit Orders (On the Way)'}
+                    {kpiModal === 'delivered' && 'Delivered & Completed Orders'}
+                    {kpiModal === 'orders' && 'All Customer Purchases'}
+                    {kpiModal === 'revenue' && 'Revenue & Product Sales Breakdown'}
+                  </span>
+                </div>
+                <h3>
+                  {kpiModal === 'catalog' && `Products in Store Catalog (${myShopProducts.length})`}
+                  {kpiModal === 'processing' && `Products in Processing (${merchantStats.processingCount} Orders)`}
+                  {kpiModal === 'on_the_way' && `Products On the Way (${merchantStats.onTheWayCount} Orders)`}
+                  {kpiModal === 'delivered' && `Delivered Products (${merchantStats.deliveredCount} Orders)`}
+                  {kpiModal === 'orders' && `All Ordered Products (${merchantStats.totalOrders} Orders)`}
+                  {kpiModal === 'revenue' && `Sales & Net Revenue Breakdown ($${merchantStats.totalRevenue.toFixed(2)})`}
+                </h3>
+                <small>
+                  {kpiModal === 'catalog' && 'All items published under your shop with full descriptions, pricing, and live inventory status.'}
+                  {kpiModal === 'processing' && 'Items currently awaiting packing and courier handoff with full product descriptions.'}
+                  {kpiModal === 'on_the_way' && 'Items currently in transit with delivery partners en route to customer addresses.'}
+                  {kpiModal === 'delivered' && 'Fulfilled items that have been safely delivered to customers.'}
+                  {kpiModal === 'orders' && 'Comprehensive history of all products purchased from your store.'}
+                  {kpiModal === 'revenue' && 'Earnings generated by product with item descriptions and quantity sold.'}
+                </small>
+              </div>
+              <button
+                type="button"
+                className="close-button"
+                onClick={() => setKpiModal(null)}
+                aria-label="Close modal"
+              >
+                <IconClose size={16} />
+              </button>
+            </div>
+
+            <div className="kpi-modal-body">
+              {kpiModal === 'catalog' ? (
+                myShopProducts.length === 0 ? (
+                  <div className="shop-empty-state" style={{ padding: '36px 20px' }}>
+                    <span className="empty-icon">
+                      <IconPackage size={40} />
+                    </span>
+                    <h4>No catalog items found</h4>
+                    <p>You have not published any items in your store yet. Click "Add Product" to get started.</p>
+                  </div>
+                ) : (
+                  <div className="kpi-product-details-list">
+                    {myShopProducts.map(p => (
+                      <div key={p.id} className="kpi-product-card">
+                        <img src={p.image} alt={p.name} className="kpi-prod-thumb" />
+                        <div className="kpi-prod-info">
+                          <div className="kpi-prod-header">
+                            <h4>{p.name}</h4>
+                            <span className="kpi-prod-price">${p.price.toFixed(2)}</span>
+                          </div>
+                          <div className="kpi-prod-badges">
+                            <span className="category-tag">{p.category}</span>
+                            {p.badge && <span className="custom-badge">{p.badge}</span>}
+                            <span className={`stock-tag ${p.inStock ? 'in-stock' : 'out-of-stock'}`}>
+                              {p.inStock ? '● In Stock' : '○ Out of Stock'}
+                            </span>
+                            <span className="kpi-rating-badge">★ {p.rating.toFixed(1)} ({p.reviewsCount} reviews)</span>
+                          </div>
+                          <div className="kpi-prod-desc-box">
+                            <span className="desc-box-label">Product Description:</span>
+                            <p>{p.description || 'No detailed description provided for this product.'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                (() => {
+                  const matchingOrders = merchantOrders.filter(o => {
+                    if (kpiModal === 'processing') return o.status === 'Processing'
+                    if (kpiModal === 'on_the_way') return o.status === 'On the Way' || o.status === 'Shipped'
+                    if (kpiModal === 'delivered') return o.status === 'Delivered'
+                    return true
+                  })
+
+                  if (matchingOrders.length === 0) {
+                    return (
+                      <div className="shop-empty-state" style={{ padding: '36px 20px' }}>
+                        <span className="empty-icon">
+                          <IconPackage size={40} />
+                        </span>
+                        <h4>No customer orders in this position</h4>
+                        <p>When community members order products in this fulfillment stage, full product details and descriptions will be listed here.</p>
+                      </div>
+                    )
+                  }
+
+                  const allItems = matchingOrders.flatMap(o =>
+                    o.items.map((item, idx) => ({
+                      ...item,
+                      orderId: o.id,
+                      orderCode: o.orderCode,
+                      orderStatus: o.status,
+                      customerName: o.shippingName,
+                      customerCity: o.shippingCity,
+                      customerAddress: o.shippingAddress,
+                      customerPhone: o.shippingPhone,
+                      orderDate: o.createdAt,
+                      uniqueKey: `${o.id}-${item.id}-${idx}`,
+                    }))
+                  )
+
+                  return (
+                    <div className="kpi-product-details-list">
+                      {allItems.map(item => (
+                        <div key={item.uniqueKey} className="kpi-product-card">
+                          <img
+                            src={item.imageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=700'}
+                            alt={item.productName}
+                            className="kpi-prod-thumb"
+                          />
+                          <div className="kpi-prod-info">
+                            <div className="kpi-prod-header">
+                              <h4>{item.productName}</h4>
+                              <div className="kpi-pricing-breakdown">
+                                <span className="kpi-unit-qty">{item.quantity} × ${item.price.toFixed(2)}</span>
+                                <strong className="kpi-prod-price">${(item.price * item.quantity).toFixed(2)}</strong>
+                              </div>
+                            </div>
+                            <div className="kpi-prod-badges">
+                              <span className={`order-status-badge status-${item.orderStatus.toLowerCase().replace(/\s+/g, '-')}`}>
+                                Position: {item.orderStatus}
+                              </span>
+                              <span className="order-context-pill">Order: <strong>{item.orderCode}</strong></span>
+                              <span className="order-context-pill">Customer: {item.customerName} ({item.customerCity})</span>
+                              <span className="order-context-pill">Phone: {item.customerPhone}</span>
+                            </div>
+                            <div className="kpi-prod-desc-box">
+                              <span className="desc-box-label">Product Description:</span>
+                              <p>{item.description || getProductDescription(item.productId) || 'High quality verified merchant item from Gather Store.'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()
+              )}
+            </div>
+
+            <div className="shop-modal-footer kpi-modal-footer">
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() => setKpiModal(null)}
+              >
+                Close
+              </button>
+              {kpiModal === 'catalog' ? (
+                <button
+                  type="button"
+                  className="button button-primary"
+                  onClick={() => {
+                    setKpiModal(null)
+                    setMerchantSubTab('inventory')
+                  }}
+                >
+                  <IconGrid size={15} />
+                  <span>Go to Inventory & Catalog →</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="button button-primary"
+                  onClick={() => {
+                    const targetFilter =
+                      kpiModal === 'processing'
+                        ? 'Processing'
+                        : kpiModal === 'on_the_way'
+                        ? 'On the Way'
+                        : kpiModal === 'delivered'
+                        ? 'Delivered'
+                        : 'all'
+                    setMerchantOrderStatusFilter(targetFilter)
+                    setKpiModal(null)
+                    setMerchantSubTab('orders')
+                  }}
+                >
+                  <IconPackage size={15} />
+                  <span>Manage in Customer Orders →</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
