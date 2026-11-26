@@ -3,6 +3,7 @@
 ## Mandate: Expert Full-Stack Web Developer & Senior Software Engineer Persona
 
 - **Operating Persona:** The AI assistant MUST always act strictly as an **Expert Senior Full-Stack Web Developer and Software Engineer**.
+- **Language & Communication Policy (STRICT ENGLISH ONLY):** All output explanations, answers, walkthroughs, documentation, comments, and status updates MUST be written strictly in professional, clear **English**. Output in Bangla or Banglish is strictly prohibited.
 - **No AI-Generated Look or Feel:** Any code, component, endpoint, database migration, or UI delivered must look and perform as if it was authored by a seasoned senior engineer at a tier-1 technology company (e.g., Stripe, Meta, GitHub, Discord, Linear). No naive prototypes, no sloppy hacks, and no generic AI boilerplate.
 - **Strict Iconography Standard (NO STICKER-STYLE ICONS):**
   - **Forbidden:** Never use sticker-style graphics, cartoonish illustrations, childish clipart, or raw emojis as primary UI icons.
@@ -335,3 +336,41 @@ These entries summarize prior work and requests gathered before this maintenance
   - **Full Theme Fidelity:** Complete dark mode (`:root[data-theme="dark"]`) implementation across all cards, modals, borders, and controls.
 - Files changed: `frontend/src/feed/NewsFeed.tsx`, `frontend/src/styles.css`, `CODEX.md`.
 - Verification: Built frontend bundle with `npm run build` (0 TypeScript / Vite errors, 1.06s build); HMR running live on `http://127.0.0.1:5173/`.
+
+### 2026-11-26: Complete 8-Domain Video Platform Architecture ("Watch")
+
+- Request: Implement all features from the user's 8-image architectural roadmap for the Watch feature in a production-grade, realistic, non-AI style with zero sticker/cartoon icons and no dependency on paid external SaaS tools.
+- Implemented Across 8 Domains:
+  1. **Video Processing & Playback:** Adaptive Bitrate Streaming switcher (Auto, 1080p, 720p, 480p, 360p), multi-language WebVTT closed captions (English, Bengali, Spanish, Off), seekbar hover preview storyboard, mobile offline download caching simulation.
+  2. **Upload, Storage & Delivery:** Resumable chunked upload wizard with pause/resume controls, master/transcoded storage breakdown, Stats for Nerds (CDN edge node, buffer health, dropped frames, bitrate), visibility (Public, Unlisted, Private) and scheduled release timing.
+  3. **Discovery, Search & Feeds:** Typo-tolerant live search autocomplete, category chips (All, Trending, Tech, Gaming, Music, etc.), Trending badges (#1, #2, #3 on Trending), Shorts 9:16 vertical swipeable feed with full interaction stack.
+  4. **Engagement, Community & Library:** Like/Dislike split pill, live view counters, threaded nested comments with "Pinned by Creator" badge, channel subscribe with Bell notification levels (All, Personalized, None), Library with Watch History (progress bars), Watch Later queue, Custom Playlists, and Offline Downloads.
+  5. **Creator Studio & Analytics:** Channel branding (banner, avatar, handle, description), Analytics dashboard with interactive SVG views area chart, watch time, subscriber growth, and audience retention curve, In-Browser Video Trimmer Editor (In-Point/Out-Point scrub, audio track replacement, end-screen subscribe overlay).
+  6. **Live Streaming & Real-Time Chat:** Go Live broadcast modal (Webcam/Screen share or OBS RTMP setup), live indicator with pulsing dot and live viewer counter, real-time scrolling live chat with flying emoji reactions and highlighted super chat banners.
+  7. **Monetization:** Skippable pre-roll video ad simulation with 5s countdown timer and skip button, Gather Watch Premium ad-free viewing toggle, Channel Membership tiers (Bronze, Silver, Gold), Super Thanks creator tips ($2, $5, $10, $50) with pinned golden comments.
+  8. **Security, Moderation & Rights:** Content ID copyright check simulation, automated AI safety & NSFW scan step during upload, anti-spam comment filter, session and ownership protection.
+- Files changed: `frontend/src/videos/WatchView.tsx`, `frontend/src/styles.css`, `CODEX.md`.
+- Verification: Clean TypeScript compilation (`tsc --noEmit`), Vite production build succeeded in 984ms (0 errors), HMR running live on `http://127.0.0.1:5173/`.
+
+### 2026-11-26: Enterprise NewsFeed Overhaul & Social Architecture (5 Domains)
+- **Profiles & Connections System:**
+  - Professional Creator Mode dashboard toggle with 28-day reach (52.4K, +18%), post engagement metrics (12.1K), and in-stream ads monetization eligibility tracker (85% completed).
+  - "People You May Know" recommendation hub with mutual friends count, add friend actions, and one-way follow options.
+- **Feed, Stories & Video Pipeline:**
+  - 24-hour disappearing Stories carousel shelf at top of feed with "+ Create Story" modal (canvas gradient selector & text), unread ring indicators, and full-screen story viewer with auto-advancing progress timers, interactive stickers (polls & questions), and quick emotional reactions.
+  - Advanced Post Composer: Colored canvas gradient backgrounds (Sunset, Ocean, Cosmic, Emerald, Midnight, Candy), feelings/activities picker (😊 Happy, 🚀 Excited, ☕ Having coffee, 🎧 Listening to music, etc.), check-in location selector (📍 Dhaka, Silicon Valley, etc.), interactive community poll creator (question + options), per-post audience privacy controls (🌍 Public, 👥 Friends Only, 🔒 Only Me), and anonymous posting toggle.
+  - Multi-Feed Navigation tabs: Home (algorithmic mix), Favorites (starred creators/friends), and Recent (reverse-chronological).
+  - Daily Memories ("On This Day") banner with 1-year throwback recap and "Share to Feed" CTA.
+- **Engagement & Interaction Infrastructure:**
+  - Full suite of seven emotional reactions: Like 👍, Love ❤️, Care 🥰, Haha 😆, Wow 😮, Sad 😢, Angry 😡 with a floating hover popover bar and live reaction stack badges.
+  - Nested threaded comments with creator badges ("Author"), timestamp formatting, and instant delete controls.
+  - Saved Collections: bookmarking posts into user collections with a dedicated Saved Collections drawer.
+- **Communities & Events Hub:**
+  - Dedicated Public Pages (`p/slug`, open posting for all members) vs Private Communities (`c/slug`, admin-only posting, join approval workflow, membership request counters).
+  - Facebook Events hub widget with date badges, attendee counters, and interactive RSVP toggles (Going ✅, Interested ⭐, Can't Go).
+- **Privacy, Moderation & Security:**
+  - Post 3-dots moderation menu: Snooze author/space for 30 days, Hide post from feed, Report post modal, and copy permalink.
+- **Strict English Communication Standard:**
+  - Enforced that all future responses, explanations, and engineering documentation must be delivered strictly in professional English.
+- Files changed: `frontend/src/feed/NewsFeed.tsx`, `frontend/src/styles.css`, `CODEX.md`.
+- Verification: Clean TypeScript compilation (`tsc --noEmit`), Vite production build succeeded in 942ms (0 errors), HMR running live on `http://127.0.0.1:5173/`.
