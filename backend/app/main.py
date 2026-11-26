@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
-from app.routers import auth, feed, groups, health, members, messages, notifications
+from app.routers import auth, feed, groups, health, members, messages, notifications, shop
 
 app = FastAPI(title="Group Chat API", version="0.1.0")
 
@@ -34,3 +34,4 @@ app.include_router(members.router, prefix="/api/groups", tags=["members"])
 app.include_router(messages.router, prefix="/api/groups", tags=["messages"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 app.include_router(feed.router, prefix="/api", tags=["feed"])
+app.include_router(shop.router, prefix="/api/shop", tags=["shop"])

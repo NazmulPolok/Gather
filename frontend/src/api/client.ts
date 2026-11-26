@@ -223,6 +223,104 @@ export type PostItem = {
   comments: CommentItem[]
 }
 
+export interface ApiShop {
+  id: number
+  owner_id: number
+  owner_username: string
+  name: string
+  slug: string
+  tagline: string | null
+  category: string
+  description: string | null
+  email: string | null
+  phone: string | null
+  address: string | null
+  city: string | null
+  logo_url: string | null
+  banner_gradient: string | null
+  return_policy: string | null
+  rating: number
+  reviews_count: number
+  status: string
+  created_at: string
+  products_count: number
+}
+
+export interface ApiProduct {
+  id: number
+  shop_id: number | null
+  shop_name: string | null
+  name: string
+  category: string
+  price: number
+  original_price: number | null
+  rating: number
+  reviews_count: number
+  badge: string | null
+  description: string | null
+  image_url: string
+  in_stock: boolean
+  created_at: string
+}
+
+export interface ApiOrderItem {
+  id: number
+  product_id: number | null
+  product_name: string
+  price: number
+  quantity: number
+  image_url: string | null
+}
+
+export interface ApiOrder {
+  id: number
+  order_code: string
+  user_id: number
+  total_amount: number
+  shipping_name: string
+  shipping_phone: string
+  shipping_address: string
+  shipping_city: string
+  payment_method: string
+  status: string
+  created_at: string
+  items: ApiOrderItem[]
+}
+
+export interface ApiMerchantOrderItem {
+  id: number
+  product_id: number | null
+  product_name: string
+  price: number
+  quantity: number
+  image_url: string | null
+}
+
+export interface ApiMerchantOrder {
+  id: number
+  order_code: string
+  user_id: number
+  total_amount: number
+  merchant_subtotal: number
+  shipping_name: string
+  shipping_phone: string
+  shipping_address: string
+  shipping_city: string
+  payment_method: string
+  status: string
+  created_at: string
+  items: ApiMerchantOrderItem[]
+}
+
+export interface ApiMerchantAnalytics {
+  total_orders: number
+  total_revenue: number
+  processing_count: number
+  on_the_way_count: number
+  delivered_count: number
+  total_products: number
+}
+
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) {
     super(message)
@@ -423,4 +521,38 @@ export const api = {
   markAllNotificationsRead: (token: string) => request<{ status: string }>('/api/notifications/read-all', { method: 'PATCH' }, token),
   markGroupMessagesRead: (token: string, groupId: number) => request<{ status: string }>(`/api/notifications/groups/${groupId}/read`, { method: 'PATCH' }, token),
   respondToJoinRequest: (token: string, notificationId: number, action: 'accept' | 'decline') => request<{ status: string }>(`/api/notifications/${notificationId}/respond`, { method: 'POST', body: JSON.stringify({ action }) }, token),
+
+  // Shop APIs
+  getMyShop: (token: string) => request<ApiShop | null>('/api/shop/me', {}, token),
+  createShop: (token: string, data: { name: string; tagline?: string; category: string; description?: string; email?: string; phone?: string; address?: string; city?: string; logo_url?: string; banner_gradient?: string; return_policy?: string }) =>
+    request<ApiShop>('/api/shop', { method: 'POST', body: JSON.stringify(data) }, token),
+  updateMyShop: (token: string, data: Partial<ApiShop>) =>
+    request<ApiShop>('/api/shop/me', { method: 'PATCH', body: JSON.stringify(data) }, token),
+  getPublicShop: (shopIdOrSlug: string) =>
+    request<ApiShop>(`/api/shop/public/${shopIdOrSlug}`),
+  getProducts: (params?: { category?: string; query?: string; shop_id?: number; sort_by?: string }) => {
+    const q = new URLSearchParams()
+    if (params?.category) q.set('category', params.category)
+    if (params?.query) q.set('query', params.query)
+    if (params?.shop_id) q.set('shop_id', String(params.shop_id))
+    if (params?.sort_by) q.set('sort_by', params.sort_by)
+    const qs = q.toString()
+    return request<ApiProduct[]>(qs ? `/api/shop/products?${qs}` : '/api/shop/products')
+  },
+  createProduct: (token: string, data: { name: string; category: string; price: number; original_price?: number; badge?: string; description?: string; image_url: string; in_stock?: boolean }) =>
+    request<ApiProduct>('/api/shop/products', { method: 'POST', body: JSON.stringify(data) }, token),
+  updateProduct: (token: string, productId: number, data: Partial<{ name: string; category: string; price: number; original_price?: number; badge?: string; description?: string; image_url: string; in_stock?: boolean }>) =>
+    request<ApiProduct>(`/api/shop/products/${productId}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
+  deleteProduct: (token: string, productId: number) =>
+    request<{ status: string; deleted_product_id: number }>(`/api/shop/products/${productId}`, { method: 'DELETE' }, token),
+  createOrder: (token: string, data: { shipping_name: string; shipping_phone: string; shipping_address: string; shipping_city: string; payment_method: string; items: { product_id?: number; product_name: string; price: number; quantity: number; image_url?: string | null }[] }) =>
+    request<ApiOrder>('/api/shop/orders', { method: 'POST', body: JSON.stringify(data) }, token),
+  getMyOrders: (token: string) =>
+    request<ApiOrder[]>('/api/shop/orders/me', {}, token),
+  getMerchantOrders: (token: string) =>
+    request<ApiMerchantOrder[]>('/api/shop/merchant/orders', {}, token),
+  updateMerchantOrderStatus: (token: string, orderId: number, status: string) =>
+    request<ApiMerchantOrder>(`/api/shop/merchant/orders/${orderId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }, token),
+  getMerchantAnalytics: (token: string) =>
+    request<ApiMerchantAnalytics>('/api/shop/merchant/analytics', {}, token),
 }

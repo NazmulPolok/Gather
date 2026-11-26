@@ -47,15 +47,52 @@ export default function App() {
   }
 
   // User Shop state & trigger from Settings
-  const [userShop, setUserShop] = useState<UserShop | null>(() => {
-    try {
-      const saved = localStorage.getItem('gather_active_user_shop')
-      return saved ? JSON.parse(saved) : null
-    } catch {
-      return null
-    }
-  })
+  const [userShop, setUserShop] = useState<UserShop | null>(null)
   const [openShopModalTrigger, setOpenShopModalTrigger] = useState(false)
+
+  // Fetch authenticated user's shop from backend
+  useEffect(() => {
+    if (!token || !user) {
+      setUserShop(null)
+      return
+    }
+    let live = true
+    api.getMyShop(token)
+      .then(shop => {
+        if (!live) return
+        if (shop) {
+          setUserShop({
+            id: String(shop.id),
+            ownerId: shop.owner_id,
+            ownerUsername: shop.owner_username,
+            name: shop.name,
+            tagline: shop.tagline || '',
+            category: shop.category as any,
+            description: shop.description || '',
+            email: shop.email || '',
+            phone: shop.phone || '',
+            address: shop.address || '',
+            city: shop.city || '',
+            logoUrl: shop.logo_url || undefined,
+            bannerGradient: shop.banner_gradient || undefined,
+            returnPolicy: shop.return_policy || '',
+            rating: shop.rating,
+            reviewsCount: shop.reviews_count,
+            createdAt: shop.created_at,
+            status: shop.status as any,
+            productsCount: shop.products_count,
+          })
+        } else {
+          setUserShop(null)
+        }
+      })
+      .catch(() => {
+        if (live) setUserShop(null)
+      })
+    return () => {
+      live = false
+    }
+  }, [token, user?.id])
 
   function handleOpenShopFromSettings() {
     setCurrentView('shop')
@@ -105,8 +142,11 @@ export default function App() {
 
   function signOut() {
     localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem('gather_active_user_shop')
     setToken(null)
     setUser(null)
+    setUserShop(null)
+    setCart([])
     setNotificationTarget(null)
   }
 
@@ -277,6 +317,7 @@ export default function App() {
       ) : token && user ? (
         currentView === 'shop' ? (
           <ShopView
+            token={token}
             user={user}
             cart={cart}
             onCartChange={handleCartChange}

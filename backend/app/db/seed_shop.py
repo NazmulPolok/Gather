@@ -1,0 +1,163 @@
+from app.db.session import SessionLocal
+from app.models.shop import Product
+
+def seed_default_products():
+    db = SessionLocal()
+    count = db.query(Product).count()
+    if count == 0:
+        sample_products = [
+            {
+                "name": "Sony WH-1000XM5 Wireless Headphones",
+                "category": "Electronics",
+                "price": 349.0,
+                "original_price": 399.0,
+                "rating": 4.9,
+                "reviews_count": 1420,
+                "badge": "Best Seller",
+                "description": "Industry-leading noise cancellation, 30-hour battery life, ultra-comfortable lightweight design.",
+                "image_url": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=700",
+                "in_stock": True,
+            },
+            {
+                "name": "Keychron Q1 Pro Wireless Custom Keyboard",
+                "category": "Gaming",
+                "price": 199.0,
+                "original_price": 229.0,
+                "rating": 4.8,
+                "reviews_count": 856,
+                "badge": "Popular",
+                "description": "CNC aluminum body, QMK/VIA programmable, hot-swappable mechanical switches, RGB backlight.",
+                "image_url": "https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=700",
+                "in_stock": True,
+            },
+            {
+                "name": "Logitech MX Master 3S Ergonomic Mouse",
+                "category": "Electronics",
+                "price": 99.0,
+                "original_price": 119.0,
+                "rating": 4.9,
+                "reviews_count": 2310,
+                "badge": "Top Rated",
+                "description": "Quiet clicks, 8K DPI track-on-glass sensor, ultra-fast MagSpeed electromagnetic scrolling.",
+                "image_url": "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=700",
+                "in_stock": True,
+            },
+            {
+                "name": "PlayStation DualSense Wireless Controller",
+                "category": "Gaming",
+                "price": 74.0,
+                "original_price": 89.0,
+                "rating": 4.8,
+                "reviews_count": 1140,
+                "badge": "Sale",
+                "description": "Haptic feedback, dynamic adaptive triggers, built-in microphone and signature comfort grip.",
+                "image_url": "https://images.unsplash.com/photo-1606318801954-d46d46d3360a?w=700",
+                "in_stock": True,
+            },
+            {
+                "name": "Apple Watch Ultra 2 Titanium Case",
+                "category": "Gadgets",
+                "price": 799.0,
+                "original_price": 849.0,
+                "rating": 4.9,
+                "reviews_count": 780,
+                "badge": "Flagship",
+                "description": "49mm aerospace titanium case, precision dual-frequency GPS, up to 72 hours battery in low-power.",
+                "image_url": "https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=700",
+                "in_stock": True,
+            },
+            {
+                "name": "Razer BlackShark V2 Pro Wireless Headset",
+                "category": "Gaming",
+                "price": 149.0,
+                "original_price": 179.0,
+                "rating": 4.7,
+                "reviews_count": 530,
+                "badge": "Esports Pro",
+                "description": "HyperClear super wideband mic, TriForce titanium 50mm drivers, ultra-soft breathable memory foam cushions.",
+                "image_url": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=700",
+                "in_stock": True,
+            },
+            {
+                "name": "Nomad Rugged Horween Leather iPhone Case",
+                "category": "Gadgets",
+                "price": 59.0,
+                "original_price": 69.0,
+                "rating": 4.6,
+                "reviews_count": 320,
+                "badge": "Handcrafted",
+                "description": "Full-grain Horween leather that patinas with time, 10ft drop protection, MagSafe neodymium array.",
+                "image_url": "https://images.unsplash.com/photo-1580910051074-3eb694886505?w=700",
+                "in_stock": True,
+            },
+            {
+                "name": "Marshall Stanmore III Bluetooth Speaker",
+                "category": "Electronics",
+                "price": 379.0,
+                "original_price": 420.0,
+                "rating": 4.8,
+                "reviews_count": 610,
+                "badge": "Premium Sound",
+                "description": "Iconic vintage styling, wider stereo soundstage, dynamic loudness, Bluetooth 5.2 connectivity.",
+                "image_url": "https://images.unsplash.com/photo-1545454675-3531b543be5d?w=700",
+                "in_stock": True,
+            },
+            {
+                "name": "Anker Prime 20,000mAh 200W Power Bank",
+                "category": "Gadgets",
+                "price": 129.0,
+                "original_price": 149.0,
+                "rating": 4.9,
+                "reviews_count": 940,
+                "badge": "Ultra Fast",
+                "description": "200W total output, smart digital display, charges a MacBook Pro to 50% in just 28 minutes.",
+                "image_url": "https://images.unsplash.com/photo-1609592424109-dd9892f1b177?w=700",
+                "in_stock": True,
+            },
+            {
+                "name": "Minimalist Polarized Titanium Sunglasses",
+                "category": "Apparel",
+                "price": 65.0,
+                "original_price": 85.0,
+                "rating": 4.6,
+                "reviews_count": 230,
+                "badge": "Summer Drop",
+                "description": "Ultra-light aerospace titanium frame, 100% UV400 anti-glare polarized lenses.",
+                "image_url": "https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=700",
+                "in_stock": True,
+            },
+            {
+                "name": "Smart RGB Ambient Light Bar with Camera Sync",
+                "category": "Gadgets",
+                "price": 49.0,
+                "original_price": 69.0,
+                "rating": 4.8,
+                "reviews_count": 720,
+                "badge": "RGB Sync",
+                "description": "Screen color sampling camera, 16 million colors, voice control compatible with Alexa and Google.",
+                "image_url": "https://images.unsplash.com/photo-1507499739999-097706ad8914?w=700",
+                "in_stock": True,
+            },
+            {
+                "name": "Ergonomic Gas-Spring Dual Monitor Arm",
+                "category": "Gaming",
+                "price": 119.0,
+                "original_price": 149.0,
+                "rating": 4.7,
+                "reviews_count": 410,
+                "badge": "Desk Setup",
+                "description": "Heavy duty steel & aluminum, supports screens up to 32\", built-in cable management channels.",
+                "image_url": "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=700",
+                "in_stock": True,
+            },
+        ]
+        for p in sample_products:
+            db.add(Product(**p))
+        db.commit()
+        print(f"Seeded {len(sample_products)} default marketplace products.")
+    else:
+        print(f"Products already present ({count}).")
+    db.close()
+
+if __name__ == "__main__":
+    seed_default_products()

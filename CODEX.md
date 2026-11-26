@@ -418,3 +418,113 @@ These entries summarize prior work and requests gathered before this maintenance
   - Disabled default mock 1-year memory banner to prevent showing synthetic past memories.
 - Files changed: `backend/app/routers/auth.py`, `frontend/src/api/client.ts`, `frontend/src/feed/NewsFeed.tsx`, `frontend/src/styles.css`, `CODEX.md`.
 - Verification: 0 TypeScript errors, Vite production build succeeded in 918ms, dev server live on `http://127.0.0.1:5173/`.
+
+### 2026-11-26: Full Backend Architecture & Frontend Ownership Isolation for Shop Feature
+- **Problem Statement:**
+  - A user opening a shop caused all other logged-in users to inherit merchant access to that shop because shop state was client-side only and stored under a single global un-scoped key (`gather_active_user_shop`). There were no backend database models, migrations, or ownership authorization checks.
+- **Backend Architecture Implemented:**
+  1. **PostgreSQL Relational Models (`backend/app/models/shop.py`):**
+     - `Shop`: `id`, `owner_id` (ForeignKey to `users.id`, `unique=True`, `index=True`), `name`, `slug` (unique), `tagline`, `category`, `description`, `email`, `phone`, `address`, `city`, `logo_url`, `banner_gradient`, `return_policy`, `rating`, `reviews_count`, `status`, `created_at`.
+     - `Product`: `id`, `shop_id` (ForeignKey to `shops.id`, nullable for default marketplace products), `name`, `category`, `price`, `original_price`, `rating`, `reviews_count`, `badge`, `description`, `image_url`, `in_stock`, `created_at`.
+     - `Order`: `id`, `order_code` (unique, e.g. `ORD-XXXXXXXX`), `user_id` (ForeignKey to `users.id`), `total_amount`, `shipping_name`, `shipping_phone`, `shipping_address`, `shipping_city`, `payment_method`, `status`, `created_at`.
+     - `OrderItem`: `id`, `order_id` (ForeignKey to `orders.id`), `product_id` (ForeignKey to `products.id`), `product_name`, `price`, `quantity`, `image_url`.
+  2. **Pydantic Validation Schemas (`backend/app/schemas/shop.py`):**
+     - `ShopCreate`, `ShopUpdate`, `ShopResponse`, `ProductCreate`, `ProductUpdate`, `ProductResponse`, `OrderCreate`, `OrderResponse`, `OrderItemResponse`.
+  3. **FastAPI Router (`backend/app/routers/shop.py` mounted at `/api/shop`):**
+     - `GET /api/shop/me`: Retrieves authenticated user's shop with active products count. Returns `null` if the user has not established a shop.
+     - `POST /api/shop`: Allows authenticated user to launch a verified storefront (prevents duplicate shops per user).
+     - `PATCH /api/shop/me`: Allows verified shop owners to update shop details, policies, and banner styling.
+     - `GET /api/shop/public/{shop_id_or_slug}`: Public endpoint allowing customers to view any merchant storefront in read-only mode.
+     - `GET /api/shop/products`: Marketplace products endpoint supporting category filter, query search, shop ID filter, and sorting.
+     - `POST /api/shop/products`: Merchant adds product (strictly verifies `current_user.id == shop.owner_id`).
+     - `DELETE /api/shop/products/{product_id}`: Merchant removes product (strictly verifies shop ownership).
+     - `POST /api/shop/orders`: Places an order with automatic total calculation, item insertion, and order code generation.
+     - `GET /api/shop/orders/me`: Returns authenticated user's purchase history.
+  4. **Database Seeding (`backend/app/db/seed_shop.py`):**
+     - Seeded 12 curated marketplace products into PostgreSQL database.
+- **Frontend Architecture & Ownership Isolation (`frontend/src/shop/ShopView.tsx` & `frontend/src/App.tsx`):**
+  1. **User-Scoped State Management:**
+     - Removed un-scoped global `gather_active_user_shop`.
+     - Scoped all user state by authenticated user ID (`api.getMyShop(token)`, `gather_shop_orders_${user.id}`).
+     - On user logout or session switch, `userShop`, cart, and orders are cleanly reset.
+  2. **Strict Merchant Ownership Verification:**
+     - Computed `isShopOwner = Boolean(userShop && Number(userShop.ownerId) === Number(user.id))`.
+     - Merchant administrative actions ("Add Product", "Edit Shop", "Delete Item", "My Shop" dashboard) are rendered exclusively when `isShopOwner === true`.
+     - Non-owners see a clean "Open a Shop" call-to-action to register their own store.
+     - Customers viewing another merchant's storefront (`activeTab === 'publicShop'`) browse in public customer view with Add to Cart / Buy Now actions, without any administrative controls.
+  3. **Backend API Integration (`frontend/src/api/client.ts`):**
+     - Integrated `api.getMyShop`, `api.createShop`, `api.updateMyShop`, `api.getProducts`, `api.createProduct`, `api.deleteProduct`, `api.createOrder`, `api.getMyOrders`.
+- **Verification:**
+  - Automated dual-user backend test verified: User A (Rabby) created a shop, User B (Rahim) queried `/api/shop/me` and received `null`; User A added a product; User B purchased User A's product; User B's `/api/shop/orders/me` showed 1 order while User A's showed 0.
+  - Zero TypeScript compile errors (`tsc --noEmit`).
+  - Vite production build succeeded cleanly (`npm run build`).
+
+### 2026-11-26: Product Editing Feature for Shop Owners
+- **Feature Overview:**
+  - Added full end-to-end support for verified shop owners to edit their product details directly from their store management dashboard.
+- **Backend Architecture (`backend/app/routers/shop.py`):**
+  - Implemented `PATCH /api/shop/products/{product_id}`.
+  - Strict ownership check: verifies `product.shop.owner_id == current_user.id`. Any unauthorized attempt by another user is rejected with HTTP 403 Forbidden.
+  - Supports updating `name`, `category`, `price`, `original_price`, `badge`, `description`, `image_url`, and `in_stock`.
+- **Frontend Architecture (`frontend/src/shop/ShopView.tsx` & `frontend/src/api/client.ts`):**
+  - Added `api.updateProduct(token, productId, data)` in `frontend/src/api/client.ts`.
+  - Added **"Edit Details"** action button alongside the remove button on every product in the owner's "My Shop" dashboard.
+  - Added **"Edit Product Details"** modal pre-filled with the existing product values (title, category, price, discount cut price, badge, description, image URL, and in-stock checkbox).
+  - Submitting updates both the live database and the reactive UI state.
+- **Verification:**
+  - Automated test verified: User B (Rahim) attempting to edit User A's (Rabby) product received HTTP 403 Forbidden.
+  - User A (Rabby) successfully updated product name, price, badge, and description.
+  - Frontend compiled with 0 TypeScript errors and `npm run build` succeeded in 934ms.
+
+### 2026-11-26: Merchant Shop Dashboard, Order Tracking & Position Management System
+- **Feature Overview:**
+  - Designed and implemented a dedicated, high-tier Merchant Operations Dashboard and Order Management System inside "My Shop" for store owners.
+  - Allows merchants to track overall sales volume, net store revenue, active catalog inventory, and incoming customer orders.
+  - Provides a real-time Order Position Lifecycle controller allowing merchants to transition orders across fulfillment positions: `Processing` (Packing) $\rightarrow$ `On the Way` (In Transit) $\rightarrow$ `Delivered` (Completed).
+  - Displays complete customer delivery information, payment methods (Cash on Delivery vs Online), payment collection status, and accurate per-shop payout calculations.
+- **Backend Architecture:**
+  1. **SQLAlchemy Models (`backend/app/models/shop.py`):**
+     - Added bidirectional foreign key relationship `product = relationship("Product", foreign_keys=[product_id])` on `OrderItem` to join product details when fulfilling orders.
+  2. **Pydantic Schemas (`backend/app/schemas/shop.py`):**
+     - `MerchantOrderItemResponse`: id, product_id, product_name, price, quantity, image_url.
+     - `MerchantOrderResponse`: id, order_code, user_id, total_amount, merchant_subtotal, shipping_name, shipping_phone, shipping_address, shipping_city, payment_method, status, created_at, items.
+     - `OrderStatusUpdate`: status (strictly validated against 'Processing', 'On the Way', 'Delivered').
+     - `MerchantAnalyticsResponse`: total_orders, total_revenue, processing_count, on_the_way_count, delivered_count, total_products.
+  3. **FastAPI Endpoints (`backend/app/routers/shop.py`):**
+     - `GET /api/shop/merchant/analytics`: Calculates revenue, order count, and fulfillment pipeline status for the merchant's store.
+     - `GET /api/shop/merchant/orders`: Returns all orders containing products belonging to the merchant's shop, automatically computing `merchant_subtotal` for each order.
+     - `PATCH /api/shop/merchant/orders/{order_id}/status`: Authorizes the merchant, normalizes status to standard positions ('Processing', 'On the Way', 'Delivered'), and updates the order position.
+- **Frontend Architecture (`frontend/src/shop/ShopView.tsx`, `frontend/src/api/client.ts`, `frontend/src/styles.css`):**
+  1. **Merchant Dashboard Tabs (`merchantSubTab`):**
+     - `Overview & Analytics`: 6 KPI metrics cards (Net Store Revenue, Total Customer Orders, Processing/Packing count, On the Way/In Transit count, Delivered/Completed count, Active Products in Catalog), recent order table, and fulfillment lifecycle guide.
+     - `Customer Orders`: Search bar, position filter pills (All, Processing, On the Way, Delivered), customer shipping address and phone, payment breakdown, merchant net payout badge, ordered item cards with quantities and unit prices, and dynamic `<select>` position controller.
+     - `Inventory & Catalog`: Products catalog with Add Product and Edit Details modals.
+     - `Store Policies & Info`: Store profile, contact details, and return policies.
+  2. **Styling & Icons:**
+     - Pure vector SVG outline icons (`IconTruck`, `IconDollar`, `IconClock`, `IconTrendingUp`, `IconPackage`, `IconPin`, `IconCard`).
+     - Fully responsive, dark mode compatible styles matching modern enterprise dashboards (Stripe / Shopify style).
+- **Verification:**
+  - Automated backend integration tests confirmed `GET /api/shop/merchant/analytics`, `GET /api/shop/merchant/orders`, and `PATCH /api/shop/merchant/orders/{order_id}/status` work seamlessly with status transitions and immediate analytics updates.
+  - Zero TypeScript compile errors (`tsc --noEmit`).
+  - Production build completed cleanly with `npm run build`.
+
+### 2026-11-26: Real-Time Dynamic Synchronization for Products & Order Lifecycle Positions
+- **Issue Identified:**
+  - When merchants added a new product, the "Active Store Catalog" KPI card and subtab badge stayed on the previous cached value because `merchantAnalytics.totalProducts` was evaluated via a static fallback (`merchantAnalytics?.totalProducts || myShopProducts.length`), and `fetchMerchantAnalytics()` wasn't re-invoked on product creation or deletion.
+  - When changing order positions (`Processing` $\rightarrow$ `On the Way` $\rightarrow$ `Delivered`), status filter pill counts and KPI counters lagged behind because they relied on asynchronous network analytics rather than reactive in-memory state, and orders filtered by position disappeared abruptly without an interactive progress tracker.
+- **Architectural Fixes:**
+  1. **Reactive `merchantStats` Pipeline (`frontend/src/shop/ShopView.tsx`):**
+     - Introduced an immediate reactive `useMemo` computation (`merchantStats`) calculating `processingCount`, `onTheWayCount`, `deliveredCount`, `totalOrders`, `totalRevenue`, and `totalProducts`.
+     - `totalProducts` is dynamically resolved using `Math.max(myShopProducts.length, userShop?.productsCount ?? 0, merchantAnalytics?.totalProducts ?? 0)` so it updates synchronously the very instant a product is added or removed.
+  2. **Multi-Source Cache Invalidation on Product Lifecycle:**
+     - `handleAddProductSubmit` and `handleDeleteProduct` now immediately update the local `products` array, update `userShop.productsCount`, and asynchronously trigger `fetchProducts()`, `fetchMyShop()`, and `fetchMerchantAnalytics()`.
+  3. **Optimistic Updates & Synchronized Views on Order Position:**
+     - `handleUpdateOrderStatus` applies an immediate optimistic update to `merchantOrders` and customer `orders`, re-fetches backend analytics in the background, and intelligently resets active position filters to `'all'` when moving an order so the updated item remains in full view.
+  4. **Interactive 3-Step Order Position Stepper (`frontend/src/shop/ShopView.tsx` & `frontend/src/styles.css`):**
+     - Implemented an interactive visual progress tracker on every customer order card:
+       `[ (1) Processing ] ─── [ (2) On the Way ] ─── [ (3) Delivered ]`
+     - Stepper nodes are clickable with checkmark indicators (`✓`) for completed stages, full dark mode compatibility, and responsive mobile adaptations.
+- **Verification:**
+  - TypeScript type check (`tsc --noEmit`) completed with 0 errors.
+  - Production build succeeded cleanly (`npm run build`) in 938ms.
+  - Hot Module Replacement verified running on Vite dev server.

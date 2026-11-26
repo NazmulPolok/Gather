@@ -5,6 +5,7 @@ from app.models.message import Message
 from app.models.notification import Notification
 from app.models.password_reset_otp import PasswordResetOTP
 from app.models.post import Post, PostComment, PostReaction
+from app.models.shop import Order, OrderItem, Product, Shop
 from app.models.user import User
 
 __all__ = [
@@ -14,9 +15,13 @@ __all__ = [
     "Membership",
     "Message",
     "Notification",
+    "Order",
+    "OrderItem",
     "PasswordResetOTP",
     "Post",
     "PostComment",
     "PostReaction",
+    "Product",
+    "Shop",
     "User",
 ]

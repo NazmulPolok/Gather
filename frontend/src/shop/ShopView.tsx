@@ -1,7 +1,15 @@
-import { useState, useEffect } from 'react'
-import type { AuthUser } from '../api/client'
+import { useState, useEffect, useMemo } from 'react'
+import {
+  api,
+  type AuthUser,
+  type ApiShop,
+  type ApiProduct,
+  type ApiOrder,
+  type ApiMerchantOrder,
+  type ApiMerchantAnalytics,
+} from '../api/client'
 
-// --- Professional SVG Icons (Facebook & Modern E-Commerce Standard) ---
+// --- Professional SVG Icons (Clean Vector Outlines) ---
 function IconSearch({ size = 16, className = '' }: { size?: number; className?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -191,10 +199,49 @@ function IconShieldCheck({ size = 16, className = '' }: { size?: number; classNa
   )
 }
 
+function IconTruck({ size = 16, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
+      <path d="M15 18H9" />
+      <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14v10Z" />
+      <circle cx="17" cy="18.5" r="2.5" />
+      <circle cx="7" cy="18.5" r="2.5" />
+    </svg>
+  )
+}
+
+function IconDollar({ size = 16, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <line x1="12" y1="2" x2="12" y2="22" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  )
+}
+
+function IconClock({ size = 16, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  )
+}
+
+function IconTrendingUp({ size = 16, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+      <polyline points="17 6 23 6 23 12" />
+    </svg>
+  )
+}
+
 export interface Product {
   id: string
   name: string
-  category: 'Electronics' | 'Gaming' | 'Apparel' | 'Gadgets'
+  category: 'Electronics' | 'Gaming' | 'Apparel' | 'Gadgets' | string
   price: number
   originalPrice?: number
   rating: number
@@ -203,7 +250,7 @@ export interface Product {
   description: string
   image: string
   inStock: boolean
-  shopId?: string
+  shopId?: string | number
   shopName?: string
 }
 
@@ -224,7 +271,7 @@ export interface Order {
     city: string
   }
   paymentMethod: string
-  status: 'Processing' | 'Shipped' | 'Delivered'
+  status: 'Processing' | 'Shipped' | 'Delivered' | string
 }
 
 export interface UserShop {
@@ -233,7 +280,7 @@ export interface UserShop {
   ownerUsername: string
   name: string
   tagline: string
-  category: 'Electronics' | 'Gaming' | 'Apparel' | 'Gadgets' | 'All Categories'
+  category: 'Electronics' | 'Gaming' | 'Apparel' | 'Gadgets' | 'All Categories' | string
   description: string
   email: string
   phone: string
@@ -245,8 +292,42 @@ export interface UserShop {
   rating: number
   reviewsCount: number
   createdAt: string
-  status: 'active' | 'verified'
+  status: 'active' | 'verified' | string
   productsCount: number
+}
+
+export interface MerchantOrderItem {
+  id: number
+  productId: number | null
+  productName: string
+  price: number
+  quantity: number
+  imageUrl: string | null
+}
+
+export interface MerchantOrder {
+  id: number
+  orderCode: string
+  userId: number
+  totalAmount: number
+  merchantSubtotal: number
+  shippingName: string
+  shippingPhone: string
+  shippingAddress: string
+  shippingCity: string
+  paymentMethod: string
+  status: string
+  createdAt: string
+  items: MerchantOrderItem[]
+}
+
+export interface MerchantAnalytics {
+  totalOrders: number
+  totalRevenue: number
+  processingCount: number
+  onTheWayCount: number
+  deliveredCount: number
+  totalProducts: number
 }
 
 const SAMPLE_PRODUCTS: Product[] = [
@@ -260,7 +341,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     reviewsCount: 1420,
     badge: 'Best Seller',
     description: 'Industry-leading noise cancellation, 30-hour battery life, ultra-comfortable lightweight design.',
-    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=700&auto=format&fit=crop&q=80',
+    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=700',
     inStock: true,
   },
   {
@@ -273,7 +354,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     reviewsCount: 856,
     badge: 'Popular',
     description: 'CNC aluminum body, QMK/VIA programmable, hot-swappable mechanical switches, RGB backlight.',
-    image: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=700&auto=format&fit=crop&q=80',
+    image: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=700',
     inStock: true,
   },
   {
@@ -286,7 +367,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     reviewsCount: 2310,
     badge: 'Top Rated',
     description: 'Quiet clicks, 8K DPI track-on-glass sensor, ultra-fast MagSpeed electromagnetic scrolling.',
-    image: 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=700&auto=format&fit=crop&q=80',
+    image: 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=700',
     inStock: true,
   },
   {
@@ -298,47 +379,47 @@ const SAMPLE_PRODUCTS: Product[] = [
     rating: 4.8,
     reviewsCount: 1140,
     badge: 'Sale',
-    description: 'Haptic feedback, dynamic adaptive triggers, built-in microphone and motion controls.',
-    image: 'https://images.unsplash.com/photo-1606318801954-d468460920d0?w=700&auto=format&fit=crop&q=80',
+    description: 'Haptic feedback, dynamic adaptive triggers, built-in microphone and signature comfort grip.',
+    image: 'https://images.unsplash.com/photo-1606318801954-d46d46d3360a?w=700',
     inStock: true,
   },
   {
     id: 'prod-5',
-    name: 'Gather Minimalist Heavyweight Hoodie',
-    category: 'Apparel',
-    price: 59,
-    originalPrice: 75,
+    name: 'Apple Watch Ultra 2 Titanium Case',
+    category: 'Gadgets',
+    price: 799,
+    originalPrice: 849,
     rating: 4.9,
-    reviewsCount: 520,
-    badge: 'Official Merch',
-    description: 'Premium 450gsm organic cotton, deep double-lined hood, relaxed drop-shoulder modern fit.',
-    image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=700&auto=format&fit=crop&q=80',
+    reviewsCount: 780,
+    badge: 'Flagship',
+    description: '49mm aerospace titanium case, precision dual-frequency GPS, up to 72 hours battery in low-power.',
+    image: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=700',
     inStock: true,
   },
   {
     id: 'prod-6',
-    name: 'Apple Watch Series 10 Smartwatch',
-    category: 'Gadgets',
-    price: 399,
-    originalPrice: 429,
-    rating: 4.9,
-    reviewsCount: 980,
-    badge: 'New',
-    description: 'Thinnest design ever, wide-angle OLED display, advanced sleep apnea detection, water resistant.',
-    image: 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=700&auto=format&fit=crop&q=80',
+    name: 'Razer BlackShark V2 Pro Wireless Headset',
+    category: 'Gaming',
+    price: 149,
+    originalPrice: 179,
+    rating: 4.7,
+    reviewsCount: 530,
+    badge: 'Esports Pro',
+    description: 'HyperClear super wideband mic, TriForce titanium 50mm drivers, ultra-soft breathable memory foam cushions.',
+    image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=700',
     inStock: true,
   },
   {
     id: 'prod-7',
-    name: 'Waterproof Commuter Tech Backpack 24L',
-    category: 'Apparel',
-    price: 89,
-    originalPrice: 115,
-    rating: 4.7,
-    reviewsCount: 380,
-    badge: 'Trending',
-    description: 'Weatherproof ballistic nylon, padded 16" laptop sleeve, hidden anti-theft passport pocket.',
-    image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=700&auto=format&fit=crop&q=80',
+    name: 'Nomad Rugged Horween Leather iPhone Case',
+    category: 'Gadgets',
+    price: 59,
+    originalPrice: 69,
+    rating: 4.6,
+    reviewsCount: 320,
+    badge: 'Handcrafted',
+    description: 'Full-grain Horween leather that patinas with time, 10ft drop protection, MagSafe neodymium array.',
+    image: 'https://images.unsplash.com/photo-1580910051074-3eb694886505?w=700',
     inStock: true,
   },
   {
@@ -346,12 +427,12 @@ const SAMPLE_PRODUCTS: Product[] = [
     name: 'Marshall Stanmore III Bluetooth Speaker',
     category: 'Electronics',
     price: 379,
-    originalPrice: 429,
+    originalPrice: 420,
     rating: 4.8,
     reviewsCount: 610,
     badge: 'Premium Sound',
     description: 'Iconic vintage styling, wider stereo soundstage, dynamic loudness, Bluetooth 5.2 connectivity.',
-    image: 'https://images.unsplash.com/photo-1545454675-3531b543be5d?w=700&auto=format&fit=crop&q=80',
+    image: 'https://images.unsplash.com/photo-1545454675-3531b543be5d?w=700',
     inStock: true,
   },
   {
@@ -364,7 +445,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     reviewsCount: 940,
     badge: 'Ultra Fast',
     description: '200W total output, smart digital display, charges a MacBook Pro to 50% in just 28 minutes.',
-    image: 'https://images.unsplash.com/photo-1609592424109-dd9892f1b177?w=700&auto=format&fit=crop&q=80',
+    image: 'https://images.unsplash.com/photo-1609592424109-dd9892f1b177?w=700',
     inStock: true,
   },
   {
@@ -377,7 +458,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     reviewsCount: 230,
     badge: 'Summer Drop',
     description: 'Ultra-light aerospace titanium frame, 100% UV400 anti-glare polarized lenses.',
-    image: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=700&auto=format&fit=crop&q=80',
+    image: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=700',
     inStock: true,
   },
   {
@@ -390,7 +471,7 @@ const SAMPLE_PRODUCTS: Product[] = [
     reviewsCount: 720,
     badge: 'RGB Sync',
     description: 'Screen color sampling camera, 16 million colors, voice control compatible with Alexa and Google.',
-    image: 'https://images.unsplash.com/photo-1507499739999-097706ad8914?w=700&auto=format&fit=crop&q=80',
+    image: 'https://images.unsplash.com/photo-1507499739999-097706ad8914?w=700',
     inStock: true,
   },
   {
@@ -403,20 +484,17 @@ const SAMPLE_PRODUCTS: Product[] = [
     reviewsCount: 410,
     badge: 'Desk Setup',
     description: 'Heavy duty steel & aluminum, supports screens up to 32", built-in cable management channels.',
-    image: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=700&auto=format&fit=crop&q=80',
+    image: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=700',
     inStock: true,
   },
 ]
 
-const ORDERS_STORAGE_KEY = 'gather_shop_orders'
-const CUSTOM_PRODUCTS_STORAGE_KEY = 'gather_custom_products'
-
 // Preset logo options for quick store setup
 const LOGO_PRESETS = [
-  { label: 'Cyber Tech', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80' },
-  { label: 'Pro Gamer', url: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=150&auto=format&fit=crop&q=80' },
-  { label: 'Minimalist', url: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=150&auto=format&fit=crop&q=80' },
-  { label: 'Gadget Lab', url: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=150&auto=format&fit=crop&q=80' },
+  { label: 'Cyber Tech', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150' },
+  { label: 'Pro Gamer', url: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=150' },
+  { label: 'Minimalist', url: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=150' },
+  { label: 'Gadget Lab', url: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=150' },
 ]
 
 // Preset banner gradients
@@ -428,6 +506,7 @@ const BANNER_PRESETS = [
 ]
 
 interface ShopViewProps {
+  token?: string | null
   user: AuthUser
   onOpenChat?: () => void
   onOpenFeed?: () => void
@@ -440,6 +519,7 @@ interface ShopViewProps {
 }
 
 export function ShopView({
+  token,
   user,
   cart,
   onCartChange,
@@ -448,57 +528,48 @@ export function ShopView({
   openShopTrigger,
   onOpenShopTriggerHandled,
 }: ShopViewProps) {
-  const [activeTab, setActiveTab] = useState<'browse' | 'orders' | 'myshop'>('browse')
+  const [activeTab, setActiveTab] = useState<'browse' | 'orders' | 'myshop' | 'publicShop'>('browse')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('All')
   const [sortBy, setSortBy] = useState<'featured' | 'price-low' | 'price-high' | 'rating'>('featured')
-  
+  const [publicShopStore, setPublicShopStore] = useState<UserShop | null>(null)
+
   // Checkout & Order modal states
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [checkoutStep, setCheckoutStep] = useState<'cart' | 'shipping' | 'success'>('cart')
   const [shippingName, setShippingName] = useState(user.nickname || user.first_name || user.username)
   const [shippingPhone, setShippingPhone] = useState('')
   const [shippingAddress, setShippingAddress] = useState('')
-  const [shippingCity, setShippingCity] = useState('')
+  const [shippingCity, setShippingCity] = useState('Dhaka')
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'card' | 'mfs'>('cod')
   const [lastPlacedOrder, setLastPlacedOrder] = useState<Order | null>(null)
-  
+
+  // User-scoped storage keys
+  const userOrderKey = `gather_shop_orders_${user.id}`
+
+  // Orders state
   const [orders, setOrders] = useState<Order[]>(() => {
     try {
-      const saved = localStorage.getItem(ORDERS_STORAGE_KEY)
+      const saved = localStorage.getItem(userOrderKey)
       return saved ? JSON.parse(saved) : []
     } catch {
       return []
     }
   })
 
-  // User Shop State
-  const [userShop, setUserShop] = useState<UserShop | null>(() => {
-    if (userShopProp !== undefined) return userShopProp
-    try {
-      const saved = localStorage.getItem('gather_active_user_shop')
-      return saved ? JSON.parse(saved) : null
-    } catch {
-      return null
-    }
-  })
+  // User Shop state
+  const [userShop, setUserShop] = useState<UserShop | null>(userShopProp || null)
 
-  // Sync internal userShop with prop
-  useEffect(() => {
-    if (userShopProp !== undefined) {
-      setUserShop(userShopProp)
-    }
-  }, [userShopProp])
+  // STRICT OWNERSHIP VERIFICATION:
+  // A user can ONLY manage/edit a shop if their user.id matches the shop's ownerId
+  const isShopOwner = Boolean(
+    userShop &&
+    Number(userShop.ownerId) === Number(user.id)
+  )
 
-  // Custom Products added by merchants
-  const [customProducts, setCustomProducts] = useState<Product[]>(() => {
-    try {
-      const saved = localStorage.getItem(CUSTOM_PRODUCTS_STORAGE_KEY)
-      return saved ? JSON.parse(saved) : []
-    } catch {
-      return []
-    }
-  })
+  // Products from backend
+  const [products, setProducts] = useState<Product[]>(SAMPLE_PRODUCTS)
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false)
 
   // Open Shop Modal states
   const [isOpenShopModal, setIsOpenShopModal] = useState(false)
@@ -506,7 +577,7 @@ export function ShopView({
   const [shopTagline, setShopTagline] = useState('')
   const [shopCategory, setShopCategory] = useState<'Electronics' | 'Gaming' | 'Apparel' | 'Gadgets' | 'All Categories'>('Electronics')
   const [shopEmail, setShopEmail] = useState(`${user.username}@merchant.gather`)
-  const [shopPhone, setShopPhone] = useState('+880 1700-')
+  const [shopPhone, setShopPhone] = useState('+880 1700-000000')
   const [shopCity, setShopCity] = useState('Dhaka')
   const [shopAddress, setShopAddress] = useState('')
   const [shopDescription, setShopDescription] = useState('')
@@ -522,40 +593,309 @@ export function ShopView({
   const [newProdPrice, setNewProdPrice] = useState('')
   const [newProdOriginalPrice, setNewProdOriginalPrice] = useState('')
   const [newProdDescription, setNewProdDescription] = useState('')
-  const [newProdImage, setNewProdImage] = useState('https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=700&auto=format&fit=crop&q=80')
+  const [newProdImage, setNewProdImage] = useState('https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=700')
+
+  // Edit Product Modal states (Shop Owner only)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [editProdName, setEditProdName] = useState('')
+  const [editProdCategory, setEditProdCategory] = useState<'Electronics' | 'Gaming' | 'Apparel' | 'Gadgets'>('Electronics')
+  const [editProdPrice, setEditProdPrice] = useState('')
+  const [editProdOriginalPrice, setEditProdOriginalPrice] = useState('')
+  const [editProdBadge, setEditProdBadge] = useState('')
+  const [editProdDescription, setEditProdDescription] = useState('')
+  const [editProdImage, setEditProdImage] = useState('')
+  const [editProdInStock, setEditProdInStock] = useState(true)
+
+  // Merchant Dashboard, Analytics & Orders states
+  const [merchantSubTab, setMerchantSubTab] = useState<'dashboard' | 'orders' | 'inventory' | 'settings'>('dashboard')
+  const [merchantOrders, setMerchantOrders] = useState<MerchantOrder[]>([])
+  const [merchantAnalytics, setMerchantAnalytics] = useState<MerchantAnalytics | null>(null)
+  const [isLoadingMerchantOrders, setIsLoadingMerchantOrders] = useState(false)
+  const [merchantOrderStatusFilter, setMerchantOrderStatusFilter] = useState<'all' | 'Processing' | 'On the Way' | 'Delivered'>('all')
+  const [merchantOrderSearch, setMerchantOrderSearch] = useState('')
+  const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null)
+
+  // Filtered merchant orders
+  const filteredMerchantOrders = useMemo(() => {
+    return merchantOrders.filter((order: MerchantOrder) => {
+      if (merchantOrderStatusFilter !== 'all' && order.status !== merchantOrderStatusFilter) {
+        return false
+      }
+      if (merchantOrderSearch.trim()) {
+        const query = merchantOrderSearch.toLowerCase()
+        const matchesCode = order.orderCode.toLowerCase().includes(query)
+        const matchesCustomer =
+          order.shippingName.toLowerCase().includes(query) ||
+          order.shippingPhone.toLowerCase().includes(query) ||
+          order.shippingAddress.toLowerCase().includes(query)
+        const matchesProduct = order.items.some((it: MerchantOrderItem) =>
+          it.productName.toLowerCase().includes(query)
+        )
+        return matchesCode || matchesCustomer || matchesProduct
+      }
+      return true
+    })
+  }, [merchantOrders, merchantOrderStatusFilter, merchantOrderSearch])
+
+  // Synchronize internal userShop with prop
+  useEffect(() => {
+    if (userShopProp !== undefined) {
+      setUserShop(userShopProp)
+    }
+  }, [userShopProp])
+
+  // Fetch products from backend
+  const fetchProducts = async () => {
+    setIsLoadingProducts(true)
+    try {
+      const data = await api.getProducts()
+      if (data && data.length > 0) {
+        setProducts(
+          data.map((p: ApiProduct) => ({
+            id: String(p.id),
+            name: p.name,
+            category: p.category,
+            price: p.price,
+            originalPrice: p.original_price ?? undefined,
+            rating: p.rating,
+            reviewsCount: p.reviews_count,
+            badge: p.badge ?? undefined,
+            description: p.description || '',
+            image: p.image_url,
+            inStock: p.in_stock,
+            shopId: p.shop_id ?? undefined,
+            shopName: p.shop_name ?? undefined,
+          }))
+        )
+      }
+    } catch {
+      // Keep sample products if offline
+    } finally {
+      setIsLoadingProducts(false)
+    }
+  }
+
+  // Fetch user orders from backend
+  const fetchOrders = async () => {
+    if (!token) return
+    try {
+      const data = await api.getMyOrders(token)
+      if (data) {
+        const mappedOrders: Order[] = data.map((o: ApiOrder) => ({
+          id: o.order_code,
+          date: new Date(o.created_at).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          items: o.items.map(item => ({
+            product: {
+              id: item.product_id ? String(item.product_id) : 'custom',
+              name: item.product_name,
+              category: 'General',
+              price: item.price,
+              rating: 5.0,
+              reviewsCount: 1,
+              description: '',
+              image: item.image_url || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=700',
+              inStock: true,
+            },
+            quantity: item.quantity,
+          })),
+          total: o.total_amount,
+          shippingAddress: {
+            fullName: o.shipping_name,
+            phone: o.shipping_phone,
+            address: o.shipping_address,
+            city: o.shipping_city,
+          },
+          paymentMethod:
+            o.payment_method === 'cod'
+              ? 'Cash on Delivery'
+              : o.payment_method === 'card'
+              ? 'Credit / Debit Card'
+              : 'Mobile Banking (bKash / Nagad)',
+          status: o.status,
+        }))
+        setOrders(mappedOrders)
+        try {
+          localStorage.setItem(userOrderKey, JSON.stringify(mappedOrders))
+        } catch {}
+      }
+    } catch {}
+  }
+
+  // Fetch shop for current authenticated user
+  const fetchMyShop = async () => {
+    if (!token) return
+    try {
+      const shop = await api.getMyShop(token)
+      if (shop) {
+        const mappedShop: UserShop = {
+          id: String(shop.id),
+          ownerId: shop.owner_id,
+          ownerUsername: shop.owner_username,
+          name: shop.name,
+          tagline: shop.tagline || 'Official Gather Verified Merchant',
+          category: shop.category,
+          email: shop.email || '',
+          phone: shop.phone || '',
+          address: shop.address || '',
+          city: shop.city || 'Dhaka',
+          description: shop.description || '',
+          returnPolicy: shop.return_policy || '7 Days Replacement Warranty',
+          logoUrl: shop.logo_url || LOGO_PRESETS[0].url,
+          bannerGradient: shop.banner_gradient || BANNER_PRESETS[0].css,
+          rating: shop.rating,
+          reviewsCount: shop.reviews_count,
+          createdAt: new Date(shop.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          status: shop.status,
+          productsCount: shop.products_count,
+        }
+        setUserShop(mappedShop)
+        onUserShopChange?.(mappedShop)
+      } else {
+        setUserShop(null)
+        onUserShopChange?.(null)
+      }
+    } catch {
+      // Keep state untouched if network error
+    }
+  }
+
+  // Fetch merchant orders received by the store
+  const fetchMerchantOrders = async () => {
+    if (!token || !isShopOwner) return
+    setIsLoadingMerchantOrders(true)
+    try {
+      const data = await api.getMerchantOrders(token)
+      if (data) {
+        setMerchantOrders(
+          data.map((o: ApiMerchantOrder) => ({
+            id: o.id,
+            orderCode: o.order_code,
+            userId: o.user_id,
+            totalAmount: o.total_amount,
+            merchantSubtotal: o.merchant_subtotal,
+            shippingName: o.shipping_name,
+            shippingPhone: o.shipping_phone,
+            shippingAddress: o.shipping_address,
+            shippingCity: o.shipping_city,
+            paymentMethod: o.payment_method,
+            status: o.status,
+            createdAt: new Date(o.created_at).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+            items: o.items.map(it => ({
+              id: it.id,
+              productId: it.product_id,
+              productName: it.product_name,
+              price: it.price,
+              quantity: it.quantity,
+              imageUrl: it.image_url,
+            })),
+          }))
+        )
+      }
+    } catch {
+    } finally {
+      setIsLoadingMerchantOrders(false)
+    }
+  }
+
+  // Fetch merchant analytics
+  const fetchMerchantAnalytics = async () => {
+    if (!token || !isShopOwner) return
+    try {
+      const data = await api.getMerchantAnalytics(token)
+      if (data) {
+        setMerchantAnalytics({
+          totalOrders: data.total_orders,
+          totalRevenue: data.total_revenue,
+          processingCount: data.processing_count,
+          onTheWayCount: data.on_the_way_count,
+          deliveredCount: data.delivered_count,
+          totalProducts: data.total_products,
+        })
+      }
+    } catch {}
+  }
+
+  // Handle order status update (Processing -> On the Way -> Delivered)
+  const handleUpdateOrderStatus = async (orderId: number, nextStatus: string) => {
+    if (!token || !isShopOwner) return
+    setUpdatingOrderId(orderId)
+
+    // 1. Instant optimistic update for merchant orders & counters
+    setMerchantOrders(prev =>
+      prev.map(o => (o.id === orderId ? { ...o, status: nextStatus } : o))
+    )
+
+    // 2. If viewing a strict status filter that is no longer matching, reset filter to 'all' so order remains visible
+    if (merchantOrderStatusFilter !== 'all' && merchantOrderStatusFilter !== nextStatus) {
+      setMerchantOrderStatusFilter('all')
+    }
+
+    try {
+      const updated = await api.updateMerchantOrderStatus(token, orderId, nextStatus)
+      setMerchantOrders(prev =>
+        prev.map(o => (o.id === orderId ? { ...o, status: updated.status } : o))
+      )
+      // 3. Synchronize customer orders view if user has active orders
+      setOrders(prev =>
+        prev.map(o => (o.id === updated.order_code || Number(o.id.replace(/\D/g, '')) === orderId ? { ...o, status: updated.status } : o))
+      )
+      fetchMerchantAnalytics()
+      fetchOrders()
+    } catch (err: any) {
+      alert(err.message || 'Failed to update order status.')
+      fetchMerchantOrders()
+    } finally {
+      setUpdatingOrderId(null)
+    }
+  }
+
+  useEffect(() => {
+    fetchProducts()
+    fetchOrders()
+    fetchMyShop()
+    if (isShopOwner) {
+      fetchMerchantOrders()
+      fetchMerchantAnalytics()
+    }
+  }, [token, user.id, isShopOwner])
+
+  useEffect(() => {
+    if (activeTab === 'myshop' && isShopOwner) {
+      fetchMerchantOrders()
+      fetchMerchantAnalytics()
+    }
+  }, [activeTab, isShopOwner])
 
   // Handle trigger from Settings button
   useEffect(() => {
     if (openShopTrigger) {
-      if (!userShop) {
+      if (!isShopOwner) {
         setIsOpenShopModal(true)
       } else {
         setActiveTab('myshop')
       }
       onOpenShopTriggerHandled?.()
     }
-  }, [openShopTrigger, userShop, onOpenShopTriggerHandled])
-
-  // Save orders to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders))
-    } catch {}
-  }, [orders])
-
-  // Save custom products to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(CUSTOM_PRODUCTS_STORAGE_KEY, JSON.stringify(customProducts))
-    } catch {}
-  }, [customProducts])
+  }, [openShopTrigger, isShopOwner, onOpenShopTriggerHandled])
 
   // Pre-fill form when userShop exists and modal is opened for editing
   function openShopModalForEdit() {
-    if (userShop) {
+    if (isShopOwner && userShop) {
       setShopName(userShop.name)
       setShopTagline(userShop.tagline)
-      setShopCategory(userShop.category)
+      setShopCategory(userShop.category as any)
       setShopEmail(userShop.email)
       setShopPhone(userShop.phone)
       setShopCity(userShop.city)
@@ -564,82 +904,259 @@ export function ShopView({
       setShopReturnPolicy(userShop.returnPolicy)
       setShopLogoUrl(userShop.logoUrl || LOGO_PRESETS[0].url)
       setShopBannerGradient(userShop.bannerGradient || BANNER_PRESETS[0].css)
+    } else {
+      setShopName('')
+      setShopTagline('')
+      setShopEmail(`${user.username}@merchant.gather`)
+      setShopPhone('+880 1700-000000')
+      setShopCity('Dhaka')
+      setShopAddress('')
+      setShopDescription('')
     }
     setShopSuccessBanner(false)
     setIsOpenShopModal(true)
   }
 
   // Handle Open/Create Shop form submit
-  function handleOpenShopSubmit(e: React.FormEvent) {
+  async function handleOpenShopSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!shopName.trim()) return
 
-    const newShop: UserShop = {
-      id: userShop?.id || `SHOP-${Math.floor(1000 + Math.random() * 9000)}`,
-      ownerId: user.id,
-      ownerUsername: user.username,
-      name: shopName.trim(),
-      tagline: shopTagline.trim() || 'Official Gather Verified Merchant',
-      category: shopCategory,
-      email: shopEmail.trim(),
-      phone: shopPhone.trim(),
-      address: shopAddress.trim(),
-      city: shopCity.trim(),
-      description: shopDescription.trim() || 'Welcome to our official store on Gather Marketplace!',
-      returnPolicy: shopReturnPolicy.trim() || '7 Days Replacement Warranty',
-      logoUrl: shopLogoUrl,
-      bannerGradient: shopBannerGradient,
-      rating: userShop?.rating || 5.0,
-      reviewsCount: userShop?.reviewsCount || 1,
-      createdAt: userShop?.createdAt || new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-      status: 'verified',
-      productsCount: customProducts.filter(p => p.shopId === (userShop?.id || '')).length,
+    if (token) {
+      try {
+        let resp: ApiShop
+        if (isShopOwner && userShop) {
+          resp = await api.updateMyShop(token, {
+            name: shopName.trim(),
+            tagline: shopTagline.trim(),
+            category: shopCategory,
+            email: shopEmail.trim(),
+            phone: shopPhone.trim(),
+            address: shopAddress.trim(),
+            city: shopCity.trim(),
+            description: shopDescription.trim(),
+            return_policy: shopReturnPolicy.trim(),
+            logo_url: shopLogoUrl,
+            banner_gradient: shopBannerGradient,
+          })
+        } else {
+          resp = await api.createShop(token, {
+            name: shopName.trim(),
+            tagline: shopTagline.trim(),
+            category: shopCategory,
+            email: shopEmail.trim(),
+            phone: shopPhone.trim(),
+            address: shopAddress.trim(),
+            city: shopCity.trim(),
+            description: shopDescription.trim(),
+            return_policy: shopReturnPolicy.trim(),
+            logo_url: shopLogoUrl,
+            banner_gradient: shopBannerGradient,
+          })
+        }
+
+        const updatedShop: UserShop = {
+          id: String(resp.id),
+          ownerId: resp.owner_id,
+          ownerUsername: resp.owner_username,
+          name: resp.name,
+          tagline: resp.tagline || '',
+          category: resp.category,
+          email: resp.email || '',
+          phone: resp.phone || '',
+          address: resp.address || '',
+          city: resp.city || '',
+          description: resp.description || '',
+          returnPolicy: resp.return_policy || '7 Days Replacement Warranty',
+          logoUrl: resp.logo_url || LOGO_PRESETS[0].url,
+          bannerGradient: resp.banner_gradient || BANNER_PRESETS[0].css,
+          rating: resp.rating,
+          reviewsCount: resp.reviews_count,
+          createdAt: new Date(resp.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          status: resp.status,
+          productsCount: resp.products_count,
+        }
+        setUserShop(updatedShop)
+        onUserShopChange?.(updatedShop)
+        setShopSuccessBanner(true)
+        fetchProducts()
+        return
+      } catch (err: any) {
+        alert(err.message || 'Failed to save shop. Please check your inputs.')
+      }
     }
-
-    setUserShop(newShop)
-    onUserShopChange?.(newShop)
-    try {
-      localStorage.setItem('gather_active_user_shop', JSON.stringify(newShop))
-      localStorage.setItem(`gather_user_shop_${user.id}`, JSON.stringify(newShop))
-    } catch {}
-
-    setShopSuccessBanner(true)
   }
 
   // Handle Add Product submit
-  function handleAddProductSubmit(e: React.FormEvent) {
+  async function handleAddProductSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!newProdName.trim() || !newProdPrice) return
+    if (!newProdName.trim() || !newProdPrice || !isShopOwner) return
 
     const parsedPrice = parseFloat(newProdPrice)
     const parsedOrig = newProdOriginalPrice ? parseFloat(newProdOriginalPrice) : undefined
 
-    const product: Product = {
-      id: `custom-${Date.now()}`,
-      name: newProdName.trim(),
-      category: newProdCategory,
-      price: isNaN(parsedPrice) ? 49 : parsedPrice,
-      originalPrice: parsedOrig && !isNaN(parsedOrig) ? parsedOrig : undefined,
-      rating: 5.0,
-      reviewsCount: 1,
-      badge: 'Merchant Official',
-      description: newProdDescription.trim() || 'Verified quality product from official Gather merchant.',
-      image: newProdImage.trim() || 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=700&auto=format&fit=crop&q=80',
-      inStock: true,
-      shopId: userShop?.id,
-      shopName: userShop?.name,
-    }
+    if (token) {
+      try {
+        const created = await api.createProduct(token, {
+          name: newProdName.trim(),
+          category: newProdCategory,
+          price: isNaN(parsedPrice) ? 49 : parsedPrice,
+          original_price: parsedOrig && !isNaN(parsedOrig) ? parsedOrig : undefined,
+          badge: 'Merchant Official',
+          description: newProdDescription.trim() || 'Verified quality product from official Gather merchant.',
+          image_url: newProdImage.trim() || 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=700',
+          in_stock: true,
+        })
 
-    setCustomProducts(prev => [product, ...prev])
-    setIsAddProductModal(false)
-    setNewProdName('')
-    setNewProdPrice('')
-    setNewProdOriginalPrice('')
-    setNewProdDescription('')
+        const mapped: Product = {
+          id: String(created.id),
+          name: created.name,
+          category: created.category,
+          price: created.price,
+          originalPrice: created.original_price ?? undefined,
+          rating: created.rating,
+          reviewsCount: created.reviews_count,
+          badge: created.badge ?? undefined,
+          description: created.description || '',
+          image: created.image_url,
+          inStock: created.in_stock,
+          shopId: created.shop_id ?? userShop?.id,
+          shopName: created.shop_name ?? userShop?.name,
+        }
+        setProducts(prev => [mapped, ...prev.filter(p => p.id !== mapped.id)])
+        setUserShop(prev => prev ? { ...prev, productsCount: (prev.productsCount || 0) + 1 } : null)
+        setIsAddProductModal(false)
+        setNewProdName('')
+        setNewProdPrice('')
+        setNewProdOriginalPrice('')
+        setNewProdDescription('')
+        setNewProdImage('')
+
+        // Synchronize backend data across shop views
+        fetchProducts()
+        fetchMyShop()
+        fetchMerchantAnalytics()
+        return
+      } catch (err: any) {
+        alert(err.message || 'Failed to publish product.')
+      }
+    }
   }
 
-  function handleDeleteCustomProduct(productId: string) {
-    setCustomProducts(prev => prev.filter(p => p.id !== productId))
+  // Pre-fill form and open Edit Product modal (Owner-only)
+  function openEditProductModal(product: Product) {
+    if (!isShopOwner) return
+    setEditingProduct(product)
+    setEditProdName(product.name)
+    setEditProdCategory((product.category as any) || 'Electronics')
+    setEditProdPrice(String(product.price))
+    setEditProdOriginalPrice(product.originalPrice ? String(product.originalPrice) : '')
+    setEditProdBadge(product.badge || '')
+    setEditProdDescription(product.description || '')
+    setEditProdImage(product.image || '')
+    setEditProdInStock(product.inStock !== false)
+  }
+
+  // Handle Edit Product submit (Owner-only)
+  async function handleEditProductSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editingProduct || !isShopOwner || !editProdName.trim() || !editProdPrice) return
+
+    const parsedPrice = parseFloat(editProdPrice)
+    const parsedOrig = editProdOriginalPrice ? parseFloat(editProdOriginalPrice) : undefined
+    const numericId = parseInt(editingProduct.id, 10)
+
+    if (token && !isNaN(numericId)) {
+      try {
+        const updated = await api.updateProduct(token, numericId, {
+          name: editProdName.trim(),
+          category: editProdCategory,
+          price: isNaN(parsedPrice) ? editingProduct.price : parsedPrice,
+          original_price: parsedOrig,
+          badge: editProdBadge.trim() || undefined,
+          description: editProdDescription.trim(),
+          image_url: editProdImage.trim() || editingProduct.image,
+          in_stock: editProdInStock,
+        })
+
+        setProducts(prev =>
+          prev.map(p =>
+            p.id === editingProduct.id
+              ? {
+                  ...p,
+                  name: updated.name,
+                  category: updated.category,
+                  price: updated.price,
+                  originalPrice: updated.original_price ?? undefined,
+                  badge: updated.badge ?? undefined,
+                  description: updated.description || '',
+                  image: updated.image_url,
+                  inStock: updated.in_stock,
+                }
+              : p
+          )
+        )
+        setEditingProduct(null)
+        return
+      } catch (err: any) {
+        alert(err.message || 'Failed to update product details.')
+      }
+    }
+  }
+
+  // Handle Delete Product (Owner-only)
+  async function handleDeleteProduct(productId: string) {
+    if (!isShopOwner) return
+    const numericId = parseInt(productId, 10)
+    if (token && !isNaN(numericId)) {
+      try {
+        await api.deleteProduct(token, numericId)
+        setProducts(prev => prev.filter(p => p.id !== productId))
+        setUserShop(prev => prev ? { ...prev, productsCount: Math.max(0, (prev.productsCount || 1) - 1) } : null)
+        fetchProducts()
+        fetchMyShop()
+        fetchMerchantAnalytics()
+        return
+      } catch (err: any) {
+        alert(err.message || 'Could not delete product.')
+      }
+    }
+  }
+
+  // Handle viewing another merchant's public store
+  async function handleViewPublicStore(shopId?: string | number, shopNameFallback?: string) {
+    if (!shopId) return
+    try {
+      const publicShop = await api.getPublicShop(String(shopId))
+      setPublicShopStore({
+        id: String(publicShop.id),
+        ownerId: publicShop.owner_id,
+        ownerUsername: publicShop.owner_username,
+        name: publicShop.name,
+        tagline: publicShop.tagline || '',
+        category: publicShop.category,
+        description: publicShop.description || '',
+        email: publicShop.email || '',
+        phone: publicShop.phone || '',
+        address: publicShop.address || '',
+        city: publicShop.city || '',
+        logoUrl: publicShop.logo_url || LOGO_PRESETS[0].url,
+        bannerGradient: publicShop.banner_gradient || BANNER_PRESETS[0].css,
+        returnPolicy: publicShop.return_policy || '7 Days Replacement Warranty',
+        rating: publicShop.rating,
+        reviewsCount: publicShop.reviews_count,
+        createdAt: new Date(publicShop.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        status: publicShop.status,
+        productsCount: publicShop.products_count,
+      })
+      setActiveTab('publicShop')
+    } catch {
+      // Fallback
+      if (shopNameFallback) {
+        setSearchQuery(shopNameFallback)
+        setActiveTab('browse')
+      }
+    }
   }
 
   const totalCartItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0)
@@ -684,63 +1201,129 @@ export function ShopView({
     setIsCartOpen(true)
   }
 
-  function handlePlaceOrder(e: React.FormEvent) {
+  async function handlePlaceOrder(e: React.FormEvent) {
     e.preventDefault()
     if (cart.length === 0) return
 
-    const newOrder: Order = {
-      id: `ORD-${Math.floor(100000 + Math.random() * 900000)}`,
-      date: new Date().toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      items: [...cart],
-      total: orderTotal,
-      shippingAddress: {
-        fullName: shippingName,
-        phone: shippingPhone,
-        address: shippingAddress,
-        city: shippingCity,
-      },
-      paymentMethod:
-        paymentMethod === 'cod'
-          ? 'Cash on Delivery'
-          : paymentMethod === 'card'
-          ? 'Credit / Debit Card'
-          : 'Mobile Banking (bKash / Nagad)',
-      status: 'Processing',
-    }
+    if (token) {
+      try {
+        const orderReq = {
+          shipping_name: shippingName.trim(),
+          shipping_phone: shippingPhone.trim(),
+          shipping_address: shippingAddress.trim(),
+          shipping_city: shippingCity.trim(),
+          payment_method: paymentMethod,
+          items: cart.map(i => ({
+            product_id: !isNaN(Number(i.product.id)) ? Number(i.product.id) : undefined,
+            product_name: i.product.name,
+            price: i.product.price,
+            quantity: i.quantity,
+            image_url: i.product.image,
+          })),
+        }
 
-    setOrders(prev => [newOrder, ...prev])
-    setLastPlacedOrder(newOrder)
-    onCartChange([])
-    setCheckoutStep('success')
+        const resp = await api.createOrder(token, orderReq)
+        const placedOrder: Order = {
+          id: resp.order_code,
+          date: new Date(resp.created_at).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          items: [...cart],
+          total: resp.total_amount,
+          shippingAddress: {
+            fullName: resp.shipping_name,
+            phone: resp.shipping_phone,
+            address: resp.shipping_address,
+            city: resp.shipping_city,
+          },
+          paymentMethod:
+            resp.payment_method === 'cod'
+              ? 'Cash on Delivery'
+              : resp.payment_method === 'card'
+              ? 'Credit / Debit Card'
+              : 'Mobile Banking (bKash / Nagad)',
+          status: resp.status,
+        }
+
+        setOrders(prev => [placedOrder, ...prev])
+        setLastPlacedOrder(placedOrder)
+        onCartChange([])
+        setCheckoutStep('success')
+        return
+      } catch (err: any) {
+        alert(err.message || 'Could not place order. Please try again.')
+      }
+    }
   }
 
-  // Combined product catalog
-  const combinedCatalog = [...customProducts, ...SAMPLE_PRODUCTS]
-
   // Filter and sort products
-  const filteredProducts = combinedCatalog.filter(product => {
-    const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory
-    const matchesQuery =
-      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (product.shopName && product.shopName.toLowerCase().includes(searchQuery.toLowerCase()))
-    return matchesCategory && matchesQuery
-  }).sort((a, b) => {
-    if (sortBy === 'price-low') return a.price - b.price
-    if (sortBy === 'price-high') return b.price - a.price
-    if (sortBy === 'rating') return b.rating - a.rating
-    return 0 // default featured
-  })
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      const matchesCategory = selectedCategory === 'All' || product.category.toLowerCase() === selectedCategory.toLowerCase()
+      const matchesQuery =
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (product.shopName && product.shopName.toLowerCase().includes(searchQuery.toLowerCase()))
+      return matchesCategory && matchesQuery
+    }).sort((a, b) => {
+      if (sortBy === 'price-low') return a.price - b.price
+      if (sortBy === 'price-high') return b.price - a.price
+      if (sortBy === 'rating') return b.rating - a.rating
+      return 0
+    })
+  }, [products, selectedCategory, searchQuery, sortBy])
 
-  // User's own shop products
-  const myShopProducts = customProducts.filter(p => userShop && p.shopId === userShop.id)
+  // Products belonging to the logged-in user's shop (Strict Ownership)
+  const myShopProducts = useMemo(() => {
+    if (!isShopOwner || !userShop) return []
+    return products.filter(p => String(p.shopId) === String(userShop.id))
+  }, [products, isShopOwner, userShop])
+
+  // Real-time reactive merchant statistics (KPIs & counters)
+  const merchantStats = useMemo(() => {
+    let processing = 0
+    let onTheWay = 0
+    let delivered = 0
+    let revenue = 0
+
+    merchantOrders.forEach(o => {
+      revenue += o.merchantSubtotal
+      const st = (o.status || '').toLowerCase().trim()
+      if (st === 'processing') {
+        processing++
+      } else if (st === 'on the way' || st === 'shipped') {
+        onTheWay++
+      } else if (st === 'delivered') {
+        delivered++
+      }
+    })
+
+    const computedTotalProducts = Math.max(
+      myShopProducts.length,
+      userShop?.productsCount ?? 0,
+      merchantAnalytics?.totalProducts ?? 0
+    )
+
+    return {
+      totalRevenue: merchantOrders.length > 0 ? revenue : (merchantAnalytics?.totalRevenue ?? 0),
+      totalOrders: Math.max(merchantOrders.length, merchantAnalytics?.totalOrders ?? 0),
+      processingCount: merchantOrders.length > 0 ? processing : (merchantAnalytics?.processingCount ?? 0),
+      onTheWayCount: merchantOrders.length > 0 ? onTheWay : (merchantAnalytics?.onTheWayCount ?? 0),
+      deliveredCount: merchantOrders.length > 0 ? delivered : (merchantAnalytics?.deliveredCount ?? 0),
+      totalProducts: computedTotalProducts,
+    }
+  }, [merchantOrders, merchantAnalytics, myShopProducts.length, userShop?.productsCount])
+
+  // Products belonging to the public merchant store currently being viewed
+  const publicStoreProducts = useMemo(() => {
+    if (!publicShopStore) return []
+    return products.filter(p => String(p.shopId) === String(publicShopStore.id))
+  }, [products, publicShopStore])
 
   return (
     <div className="shop-container">
@@ -857,17 +1440,29 @@ export function ShopView({
             </div>
           )}
 
-          {/* My Shop Button (visible when user has an active store) */}
-          {userShop && (
+          {/* Strict Ownership:
+              If authenticated user owns a shop -> Show 'My Shop' merchant toggle
+              If authenticated user does NOT own a shop -> Show 'Open a Shop' button */}
+          {isShopOwner ? (
             <button
               type="button"
               className={`shop-tab-toggle shop-myshop-toggle ${activeTab === 'myshop' ? 'active' : ''}`}
               onClick={() => setActiveTab(activeTab === 'myshop' ? 'browse' : 'myshop')}
-              title="Manage your storefront"
+              title="Manage your official storefront"
             >
               <IconStore size={15} />
               <span>My Shop</span>
               <span className="shop-verified-dot">●</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="shop-tab-toggle shop-open-new-toggle"
+              onClick={openShopModalForEdit}
+              title="Open your own shop on Gather"
+            >
+              <IconPlus size={14} />
+              <span>Open a Shop</span>
             </button>
           )}
 
@@ -907,9 +1502,9 @@ export function ShopView({
       </div>
 
       {/* =========================================================
-          VIEW 1: MY SHOP STOREFRONT & MERCHANT DASHBOARD
+          VIEW 1: MY SHOP STOREFRONT & MERCHANT DASHBOARD (OWNER ONLY)
           ========================================================= */}
-      {activeTab === 'myshop' && userShop ? (
+      {activeTab === 'myshop' && isShopOwner && userShop ? (
         <section className="myshop-section">
           {/* Shop Hero Storefront Banner */}
           <div className="myshop-hero-card" style={{ background: userShop.bannerGradient || BANNER_PRESETS[0].css }}>
@@ -936,10 +1531,11 @@ export function ShopView({
                   <span>•</span>
                   <span><strong>{myShopProducts.length}</strong> items listed</span>
                   <span>•</span>
-                  <span>Owner: <strong>@{userShop.ownerUsername}</strong></span>
+                  <span>Owner: <strong>@{userShop.ownerUsername} (You)</strong></span>
                 </div>
               </div>
 
+              {/* Administrative Actions: STRICTLY FOR THE OWNER */}
               <div className="myshop-actions-col">
                 <button
                   type="button"
@@ -961,71 +1557,744 @@ export function ShopView({
             </div>
           </div>
 
-          {/* Shop Overview Details Grid */}
-          <div className="myshop-details-grid">
-            <div className="myshop-detail-card">
-              <span className="detail-label">Business Email</span>
-              <strong>{userShop.email || 'N/A'}</strong>
-            </div>
-            <div className="myshop-detail-card">
-              <span className="detail-label">Helpline Phone</span>
-              <strong>{userShop.phone || 'N/A'}</strong>
-            </div>
-            <div className="myshop-detail-card">
-              <span className="detail-label">Location / City</span>
-              <strong>{userShop.city}, {userShop.address || 'Central'}</strong>
-            </div>
-            <div className="myshop-detail-card">
-              <span className="detail-label">Return Policy</span>
-              <strong>{userShop.returnPolicy}</strong>
-            </div>
-          </div>
-
-          {/* Shop Story Description */}
-          {userShop.description && (
-            <div className="myshop-story-box">
-              <h4>About This Store</h4>
-              <p>{userShop.description}</p>
-            </div>
-          )}
-
-          {/* Listed Products Heading */}
-          <div className="myshop-products-header">
-            <div>
-              <h3>Products in Your Store ({myShopProducts.length})</h3>
-              <small>Items visible to all Gather users in the public marketplace</small>
-            </div>
+          {/* Merchant Navigation Subtabs */}
+          <div className="merchant-subtabs-nav">
             <button
               type="button"
-              className="button button-primary"
-              onClick={() => setIsAddProductModal(true)}
+              className={`merchant-subtab-btn ${merchantSubTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setMerchantSubTab('dashboard')}
             >
-              <IconPlus size={15} /> Add New Product
+              <IconTrendingUp size={15} />
+              <span>Overview & Analytics</span>
+            </button>
+            <button
+              type="button"
+              className={`merchant-subtab-btn ${merchantSubTab === 'orders' ? 'active' : ''}`}
+              onClick={() => setMerchantSubTab('orders')}
+            >
+              <IconPackage size={15} />
+              <span>Customer Orders</span>
+              {merchantOrders.length > 0 && (
+                <span className="merchant-subtab-badge">{merchantOrders.length}</span>
+              )}
+            </button>
+            <button
+              type="button"
+              className={`merchant-subtab-btn ${merchantSubTab === 'inventory' ? 'active' : ''}`}
+              onClick={() => setMerchantSubTab('inventory')}
+            >
+              <IconGrid size={15} />
+              <span>Inventory & Catalog</span>
+              <span className="merchant-subtab-badge secondary">{myShopProducts.length}</span>
+            </button>
+            <button
+              type="button"
+              className={`merchant-subtab-btn ${merchantSubTab === 'settings' ? 'active' : ''}`}
+              onClick={() => setMerchantSubTab('settings')}
+            >
+              <IconShieldCheck size={15} />
+              <span>Store Policies & Info</span>
             </button>
           </div>
 
-          {myShopProducts.length === 0 ? (
-            <div className="shop-empty-state myshop-empty">
+          {/* =========================================================
+              SUB-TAB 1: MERCHANT DASHBOARD OVERVIEW & ANALYTICS
+              ========================================================= */}
+          {merchantSubTab === 'dashboard' && (
+            <div className="merchant-dashboard-view">
+              {/* Top Key Performance Indicators (KPIs) */}
+              <div className="merchant-kpi-grid">
+                <div className="merchant-kpi-card kpi-revenue">
+                  <div className="kpi-icon-bubble bubble-emerald">
+                    <IconDollar size={20} />
+                  </div>
+                  <div className="kpi-data">
+                    <span className="kpi-label">Total Net Revenue</span>
+                    <strong className="kpi-value">${merchantStats.totalRevenue.toFixed(2)}</strong>
+                    <small className="kpi-helper">Net sales generated from your items</small>
+                  </div>
+                </div>
+
+                <div className="merchant-kpi-card kpi-orders">
+                  <div className="kpi-icon-bubble bubble-blue">
+                    <IconPackage size={20} />
+                  </div>
+                  <div className="kpi-data">
+                    <span className="kpi-label">Total Orders</span>
+                    <strong className="kpi-value">{merchantStats.totalOrders}</strong>
+                    <small className="kpi-helper">Customer purchases received</small>
+                  </div>
+                </div>
+
+                <div className="merchant-kpi-card kpi-processing">
+                  <div className="kpi-icon-bubble bubble-amber">
+                    <IconClock size={20} />
+                  </div>
+                  <div className="kpi-data">
+                    <span className="kpi-label">In Processing (Packing)</span>
+                    <strong className="kpi-value">{merchantStats.processingCount}</strong>
+                    <small className="kpi-helper">Orders ready for dispatch</small>
+                  </div>
+                </div>
+
+                <div className="merchant-kpi-card kpi-transit">
+                  <div className="kpi-icon-bubble bubble-sky">
+                    <IconTruck size={20} />
+                  </div>
+                  <div className="kpi-data">
+                    <span className="kpi-label">On the Way (In Transit)</span>
+                    <strong className="kpi-value">{merchantStats.onTheWayCount}</strong>
+                    <small className="kpi-helper">Packages with courier</small>
+                  </div>
+                </div>
+
+                <div className="merchant-kpi-card kpi-delivered">
+                  <div className="kpi-icon-bubble bubble-teal">
+                    <IconCheckSuccess size={20} />
+                  </div>
+                  <div className="kpi-data">
+                    <span className="kpi-label">Delivered & Complete</span>
+                    <strong className="kpi-value">{merchantStats.deliveredCount}</strong>
+                    <small className="kpi-helper">Completed handovers</small>
+                  </div>
+                </div>
+
+                <div className="merchant-kpi-card kpi-catalog">
+                  <div className="kpi-icon-bubble bubble-violet">
+                    <IconGrid size={20} />
+                  </div>
+                  <div className="kpi-data">
+                    <span className="kpi-label">Active Store Catalog</span>
+                    <strong className="kpi-value">{merchantStats.totalProducts}</strong>
+                    <small className="kpi-helper">Products live on Gather</small>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Orders Overview Card */}
+              <div className="merchant-recent-orders-card">
+                <div className="recent-orders-header">
+                  <div>
+                    <h3>Recent Customer Orders ({merchantOrders.length})</h3>
+                    <small>Latest transactions placed by Gather users for your products</small>
+                  </div>
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    onClick={() => setMerchantSubTab('orders')}
+                  >
+                    View All Orders & Position Details →
+                  </button>
+                </div>
+
+                {merchantOrders.length === 0 ? (
+                  <div className="shop-empty-state" style={{ padding: '36px 20px' }}>
+                    <span className="empty-icon">
+                      <IconPackage size={40} />
+                    </span>
+                    <h4>No customer orders yet</h4>
+                    <p>When Gather community members buy your items, your orders and payout analytics will appear here.</p>
+                  </div>
+                ) : (
+                  <div className="recent-orders-table-wrapper">
+                    <table className="merchant-table">
+                      <thead>
+                        <tr>
+                          <th>Order Code</th>
+                          <th>Date</th>
+                          <th>Customer</th>
+                          <th>Destination</th>
+                          <th>Items</th>
+                          <th>Your Earnings</th>
+                          <th>Current Position</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {merchantOrders.slice(0, 5).map(o => (
+                          <tr key={o.id}>
+                            <td>
+                              <strong className="order-code-pill">{o.orderCode}</strong>
+                            </td>
+                            <td>{o.createdAt}</td>
+                            <td>
+                              <strong>{o.shippingName}</strong>
+                            </td>
+                            <td>{o.shippingCity}</td>
+                            <td>
+                              <span className="item-count-chip">{o.items.reduce((s, it) => s + it.quantity, 0)} pcs</span>
+                            </td>
+                            <td>
+                              <strong className="payout-highlight">${o.merchantSubtotal.toFixed(2)}</strong>
+                            </td>
+                            <td>
+                              <span className={`order-status-badge status-${o.status.toLowerCase().replace(/\s+/g, '-')}`}>
+                                {o.status === 'Processing' && <IconClock size={12} />}
+                                {o.status === 'On the Way' && <IconTruck size={12} />}
+                                {o.status === 'Delivered' && <IconCheckSuccess size={12} />}
+                                <span>{o.status}</span>
+                              </span>
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                className="button button-secondary table-action-btn"
+                                onClick={() => setMerchantSubTab('orders')}
+                              >
+                                Manage
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Order Fulfillment Flow Explanation */}
+              <div className="merchant-flow-card">
+                <h4>Package Fulfillment & Position Guide</h4>
+                <div className="flow-steps-grid">
+                  <div className="flow-step-item">
+                    <div className="flow-step-icon step-amber">
+                      <IconClock size={18} />
+                    </div>
+                    <div>
+                      <strong>1. Processing (Packing)</strong>
+                      <p>Verify customer address & phone, pack items carefully with warranty slips.</p>
+                    </div>
+                  </div>
+
+                  <div className="flow-step-item">
+                    <div className="flow-step-icon step-blue">
+                      <IconTruck size={18} />
+                    </div>
+                    <div>
+                      <strong>2. On the Way (In Transit)</strong>
+                      <p>Hand over to courier or shipping partner. Package is en route to customer city.</p>
+                    </div>
+                  </div>
+
+                  <div className="flow-step-item">
+                    <div className="flow-step-icon step-emerald">
+                      <IconCheckSuccess size={18} />
+                    </div>
+                    <div>
+                      <strong>3. Delivered (Completed)</strong>
+                      <p>Customer receives parcel and completes payment. Order marked as finalized.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* =========================================================
+              SUB-TAB 2: CUSTOMER ORDERS MANAGEMENT & POSITION TRACKER
+              ========================================================= */}
+          {merchantSubTab === 'orders' && (
+            <div className="merchant-orders-view">
+              <div className="merchant-orders-top-bar">
+                <div>
+                  <h3>Customer Orders & Delivery Positions</h3>
+                  <small>Manage package status, inspect payment details, and view customer shipping information</small>
+                </div>
+
+                <div className="merchant-order-search">
+                  <IconSearch size={15} />
+                  <input
+                    type="text"
+                    placeholder="Search by order code, customer name, city, or product..."
+                    value={merchantOrderSearch}
+                    onChange={e => setMerchantOrderSearch(e.target.value)}
+                  />
+                  {merchantOrderSearch && (
+                    <button
+                      type="button"
+                      className="search-clear-btn"
+                      onClick={() => setMerchantOrderSearch('')}
+                    >
+                      <IconClose size={12} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Status Filter Tabs */}
+              <div className="merchant-order-filter-pills">
+                <button
+                  type="button"
+                  className={`order-filter-pill ${merchantOrderStatusFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => setMerchantOrderStatusFilter('all')}
+                >
+                  All Orders ({merchantOrders.length})
+                </button>
+                <button
+                  type="button"
+                  className={`order-filter-pill pill-processing ${merchantOrderStatusFilter === 'Processing' ? 'active' : ''}`}
+                  onClick={() => setMerchantOrderStatusFilter('Processing')}
+                >
+                  <IconClock size={13} />
+                  <span>Processing ({merchantStats.processingCount})</span>
+                </button>
+                <button
+                  type="button"
+                  className={`order-filter-pill pill-transit ${merchantOrderStatusFilter === 'On the Way' ? 'active' : ''}`}
+                  onClick={() => setMerchantOrderStatusFilter('On the Way')}
+                >
+                  <IconTruck size={13} />
+                  <span>On the Way ({merchantStats.onTheWayCount})</span>
+                </button>
+                <button
+                  type="button"
+                  className={`order-filter-pill pill-delivered ${merchantOrderStatusFilter === 'Delivered' ? 'active' : ''}`}
+                  onClick={() => setMerchantOrderStatusFilter('Delivered')}
+                >
+                  <IconCheckSuccess size={13} />
+                  <span>Delivered ({merchantStats.deliveredCount})</span>
+                </button>
+              </div>
+
+              {/* Orders List */}
+              {filteredMerchantOrders.length === 0 ? (
+                <div className="shop-empty-state">
+                  <span className="empty-icon">
+                    <IconPackage size={44} />
+                  </span>
+                  <h3>No customer orders found</h3>
+                  <p>
+                    {merchantOrderSearch
+                      ? 'No orders matched your search query. Try clearing your filters.'
+                      : 'There are no customer orders in this delivery position right now.'}
+                  </p>
+                  {(merchantOrderSearch || merchantOrderStatusFilter !== 'all') && (
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      onClick={() => {
+                        setMerchantOrderSearch('')
+                        setMerchantOrderStatusFilter('all')
+                      }}
+                    >
+                      Reset Filters
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="merchant-orders-list">
+                  {filteredMerchantOrders.map((order: MerchantOrder) => (
+                    <div key={order.id} className="merchant-order-card">
+                      {/* Order Card Header */}
+                      <div className="merchant-order-card-header">
+                        <div className="header-left">
+                          <strong className="merchant-order-code">{order.orderCode}</strong>
+                          <span className="merchant-order-date">Placed on {order.createdAt}</span>
+                        </div>
+
+                        <div className="header-right">
+                          {/* Order Position Badge */}
+                          <div className={`order-status-badge status-${order.status.toLowerCase().replace(/\s+/g, '-')}`}>
+                            {order.status === 'Processing' && <IconClock size={14} />}
+                            {order.status === 'On the Way' && <IconTruck size={14} />}
+                            {order.status === 'Delivered' && <IconCheckSuccess size={14} />}
+                            <span>Position: {order.status}</span>
+                          </div>
+
+                          {/* Order Position Controller Dropdown */}
+                          <div className="order-position-controller">
+                            <span className="position-label">Update Position:</span>
+                            <select
+                              value={order.status}
+                              disabled={updatingOrderId === order.id}
+                              onChange={e => handleUpdateOrderStatus(order.id, e.target.value)}
+                              className={`order-status-select select-${order.status.toLowerCase().replace(/\s+/g, '-')}`}
+                            >
+                              <option value="Processing">Processing (Packing)</option>
+                              <option value="On the Way">On the Way (In Transit)</option>
+                              <option value="Delivered">Delivered (Completed)</option>
+                            </select>
+                            {updatingOrderId === order.id && (
+                              <span className="updating-spinner" title="Updating position...">●</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Visual Order Position Lifecycle Stepper */}
+                      <div className="order-position-stepper">
+                        <div
+                          className={`stepper-step ${order.status === 'Processing' || order.status === 'On the Way' || order.status === 'Delivered' ? 'active' : ''} ${order.status === 'On the Way' || order.status === 'Delivered' ? 'completed' : ''}`}
+                          onClick={() => handleUpdateOrderStatus(order.id, 'Processing')}
+                          title="Click to set position to Processing"
+                        >
+                          <div className="stepper-dot">
+                            {order.status === 'On the Way' || order.status === 'Delivered' ? '✓' : '1'}
+                          </div>
+                          <div className="stepper-label">
+                            <strong>Processing</strong>
+                            <span>Packing & Verification</span>
+                          </div>
+                        </div>
+
+                        <div className={`stepper-connector ${order.status === 'On the Way' || order.status === 'Delivered' ? 'filled' : ''}`} />
+
+                        <div
+                          className={`stepper-step ${order.status === 'On the Way' || order.status === 'Delivered' ? 'active' : ''} ${order.status === 'Delivered' ? 'completed' : ''}`}
+                          onClick={() => handleUpdateOrderStatus(order.id, 'On the Way')}
+                          title="Click to set position to On the Way"
+                        >
+                          <div className="stepper-dot">
+                            {order.status === 'Delivered' ? '✓' : '2'}
+                          </div>
+                          <div className="stepper-label">
+                            <strong>On the Way</strong>
+                            <span>Courier In Transit</span>
+                          </div>
+                        </div>
+
+                        <div className={`stepper-connector ${order.status === 'Delivered' ? 'filled' : ''}`} />
+
+                        <div
+                          className={`stepper-step ${order.status === 'Delivered' ? 'active completed' : ''}`}
+                          onClick={() => handleUpdateOrderStatus(order.id, 'Delivered')}
+                          title="Click to set position to Delivered"
+                        >
+                          <div className="stepper-dot">
+                            {order.status === 'Delivered' ? '✓' : '3'}
+                          </div>
+                          <div className="stepper-label">
+                            <strong>Delivered</strong>
+                            <span>Customer Handover</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Information Grid: Customer Shipping, Payment, Financials */}
+                      <div className="merchant-order-info-grid">
+                        <div className="info-block">
+                          <span className="info-block-label">
+                            <IconPin size={13} />
+                            <span>Customer & Delivery Details</span>
+                          </span>
+                          <strong className="customer-name">{order.shippingName}</strong>
+                          <span className="customer-contact">Phone: {order.shippingPhone}</span>
+                          <span className="customer-address">
+                            Address: {order.shippingAddress}, {order.shippingCity}
+                          </span>
+                        </div>
+
+                        <div className="info-block">
+                          <span className="info-block-label">
+                            <IconCard size={13} />
+                            <span>Payment & Transaction</span>
+                          </span>
+                          <strong>Payment Method: {order.paymentMethod}</strong>
+                          <span className="payment-status-chip">
+                            {order.paymentMethod.toLowerCase().includes('cash')
+                              ? '● Due on Delivery'
+                              : '● Paid Online'}
+                          </span>
+                          <span className="total-order-label">Total Customer Bill: ${order.totalAmount.toFixed(2)}</span>
+                        </div>
+
+                        <div className="info-block earnings-block">
+                          <span className="info-block-label">
+                            <IconDollar size={13} />
+                            <span>Your Store Earnings</span>
+                          </span>
+                          <strong className="merchant-payout-value">${order.merchantSubtotal.toFixed(2)}</strong>
+                          <small className="payout-note">Payout for products fulfilled by your shop</small>
+                        </div>
+                      </div>
+
+                      {/* Products Ordered Breakdown */}
+                      <div className="merchant-order-items-section">
+                        <span className="items-heading">Products Ordered from Your Store:</span>
+                        <div className="merchant-items-grid">
+                          {order.items.map((item: MerchantOrderItem, idx: number) => (
+                            <div key={idx} className="merchant-item-row">
+                              <img
+                                src={item.imageUrl || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=700'}
+                                alt={item.productName}
+                                className="item-thumbnail"
+                              />
+                              <div className="item-main-info">
+                                <strong className="item-title">{item.productName}</strong>
+                                <span className="item-qty-tag">Quantity: <strong>{item.quantity}</strong></span>
+                              </div>
+                              <div className="item-pricing">
+                                <span className="item-unit-price">${item.price.toFixed(2)} each</span>
+                                <strong className="item-line-total">${(item.price * item.quantity).toFixed(2)}</strong>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Quick Status Advance Actions */}
+                      <div className="merchant-order-actions-bar">
+                        {order.status === 'Processing' && (
+                          <button
+                            type="button"
+                            className="button button-primary advance-status-btn"
+                            disabled={updatingOrderId === order.id}
+                            onClick={() => handleUpdateOrderStatus(order.id, 'On the Way')}
+                          >
+                            <IconTruck size={15} />
+                            <span>Dispatch & Mark On the Way →</span>
+                          </button>
+                        )}
+                        {order.status === 'On the Way' && (
+                          <button
+                            type="button"
+                            className="button button-primary advance-status-btn btn-delivered"
+                            disabled={updatingOrderId === order.id}
+                            onClick={() => handleUpdateOrderStatus(order.id, 'Delivered')}
+                          >
+                            <IconCheckSuccess size={15} />
+                            <span>Confirm Delivery to Customer ✓</span>
+                          </button>
+                        )}
+                        {order.status === 'Delivered' && (
+                          <span className="delivery-completed-tag">
+                            <IconCheckSuccess size={14} />
+                            <span>Order Fully Fulfilled & Closed</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* =========================================================
+              SUB-TAB 3: STORE INVENTORY & CATALOG
+              ========================================================= */}
+          {merchantSubTab === 'inventory' && (
+            <div className="merchant-inventory-view">
+              <div className="myshop-products-header">
+                <div>
+                  <h3>Products in Your Store ({myShopProducts.length})</h3>
+                  <small>Items live and purchasable by all Gather community members</small>
+                </div>
+                <button
+                  type="button"
+                  className="button button-primary"
+                  onClick={() => setIsAddProductModal(true)}
+                >
+                  <IconPlus size={15} /> Add New Product
+                </button>
+              </div>
+
+              {myShopProducts.length === 0 ? (
+                <div className="shop-empty-state myshop-empty">
+                  <span className="empty-icon">
+                    <IconPackage size={44} />
+                  </span>
+                  <h3>No products listed yet</h3>
+                  <p>Your shop is live on Gather! Add your first item to start selling to community members.</p>
+                  <button
+                    type="button"
+                    className="button button-primary"
+                    onClick={() => setIsAddProductModal(true)}
+                  >
+                    <IconPlus size={15} /> Add Your First Product
+                  </button>
+                </div>
+              ) : (
+                <div className="shop-products-grid myshop-grid">
+                  {myShopProducts.map(product => (
+                    <div key={product.id} className="product-card">
+                      <div className="product-image-container">
+                        <img src={product.image} alt={product.name} className="product-image" loading="lazy" />
+                        <span className="product-badge">Your Store</span>
+                        <span className="product-category-tag">{product.category}</span>
+                      </div>
+
+                      <div className="product-details">
+                        <div className="product-rating-row">
+                          <span className="star-icon">
+                            <IconStar size={13} />
+                          </span>
+                          <strong className="rating-score">{product.rating}</strong>
+                          <small className="reviews-count">({product.reviewsCount})</small>
+                        </div>
+
+                        <h3 className="product-title" title={product.name}>
+                          {product.name}
+                        </h3>
+                        <p className="product-description">{product.description}</p>
+
+                        <div className="product-price-row">
+                          <div className="price-block">
+                            <span className="current-price">${product.price}</span>
+                            {product.originalPrice && (
+                              <span className="original-price">${product.originalPrice}</span>
+                            )}
+                          </div>
+                          <span className="free-shipping-tag">In Stock</span>
+                        </div>
+
+                        <div className="product-actions-row" style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            type="button"
+                            className="button button-secondary"
+                            style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                            onClick={() => openEditProductModal(product)}
+                          >
+                            <IconEdit size={14} />
+                            <span>Edit Details</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="button button-secondary"
+                            style={{ color: '#ef4444', padding: '0 12px' }}
+                            onClick={() => handleDeleteProduct(product.id)}
+                            title="Delete Product"
+                          >
+                            <IconTrash size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* =========================================================
+              SUB-TAB 4: STORE INFO, POLICIES & STORY
+              ========================================================= */}
+          {merchantSubTab === 'settings' && (
+            <div className="merchant-settings-view">
+              <div className="myshop-details-grid">
+                <div className="myshop-detail-card">
+                  <span className="detail-label">Business Email</span>
+                  <strong>{userShop.email || 'N/A'}</strong>
+                </div>
+                <div className="myshop-detail-card">
+                  <span className="detail-label">Helpline Phone</span>
+                  <strong>{userShop.phone || 'N/A'}</strong>
+                </div>
+                <div className="myshop-detail-card">
+                  <span className="detail-label">Location / City</span>
+                  <strong>{userShop.city}, {userShop.address || 'Central'}</strong>
+                </div>
+                <div className="myshop-detail-card">
+                  <span className="detail-label">Return Policy</span>
+                  <strong>{userShop.returnPolicy}</strong>
+                </div>
+              </div>
+
+              {userShop.description && (
+                <div className="myshop-story-box">
+                  <h4>About This Store</h4>
+                  <p>{userShop.description}</p>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  className="button button-primary"
+                  onClick={openShopModalForEdit}
+                >
+                  <IconEdit size={15} /> Edit Store Info & Theme
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      ) : activeTab === 'publicShop' && publicShopStore ? (
+        /* =========================================================
+           VIEW 2: PUBLIC MERCHANT STOREFRONT (CUSTOMER BROWSING VIEW)
+           ========================================================= */
+        <section className="myshop-section">
+          <div className="myshop-hero-card" style={{ background: publicShopStore.bannerGradient || BANNER_PRESETS[0].css }}>
+            <div className="myshop-banner-overlay" />
+            <div className="myshop-hero-inner">
+              <div className="myshop-avatar-col">
+                <img src={publicShopStore.logoUrl || LOGO_PRESETS[0].url} alt={publicShopStore.name} className="myshop-logo-img" />
+                <span className="myshop-verified-badge" title="Verified Merchant">
+                  <IconShieldCheck size={16} />
+                </span>
+              </div>
+
+              <div className="myshop-info-col">
+                <div className="myshop-title-row">
+                  <h2>{publicShopStore.name}</h2>
+                  <span className="myshop-category-chip">{publicShopStore.category}</span>
+                  <span className="myshop-status-chip">● VERIFIED STORE</span>
+                </div>
+                <p className="myshop-tagline">{publicShopStore.tagline}</p>
+                <div className="myshop-meta-row">
+                  <span>
+                    <IconStar size={13} /> <strong>{publicShopStore.rating.toFixed(1)}</strong> rating
+                  </span>
+                  <span>•</span>
+                  <span><strong>{publicStoreProducts.length}</strong> items available</span>
+                  <span>•</span>
+                  <span>Merchant: <strong>@{publicShopStore.ownerUsername}</strong></span>
+                </div>
+              </div>
+
+              <div className="myshop-actions-col">
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => setActiveTab('browse')}
+                >
+                  ← Back to Marketplace
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="myshop-details-grid">
+            <div className="myshop-detail-card">
+              <span className="detail-label">Support Email</span>
+              <strong>{publicShopStore.email || 'N/A'}</strong>
+            </div>
+            <div className="myshop-detail-card">
+              <span className="detail-label">Helpline</span>
+              <strong>{publicShopStore.phone || 'N/A'}</strong>
+            </div>
+            <div className="myshop-detail-card">
+              <span className="detail-label">Location</span>
+              <strong>{publicShopStore.city}, {publicShopStore.address || 'Central'}</strong>
+            </div>
+            <div className="myshop-detail-card">
+              <span className="detail-label">Warranty / Policy</span>
+              <strong>{publicShopStore.returnPolicy}</strong>
+            </div>
+          </div>
+
+          <div className="myshop-products-header">
+            <div>
+              <h3>Products by {publicShopStore.name} ({publicStoreProducts.length})</h3>
+              <small>Authentic merchandise sold directly by this seller</small>
+            </div>
+          </div>
+
+          {publicStoreProducts.length === 0 ? (
+            <div className="shop-empty-state">
               <span className="empty-icon">
                 <IconPackage size={44} />
               </span>
-              <h3>No products listed yet</h3>
-              <p>Your shop is live! Add your first item to start selling to Gather community members.</p>
-              <button
-                type="button"
-                className="button button-primary"
-                onClick={() => setIsAddProductModal(true)}
-              >
-                <IconPlus size={15} /> Add Your First Product
-              </button>
+              <h3>No products listed in this store</h3>
+              <p>Check back later or browse other items in the marketplace.</p>
             </div>
           ) : (
-            <div className="shop-products-grid myshop-grid">
-              {myShopProducts.map(product => (
+            <div className="shop-products-grid">
+              {publicStoreProducts.map(product => (
                 <div key={product.id} className="product-card">
                   <div className="product-image-container">
                     <img src={product.image} alt={product.name} className="product-image" loading="lazy" />
-                    <span className="product-badge">Your Store</span>
+                    {product.badge && <span className="product-badge">{product.badge}</span>}
                     <span className="product-category-tag">{product.category}</span>
                   </div>
 
@@ -1050,24 +2319,26 @@ export function ShopView({
                           <span className="original-price">${product.originalPrice}</span>
                         )}
                       </div>
-                      <span className="free-shipping-tag">In Stock</span>
+                      <span className="free-shipping-tag">Free Delivery</span>
                     </div>
 
                     <div className="product-actions-row">
                       <button
                         type="button"
-                        className="button button-secondary myshop-del-btn"
-                        onClick={() => handleDeleteCustomProduct(product.id)}
-                        title="Remove from shop"
+                        className="add-to-cart-btn"
+                        onClick={() => addToCart(product)}
+                        title="Add to cart"
                       >
-                        <IconTrash size={14} /> Remove
+                        <IconCart size={14} />
+                        <span>Add</span>
                       </button>
                       <button
                         type="button"
-                        className="add-to-cart-btn"
-                        onClick={() => addToCart(product)}
+                        className="buy-now-btn"
+                        onClick={() => buyNow(product)}
                       >
-                        <IconCart size={14} /> Add to Cart
+                        <IconBolt size={14} />
+                        <span>Buy Now</span>
                       </button>
                     </div>
                   </div>
@@ -1078,7 +2349,7 @@ export function ShopView({
         </section>
       ) : activeTab === 'orders' ? (
         /* =========================================================
-           VIEW 2: ORDER HISTORY
+           VIEW 3: ORDER HISTORY (AUTHENTICATED USER ONLY)
            ========================================================= */
         <section className="shop-orders-section">
           <div className="shop-section-header">
@@ -1153,10 +2424,9 @@ export function ShopView({
         </section>
       ) : (
         /* =========================================================
-           VIEW 3: PUBLIC MARKETPLACE BROWSE GRID
+           VIEW 4: PUBLIC MARKETPLACE BROWSE GRID
            ========================================================= */
         <section className="shop-products-grid">
-
           {filteredProducts.length === 0 ? (
             <div className="shop-empty-state">
               <span className="empty-icon">
@@ -1192,9 +2462,14 @@ export function ShopView({
                     <strong className="rating-score">{product.rating}</strong>
                     <small className="reviews-count">({product.reviewsCount})</small>
                     {product.shopName && (
-                      <span className="merchant-seller-tag" title={`Sold by ${product.shopName}`}>
+                      <button
+                        type="button"
+                        className="merchant-seller-link"
+                        onClick={() => handleViewPublicStore(product.shopId, product.shopName)}
+                        title={`View ${product.shopName} Storefront`}
+                      >
                         by {product.shopName}
-                      </span>
+                      </button>
                     )}
                   </div>
 
@@ -1271,8 +2546,8 @@ export function ShopView({
           <div className="shop-modal-dialog shop-wide-modal" onClick={e => e.stopPropagation()}>
             <div className="shop-modal-header">
               <div>
-                <h3>{userShop ? 'Edit Your Shop Details' : 'Open Your Shop on Gather'}</h3>
-                <small>{userShop ? 'Update your merchant information' : 'Launch your official store & start selling'}</small>
+                <h3>{isShopOwner && userShop ? 'Edit Your Shop Details' : 'Open Your Shop on Gather'}</h3>
+                <small>{isShopOwner && userShop ? 'Update your merchant information' : 'Launch your official store & start selling'}</small>
               </div>
               <button
                 type="button"
@@ -1289,14 +2564,16 @@ export function ShopView({
                 <div className="success-icon-bubble">
                   <IconCheckSuccess size={36} />
                 </div>
-                <h3>{userShop?.name} is Now Live!</h3>
-                <p>Your shop has been registered and verified on Gather Marketplace. You can now add products and start making sales.</p>
-                
-                <div className="shop-preview-card">
-                  <img src={userShop?.logoUrl || LOGO_PRESETS[0].url} alt={userShop?.name} className="preview-logo" />
+                <h3>{isShopOwner ? 'Storefront Updated Successfully!' : 'Congratulations! Your Store is Now Live'}</h3>
+                <p>
+                  Your storefront is registered and published on Gather Marketplace.
+                </p>
+
+                <div className="shop-card-preview" style={{ background: userShop?.bannerGradient || BANNER_PRESETS[0].css }}>
+                  <img src={userShop?.logoUrl || LOGO_PRESETS[0].url} alt="Logo" className="preview-logo" />
                   <div>
-                    <strong>{userShop?.name}</strong>
-                    <small>{userShop?.tagline}</small>
+                    <h4>{userShop?.name}</h4>
+                    <p>{userShop?.tagline}</p>
                     <span className="preview-cat">{userShop?.category}</span>
                   </div>
                 </div>
@@ -1320,7 +2597,7 @@ export function ShopView({
                       setIsAddProductModal(true)
                     }}
                   >
-                    + Add First Product
+                    + Add Product
                   </button>
                 </div>
               </div>
@@ -1496,7 +2773,7 @@ export function ShopView({
                   </button>
                   <button type="submit" className="button button-primary submit-open-shop-btn">
                     <IconStore size={16} />
-                    <span>{userShop ? 'Save Changes' : 'Open Shop Now'}</span>
+                    <span>{isShopOwner && userShop ? 'Save Changes' : 'Open Shop Now'}</span>
                   </button>
                 </div>
               </form>
@@ -1506,9 +2783,9 @@ export function ShopView({
       )}
 
       {/* =========================================================
-          MODAL 2: ADD PRODUCT TO MY SHOP
+          MODAL 2: ADD PRODUCT TO MY SHOP (OWNER ONLY)
           ========================================================= */}
-      {isAddProductModal && (
+      {isAddProductModal && isShopOwner && (
         <div className="shop-modal-overlay" onClick={() => setIsAddProductModal(false)}>
           <div className="shop-modal-dialog" onClick={e => e.stopPropagation()}>
             <div className="shop-modal-header">
@@ -1608,6 +2885,140 @@ export function ShopView({
                 <button type="submit" className="button button-primary place-order-btn">
                   <IconPlus size={15} />
                   <span>Publish Item to Store</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL 3: EDIT PRODUCT DETAILS (OWNER ONLY)
+          ========================================================= */}
+      {editingProduct && isShopOwner && (
+        <div className="shop-modal-overlay" onClick={() => setEditingProduct(null)}>
+          <div className="shop-modal-dialog" onClick={e => e.stopPropagation()}>
+            <div className="shop-modal-header">
+              <div>
+                <h3>Edit Product Details</h3>
+                <small>Update information for "{editingProduct.name}"</small>
+              </div>
+              <button
+                type="button"
+                className="shop-modal-close"
+                onClick={() => setEditingProduct(null)}
+                title="Close"
+              >
+                <IconClose size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditProductSubmit} className="checkout-form-scroll">
+              <div className="checkout-input-row">
+                <label>Product Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editProdName}
+                  onChange={e => setEditProdName(e.target.value)}
+                  placeholder="e.g. Wireless RGB Mechanical Keyboard"
+                />
+              </div>
+
+              <div className="checkout-input-grid">
+                <div>
+                  <label>Category *</label>
+                  <select
+                    className="shop-select-field"
+                    value={editProdCategory}
+                    onChange={e => setEditProdCategory(e.target.value as any)}
+                  >
+                    <option value="Electronics">Electronics</option>
+                    <option value="Gaming">Gaming</option>
+                    <option value="Apparel">Apparel</option>
+                    <option value="Gadgets">Gadgets</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Price ($) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={editProdPrice}
+                    onChange={e => setEditProdPrice(e.target.value)}
+                    placeholder="99.00"
+                  />
+                </div>
+              </div>
+
+              <div className="checkout-input-grid">
+                <div>
+                  <label>Original / Cut Price ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editProdOriginalPrice}
+                    onChange={e => setEditProdOriginalPrice(e.target.value)}
+                    placeholder="129.00 (optional discount)"
+                  />
+                </div>
+                <div>
+                  <label>Badge / Highlight Tag</label>
+                  <input
+                    type="text"
+                    value={editProdBadge}
+                    onChange={e => setEditProdBadge(e.target.value)}
+                    placeholder="e.g. Hot Deal, Best Seller"
+                  />
+                </div>
+              </div>
+
+              <div className="checkout-input-row">
+                <label>Product Description *</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={editProdDescription}
+                  onChange={e => setEditProdDescription(e.target.value)}
+                  placeholder="Specs, features, materials, and warranty information..."
+                />
+              </div>
+
+              <div className="checkout-input-row">
+                <label>Product Image URL *</label>
+                <input
+                  type="url"
+                  required
+                  value={editProdImage}
+                  onChange={e => setEditProdImage(e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div className="checkout-input-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  id="editProdInStock"
+                  checked={editProdInStock}
+                  onChange={e => setEditProdInStock(e.target.checked)}
+                />
+                <label htmlFor="editProdInStock" style={{ cursor: 'pointer', margin: 0, fontWeight: 600 }}>
+                  Item is In Stock & Available for Purchase
+                </label>
+              </div>
+
+              <div className="checkout-actions-footer">
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => setEditingProduct(null)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="button button-primary place-order-btn">
+                  <IconEdit size={14} />
+                  <span>Save Product Changes</span>
                 </button>
               </div>
             </form>
