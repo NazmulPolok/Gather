@@ -214,6 +214,17 @@ export type PostItem = {
   image_url?: string | null
   video_url?: string | null
   source?: string | null
+  audience?: 'public' | 'friends' | 'only_me'
+  allow_comments?: 'public' | 'friends' | 'mentioned'
+  is_archived?: boolean
+  is_deleted?: boolean
+  deleted_at?: string | null
+  scheduled_at?: string | null
+  feeling?: string | null
+  location?: string | null
+  is_saved?: boolean
+  is_snoozed?: boolean
+  is_notifications_on?: boolean
   views_count?: number
   upvote_count: number
   has_upvoted: boolean
@@ -221,6 +232,38 @@ export type PostItem = {
   created_at: string
   updated_at?: string | null
   comments: CommentItem[]
+}
+
+export type UserSettings = {
+  who_can_see_posts: 'public' | 'friends' | 'only_me'
+  who_can_comment: 'public' | 'friends' | 'mentioned'
+  who_can_tag: 'everyone' | 'friends' | 'review'
+  who_can_send_friend_requests: 'everyone' | 'friends_of_friends'
+  who_can_see_friends_list: 'public' | 'friends' | 'only_me'
+  post_notifications_enabled: boolean
+  sound_enabled: boolean
+  language: string
+  font_size: 'standard' | 'compact' | 'comfortable'
+  updated_at?: string | null
+}
+
+export type UserSession = {
+  id: string
+  device: string
+  browser: string
+  ip_address?: string | null
+  location?: string | null
+  is_current: boolean
+  last_active_at: string
+  created_at: string
+}
+
+export type ActivityItem = {
+  id: string
+  type: 'post' | 'comment' | 'reaction'
+  action: string
+  timestamp: string
+  target_id: number
 }
 
 export interface ApiShop {
@@ -522,6 +565,34 @@ export const api = {
   markAllNotificationsRead: (token: string) => request<{ status: string }>('/api/notifications/read-all', { method: 'PATCH' }, token),
   markGroupMessagesRead: (token: string, groupId: number) => request<{ status: string }>(`/api/notifications/groups/${groupId}/read`, { method: 'PATCH' }, token),
   respondToJoinRequest: (token: string, notificationId: number, action: 'accept' | 'decline') => request<{ status: string }>(`/api/notifications/${notificationId}/respond`, { method: 'POST', body: JSON.stringify({ action }) }, token),
+
+  // Settings & Sessions APIs
+  getUserSettings: (token: string) => request<UserSettings>('/api/user/settings', {}, token),
+  updateUserSettings: (token: string, data: Partial<UserSettings>) => request<UserSettings>('/api/user/settings', { method: 'PATCH', body: JSON.stringify(data) }, token),
+  getUserSessions: (token: string) => request<UserSession[]>('/api/user/sessions', {}, token),
+  terminateUserSession: (token: string, sessionId: string) => request<void>(`/api/user/sessions/${sessionId}`, { method: 'DELETE' }, token),
+  logoutOtherSessions: (token: string) => request<{ message: string }>('/api/user/sessions/logout-others', { method: 'POST' }, token),
+  getUserActivityLog: (token: string) => request<{ activities: ActivityItem[] }>('/api/user/activity-log', {}, token),
+
+  // Post Actions & Life Cycle
+  archivePost: (token: string, postId: number) => request<PostItem>(`/api/feed/posts/${postId}/archive`, { method: 'POST' }, token),
+  unarchivePost: (token: string, postId: number) => request<PostItem>(`/api/feed/posts/${postId}/unarchive`, { method: 'POST' }, token),
+  trashPost: (token: string, postId: number) => request<PostItem>(`/api/feed/posts/${postId}/trash`, { method: 'POST' }, token),
+  restorePost: (token: string, postId: number) => request<PostItem>(`/api/feed/posts/${postId}/restore`, { method: 'POST' }, token),
+  getUserTrash: (token: string) => request<PostItem[]>('/api/feed/trash', {}, token),
+  getUserArchive: (token: string) => request<PostItem[]>('/api/feed/archive', {}, token),
+  savePost: (token: string, postId: number, collection?: string) =>
+    request<{ status: string; collection: string }>(`/api/feed/posts/${postId}/save${collection ? `?collection=${encodeURIComponent(collection)}` : ''}`, { method: 'POST' }, token),
+  unsavePost: (token: string, postId: number) => request<{ status: string }>(`/api/feed/posts/${postId}/save`, { method: 'DELETE' }, token),
+  getSavedPosts: (token: string, collection?: string) =>
+    request<PostItem[]>(`/api/feed/saved${collection ? `?collection=${encodeURIComponent(collection)}` : ''}`, {}, token),
+  hidePost: (token: string, postId: number) => request<{ status: string }>(`/api/feed/posts/${postId}/hide`, { method: 'POST' }, token),
+  snoozeAuthor: (token: string, postId: number, days = 30) =>
+    request<{ status: string; days: number }>(`/api/feed/posts/${postId}/snooze?days=${days}`, { method: 'POST' }, token),
+  reportPost: (token: string, postId: number, reason: string) =>
+    request<{ status: string; message: string }>(`/api/feed/posts/${postId}/report?reason=${encodeURIComponent(reason)}`, { method: 'POST' }, token),
+  togglePostNotifications: (token: string, postId: number) =>
+    request<{ status: string; is_notifications_on: boolean }>(`/api/feed/posts/${postId}/notifications`, { method: 'POST' }, token),
 
   // Shop APIs
   getMyShop: (token: string) => request<ApiShop | null>('/api/shop/me', {}, token),

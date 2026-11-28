@@ -5,6 +5,7 @@ import { AuthForm } from './auth/AuthForm'
 import { ChatHome } from './chat/ChatHome'
 import { NewsFeed } from './feed/NewsFeed'
 import { ProfileView } from './profile/ProfileView'
+import { SettingsView } from './settings/SettingsView'
 import { ShopView, type CartItem, type UserShop } from './shop/ShopView'
 import { WatchView } from './videos/WatchView'
 import { NotificationCenter } from './notifications/NotificationCenter'
@@ -25,7 +26,7 @@ export default function App() {
   const [notificationTarget, setNotificationTarget] = useState<NotificationItem | null>(null)
   const [unreadGroups, setUnreadGroups] = useState<Record<number, number>>({})
   const [theme, setTheme] = useState<Theme>(() => localStorage.getItem(THEME_KEY) === 'dark' ? 'dark' : 'light')
-  const [currentView, setCurrentView] = useState<'chat' | 'feed' | 'watch' | 'shop' | 'profile'>('chat')
+  const [currentView, setCurrentView] = useState<'chat' | 'feed' | 'watch' | 'shop' | 'profile' | 'settings'>('chat')
   const [profileUsername, setProfileUsername] = useState<string>('')
   const [openPageModalTrigger, setOpenPageModalTrigger] = useState(false)
 
@@ -268,6 +269,7 @@ export default function App() {
                 onSignOut={signOut}
                 onOpenShop={handleOpenShopFromSettings}
                 onOpenPage={handleOpenPageFromSettings}
+                onOpenSettingsHub={() => setCurrentView('settings')}
                 hasUserShop={Boolean(userShop)}
               />
             </div>
@@ -341,6 +343,17 @@ export default function App() {
               setCurrentView('profile')
             }}
           />
+        ) : currentView === 'settings' ? (
+          <SettingsView
+            token={token}
+            currentUser={user}
+            theme={theme}
+            onThemeChange={setTheme}
+            onClose={() => setCurrentView('feed')}
+            onOpenShop={handleOpenShopFromSettings}
+            onOpenWatch={handleOpenPageFromSettings}
+            onSignOut={signOut}
+          />
         ) : currentView === 'feed' ? (
           <NewsFeed
             token={token}
@@ -350,6 +363,8 @@ export default function App() {
               setProfileUsername(username)
               setCurrentView('profile')
             }}
+            onOpenShop={() => setCurrentView('shop')}
+            onOpenSettings={() => setCurrentView('settings')}
           />
         ) : currentView === 'profile' ? (
           <ProfileView

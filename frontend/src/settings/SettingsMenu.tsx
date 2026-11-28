@@ -9,6 +9,7 @@ export function SettingsMenu({
   onSignOut,
   onOpenShop,
   onOpenPage,
+  onOpenSettingsHub,
   hasUserShop,
 }: {
   theme: Theme
@@ -16,6 +17,7 @@ export function SettingsMenu({
   onSignOut?: () => void
   onOpenShop?: () => void
   onOpenPage?: () => void
+  onOpenSettingsHub?: () => void
   hasUserShop?: boolean
 }) {
   const [open, setOpen] = useState(false)
@@ -60,6 +62,31 @@ export function SettingsMenu({
                     </button>
                   </header>
                   <div className="settings-menu-list">
+                    {/* Settings & Privacy Hub */}
+                    {onOpenSettingsHub && (
+                      <button
+                        type="button"
+                        className="settings-option-row settings-option-hub"
+                        style={{ borderLeft: '3px solid #2563eb' }}
+                        onClick={() => {
+                          setOpen(false)
+                          onOpenSettingsHub()
+                        }}
+                      >
+                        <span className="settings-option-icon" style={{ background: '#eff6ff', color: '#2563eb' }}>
+                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                          </svg>
+                        </span>
+                        <span>
+                          <strong style={{ color: '#2563eb' }}>Settings & Privacy Hub</strong>
+                          <small>Audience, active sessions, trash & preferences</small>
+                        </span>
+                        <span className="settings-shop-status-pill" style={{ background: '#2563eb', color: '#fff' }}>FULL HUB</span>
+                        <span className="settings-option-arrow">›</span>
+                      </button>
+                    )}
+
                     {/* Open Shop Button in Settings */}
                     <button
                       type="button"

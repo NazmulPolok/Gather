@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import secrets
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from sqlalchemy import func, select
+from sqlalchemy import func, not_, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.cache import cache, make_key, invalidate_feed
@@ -16,6 +16,7 @@ from app.core.media import (
 from app.db.session import get_db
 from app.models.community import Community, CommunityMember
 from app.models.post import Post, PostComment, PostReaction
+from app.models.settings import PostInteraction, SavedPost, UserSettings
 from app.models.user import User
 from app.schemas.feed import (
     AuthorSummary,
@@ -140,6 +141,40 @@ def _build_post_response(post: Post, current_user_id: int, db: Session) -> PostR
     # Views count
     views_count = getattr(post, "views_count", 0) or 0
     source = getattr(post, "source", "feed") or "feed"
+    audience = getattr(post, "audience", "public") or "public"
+    allow_comments = getattr(post, "allow_comments", "public") or "public"
+    is_archived = bool(getattr(post, "is_archived", False))
+    is_deleted = bool(getattr(post, "is_deleted", False))
+    deleted_at = getattr(post, "deleted_at", None)
+    scheduled_at = getattr(post, "scheduled_at", None)
+    feeling = getattr(post, "feeling", None)
+    location = getattr(post, "location", None)
+
+    # Saved status
+    is_saved = db.scalar(
+        select(SavedPost.id).where(
+            SavedPost.post_id == post.id,
+            SavedPost.user_id == current_user_id,
+        )
+    ) is not None
+
+    # Notification & Snooze status
+    is_notifications_on = db.scalar(
+        select(PostInteraction.id).where(
+            PostInteraction.user_id == current_user_id,
+            PostInteraction.post_id == post.id,
+            PostInteraction.action_type == "notify",
+        )
+    ) is not None
+
+    is_snoozed = db.scalar(
+        select(PostInteraction.id).where(
+            PostInteraction.user_id == current_user_id,
+            PostInteraction.target_user_id == post.author_id,
+            PostInteraction.action_type == "snooze",
+            PostInteraction.expires_at > datetime.now(timezone.utc),
+        )
+    ) is not None
 
     # Comments
     comments_query = (
@@ -170,6 +205,17 @@ def _build_post_response(post: Post, current_user_id: int, db: Session) -> PostR
         video_url=post.video_url,
         views_count=views_count,
         source=source,
+        audience=audience,
+        allow_comments=allow_comments,
+        is_archived=is_archived,
+        is_deleted=is_deleted,
+        deleted_at=deleted_at,
+        scheduled_at=scheduled_at,
+        feeling=feeling,
+        location=location,
+        is_saved=is_saved,
+        is_snoozed=is_snoozed,
+        is_notifications_on=is_notifications_on,
         upvote_count=upvote_count,
         has_upvoted=has_upvoted,
         comment_count=len(comment_responses),
@@ -555,7 +601,7 @@ async def upload_post_media(
 
 @router.get("/feed", response_model=list[PostResponse])
 def get_news_feed(
-    feed_type: str = Query(default="all"),  # 'all' (Popular), 'home' (Joined)
+    feed_type: str = Query(default="all"),  # 'all' (Personalized), 'home'/'following', 'favorites', 'recent'
     community_slug: str | None = Query(default=None),
     author_username: str | None = Query(default=None),
     source: str | None = Query(default=None),  # 'watch' (for YouTube/Watch), 'feed', or None (all)
@@ -574,6 +620,30 @@ def get_news_feed(
 
     query = select(Post).join(Community)
 
+    # 1. Exclude deleted (Trash) and archived posts from standard feed
+    query = query.where(Post.is_deleted.is_(False), Post.is_archived.is_(False))
+
+    # 2. Audience Privacy: Public posts, or user's own posts
+    query = query.where(or_(Post.audience == "public", Post.author_id == user.id))
+
+    # 3. Exclude hidden posts
+    hidden_post_ids = select(PostInteraction.post_id).where(
+        PostInteraction.user_id == user.id,
+        PostInteraction.action_type == "hide",
+        PostInteraction.post_id.isnot(None),
+    )
+    query = query.where(Post.id.not_in(hidden_post_ids))
+
+    # 4. Exclude snoozed authors
+    now = datetime.now(timezone.utc)
+    snoozed_author_ids = select(PostInteraction.target_user_id).where(
+        PostInteraction.user_id == user.id,
+        PostInteraction.action_type == "snooze",
+        PostInteraction.expires_at > now,
+        PostInteraction.target_user_id.isnot(None),
+    )
+    query = query.where(Post.author_id.not_in(snoozed_author_ids))
+
     if source == "watch":
         query = query.where(Post.source == "watch", Post.video_url.isnot(None))
     elif source:
@@ -589,7 +659,7 @@ def get_news_feed(
         if not community:
             raise HTTPException(status_code=404, detail="Community not found")
         query = query.where(Post.community_id == community.id)
-    elif feed_type == "home":
+    elif feed_type in ("home", "following"):
         # Only posts from communities the user joined
         joined_community_ids = db.scalars(
             select(CommunityMember.community_id).where(CommunityMember.user_id == user.id)
@@ -597,6 +667,10 @@ def get_news_feed(
         if not joined_community_ids:
             return []
         query = query.where(Post.community_id.in_(joined_community_ids))
+    elif feed_type == "favorites":
+        # Posts from user's saved favorites or favorite authors
+        fav_post_ids = select(SavedPost.post_id).where(SavedPost.user_id == user.id)
+        query = query.where(Post.id.in_(fav_post_ids))
 
     if sort == "top":
         upvote_subq = (
@@ -613,7 +687,7 @@ def get_news_feed(
 
     posts = db.scalars(query.limit(limit)).all()
     responses = [_build_post_response(post, user.id, db) for post in posts]
-    cache.set_json(cache_key, [r.model_dump(mode="json") for r in responses], ex=30)
+    cache.set_json(cache_key, [r.model_dump(mode="json") for r in responses], ex=15)
     return responses
 
 
@@ -709,6 +783,11 @@ def create_post(
         image_url=payload.image_url,
         video_url=payload.video_url,
         source=payload.source or "feed",
+        audience=payload.audience or "public",
+        allow_comments=payload.allow_comments or "public",
+        scheduled_at=payload.scheduled_at,
+        feeling=payload.feeling,
+        location=payload.location,
     )
     db.add(post)
     db.commit()
@@ -763,13 +842,289 @@ def edit_post(
         post.title = payload.title
     if payload.content is not None:
         post.content = payload.content
+    if payload.audience is not None:
+        post.audience = payload.audience
+    if payload.allow_comments is not None:
+        post.allow_comments = payload.allow_comments
 
     post.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(post)
 
-    invalidate_feed(post_id=post.id, community_slug=community.slug)
+    invalidate_feed(post_id=post.id, community_slug=post.community.slug if post.community else None)
     return _build_post_response(post, user.id, db)
+
+
+@router.post("/feed/posts/{post_id}/archive", response_model=PostResponse)
+@router.post("/posts/{post_id}/archive", response_model=PostResponse)
+def archive_post(
+    post_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> PostResponse:
+    post = db.scalar(select(Post).where(Post.id == post_id))
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.author_id != user.id:
+        raise HTTPException(status_code=403, detail="You can only archive your own posts")
+
+    post.is_archived = True
+    post.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(post)
+    invalidate_feed(post_id=post.id)
+    return _build_post_response(post, user.id, db)
+
+
+@router.post("/feed/posts/{post_id}/unarchive", response_model=PostResponse)
+@router.post("/posts/{post_id}/unarchive", response_model=PostResponse)
+def unarchive_post(
+    post_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> PostResponse:
+    post = db.scalar(select(Post).where(Post.id == post_id))
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.author_id != user.id:
+        raise HTTPException(status_code=403, detail="You can only unarchive your own posts")
+
+    post.is_archived = False
+    post.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(post)
+    invalidate_feed(post_id=post.id)
+    return _build_post_response(post, user.id, db)
+
+
+@router.post("/feed/posts/{post_id}/trash", response_model=PostResponse)
+@router.post("/posts/{post_id}/trash", response_model=PostResponse)
+def move_to_trash(
+    post_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> PostResponse:
+    post = db.scalar(select(Post).where(Post.id == post_id))
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.author_id != user.id and post.community.created_by_id != user.id:
+        raise HTTPException(status_code=403, detail="You can only move your own posts to trash")
+
+    post.is_deleted = True
+    post.deleted_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(post)
+    invalidate_feed(post_id=post.id)
+    return _build_post_response(post, user.id, db)
+
+
+@router.post("/feed/posts/{post_id}/restore", response_model=PostResponse)
+@router.post("/posts/{post_id}/restore", response_model=PostResponse)
+def restore_from_trash(
+    post_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> PostResponse:
+    post = db.scalar(select(Post).where(Post.id == post_id))
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.author_id != user.id and post.community.created_by_id != user.id:
+        raise HTTPException(status_code=403, detail="You can only restore your own posts")
+
+    post.is_deleted = False
+    post.deleted_at = None
+    db.commit()
+    db.refresh(post)
+    invalidate_feed(post_id=post.id)
+    return _build_post_response(post, user.id, db)
+
+
+@router.get("/feed/trash", response_model=list[PostResponse])
+def get_user_trash(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[PostResponse]:
+    posts = db.scalars(
+        select(Post)
+        .where(Post.author_id == user.id, Post.is_deleted.is_(True))
+        .order_by(Post.deleted_at.desc())
+    ).all()
+    return [_build_post_response(p, user.id, db) for p in posts]
+
+
+@router.get("/feed/archive", response_model=list[PostResponse])
+def get_user_archive(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[PostResponse]:
+    posts = db.scalars(
+        select(Post)
+        .where(Post.author_id == user.id, Post.is_archived.is_(True), Post.is_deleted.is_(False))
+        .order_by(Post.updated_at.desc())
+    ).all()
+    return [_build_post_response(p, user.id, db) for p in posts]
+
+
+@router.post("/feed/posts/{post_id}/save")
+def save_post(
+    post_id: int,
+    collection: str = Query(default="Favorites"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    post = db.scalar(select(Post).where(Post.id == post_id))
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    saved = db.scalar(select(SavedPost).where(SavedPost.user_id == user.id, SavedPost.post_id == post_id))
+    if not saved:
+        saved = SavedPost(user_id=user.id, post_id=post_id, collection_name=collection)
+        db.add(saved)
+    else:
+        saved.collection_name = collection
+    db.commit()
+    return {"status": "saved", "collection": collection}
+
+
+@router.delete("/feed/posts/{post_id}/save")
+def unsave_post(
+    post_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    saved = db.scalar(select(SavedPost).where(SavedPost.user_id == user.id, SavedPost.post_id == post_id))
+    if saved:
+        db.delete(saved)
+        db.commit()
+    return {"status": "unsaved"}
+
+
+@router.get("/feed/saved", response_model=list[PostResponse])
+def get_saved_posts(
+    collection: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[PostResponse]:
+    query = (
+        select(Post)
+        .join(SavedPost, Post.id == SavedPost.post_id)
+        .where(SavedPost.user_id == user.id, Post.is_deleted.is_(False))
+    )
+    if collection:
+        query = query.where(SavedPost.collection_name == collection)
+    query = query.order_by(SavedPost.created_at.desc())
+    posts = db.scalars(query).all()
+    return [_build_post_response(p, user.id, db) for p in posts]
+
+
+@router.post("/feed/posts/{post_id}/hide")
+def hide_post(
+    post_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    interaction = db.scalar(
+        select(PostInteraction).where(
+            PostInteraction.user_id == user.id,
+            PostInteraction.post_id == post_id,
+            PostInteraction.action_type == "hide",
+        )
+    )
+    if not interaction:
+        interaction = PostInteraction(
+            user_id=user.id,
+            post_id=post_id,
+            action_type="hide",
+        )
+        db.add(interaction)
+        db.commit()
+    invalidate_feed(post_id=post_id)
+    return {"status": "hidden"}
+
+
+@router.post("/feed/posts/{post_id}/snooze")
+def snooze_author(
+    post_id: int,
+    days: int = Query(default=30),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    post = db.scalar(select(Post).where(Post.id == post_id))
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    expires = datetime.now(timezone.utc) + timedelta(days=days)
+    interaction = db.scalar(
+        select(PostInteraction).where(
+            PostInteraction.user_id == user.id,
+            PostInteraction.target_user_id == post.author_id,
+            PostInteraction.action_type == "snooze",
+        )
+    )
+    if not interaction:
+        interaction = PostInteraction(
+            user_id=user.id,
+            target_user_id=post.author_id,
+            action_type="snooze",
+            expires_at=expires,
+        )
+        db.add(interaction)
+    else:
+        interaction.expires_at = expires
+    db.commit()
+    invalidate_feed(post_id=post_id)
+    return {"status": "snoozed", "days": days}
+
+
+@router.post("/feed/posts/{post_id}/report")
+def report_post(
+    post_id: int,
+    reason: str = Query(default="Inappropriate content"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    post = db.scalar(select(Post).where(Post.id == post_id))
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    interaction = PostInteraction(
+        user_id=user.id,
+        post_id=post_id,
+        target_user_id=post.author_id,
+        action_type="report",
+        reason=reason,
+    )
+    db.add(interaction)
+    db.commit()
+    return {"status": "reported", "message": "Thank you for reporting. Our moderation team will review this."}
+
+
+@router.post("/feed/posts/{post_id}/notifications")
+def toggle_post_notifications(
+    post_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    interaction = db.scalar(
+        select(PostInteraction).where(
+            PostInteraction.user_id == user.id,
+            PostInteraction.post_id == post_id,
+            PostInteraction.action_type == "notify",
+        )
+    )
+    if interaction:
+        db.delete(interaction)
+        db.commit()
+        return {"status": "off", "is_notifications_on": False}
+    else:
+        interaction = PostInteraction(
+            user_id=user.id,
+            post_id=post_id,
+            action_type="notify",
+        )
+        db.add(interaction)
+        db.commit()
+        return {"status": "on", "is_notifications_on": True}
 
 
 @router.delete("/feed/posts/{post_id}")

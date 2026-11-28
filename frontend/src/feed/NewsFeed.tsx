@@ -144,11 +144,15 @@ export function NewsFeed({
   user,
   onOpenGroupChat,
   onOpenProfile,
+  onOpenShop,
+  onOpenSettings,
 }: {
   token: string
   user: AuthUser
   onOpenGroupChat?: () => void
   onOpenProfile?: (username: string) => void
+  onOpenShop?: () => void
+  onOpenSettings?: () => void
 }) {
   const [communities, setCommunities] = useState<CommunitySummary[]>([])
   const [posts, setPosts] = useState<PostItem[]>([])
@@ -194,6 +198,11 @@ export function NewsFeed({
   const [showLocationInput, setShowLocationInput] = useState(false)
   const [isAnonymous, setIsAnonymous] = useState(false)
   const [postAudience, setPostAudience] = useState<'public' | 'friends' | 'only_me'>('public')
+  const [postAllowComments, setPostAllowComments] = useState<'public' | 'friends' | 'mentioned'>('public')
+  const [postNotifications, setPostNotifications] = useState<Record<number, boolean>>({})
+  const [showReportModal, setShowReportModal] = useState<number | null>(null)
+  const [reportReason, setReportReason] = useState('Inappropriate content')
+  const [showAdTargetingModal, setShowAdTargetingModal] = useState(false)
   
   // Interactive Poll Builder
   const [isPollMode, setIsPollMode] = useState(false)
@@ -573,7 +582,11 @@ export function NewsFeed({
         image_url: imageUrl,
         video_url: videoUrl,
         source: 'feed',
-      })
+        audience: postAudience,
+        allow_comments: postAllowComments,
+        feeling: selectedFeeling || undefined,
+        location: checkInLocation || undefined,
+      } as any)
 
       // If poll was created, initialize poll state
       if (isPollMode && pollQuestion.trim()) {
@@ -684,34 +697,103 @@ export function NewsFeed({
   }
 
   // Post Bookmark / Save
-  function handleToggleSavePost(postId: number) {
+  async function handleToggleSavePost(postId: number) {
+    const isCurrentlySaved = savedPostIds.has(postId)
     setSavedPostIds(prev => {
       const next = new Set(prev)
-      if (next.has(postId)) {
-        next.delete(postId)
-        setNotice('Removed from Saved Collections.')
-      } else {
-        next.add(postId)
-        setNotice('Saved to your Collections! 📌')
-      }
-      setTimeout(() => setNotice(''), 2500)
+      if (isCurrentlySaved) next.delete(postId)
+      else next.add(postId)
       return next
     })
+    try {
+      if (isCurrentlySaved) {
+        await api.unsavePost(token, postId)
+        setNotice('Removed from Saved Collections.')
+      } else {
+        await api.savePost(token, postId, 'Favorites')
+        setNotice('Saved to your Collections! 📌')
+      }
+    } catch {
+      // Revert if error
+      setSavedPostIds(prev => {
+        const next = new Set(prev)
+        if (isCurrentlySaved) next.add(postId)
+        else next.delete(postId)
+        return next
+      })
+    }
+    setTimeout(() => setNotice(''), 2500)
   }
 
   // Post Moderation Menu Actions
-  function handleSnoozeAuthor(authorId: number, authorName: string) {
+  async function handleSnoozeAuthor(authorId: number, authorName: string, postId?: number) {
     setSnoozedAuthors(prev => new Set(prev).add(authorId))
     setActiveMenuPostId(null)
     setNotice(`Snoozed @${authorName} for 30 days.`)
     setTimeout(() => setNotice(''), 3000)
+    if (postId) {
+      try {
+        await api.snoozeAuthor(token, postId, 30)
+      } catch {}
+    }
   }
 
-  function handleHidePost(postId: number) {
+  async function handleHidePost(postId: number) {
     setHiddenPostIds(prev => new Set(prev).add(postId))
     setActiveMenuPostId(null)
     setNotice('Post hidden from your feed.')
     setTimeout(() => setNotice(''), 3000)
+    try {
+      await api.hidePost(token, postId)
+    } catch {}
+  }
+
+  async function handleArchivePost(postId: number) {
+    setActiveMenuPostId(null)
+    try {
+      await api.archivePost(token, postId)
+      setPosts(curr => curr.filter(p => p.id !== postId))
+      setNotice('Post moved to Archive (visible only to you in Settings).')
+      setTimeout(() => setNotice(''), 3500)
+    } catch {
+      setError('Could not archive post')
+    }
+  }
+
+  async function handleMoveToTrash(postId: number) {
+    setActiveMenuPostId(null)
+    if (!window.confirm('Move this post to Recently Deleted (Trash)? You can restore it anytime within 30 days in Settings.')) return
+    try {
+      await api.trashPost(token, postId)
+      setPosts(curr => curr.filter(p => p.id !== postId))
+      setNotice('Post moved to Trash. It will be permanently removed after 30 days.')
+      setTimeout(() => setNotice(''), 4000)
+    } catch {
+      setError('Could not move post to Trash')
+    }
+  }
+
+  async function handleToggleNotifications(postId: number) {
+    setActiveMenuPostId(null)
+    try {
+      const res = await api.togglePostNotifications(token, postId)
+      setPostNotifications(prev => ({ ...prev, [postId]: res.is_notifications_on }))
+      setNotice(res.is_notifications_on ? 'Notifications turned ON for this post 🔔' : 'Notifications turned OFF')
+      setTimeout(() => setNotice(''), 2500)
+    } catch {
+      setError('Could not update notification preference')
+    }
+  }
+
+  async function handleReportSubmit(postId: number) {
+    setShowReportModal(null)
+    try {
+      await api.reportPost(token, postId, reportReason)
+      setNotice('Report submitted. Thank you for helping keep Gather safe.')
+      setTimeout(() => setNotice(''), 3500)
+    } catch {
+      setError('Could not submit report')
+    }
   }
 
   function handleCopyPostLink(postId: number) {
@@ -1275,15 +1357,28 @@ export function NewsFeed({
                       </div>
 
                       {/* Audience Selector */}
-                      <div className="pro-composer-select-pill audience">
+                      <div className="pro-composer-select-pill audience" title="Who can see your post?">
                         <select
                           value={postAudience}
                           onChange={e => setPostAudience(e.target.value as any)}
                           className="pro-composer-dropdown"
                         >
-                          <option value="public">🌍 Public</option>
-                          <option value="friends">👥 Friends Only</option>
+                          <option value="public">🌐 Public</option>
+                          <option value="friends">👥 Friends</option>
                           <option value="only_me">🔒 Only Me</option>
+                        </select>
+                      </div>
+
+                      {/* Comment Permissions Selector */}
+                      <div className="pro-composer-select-pill comments-perm" title="Who can comment on this post?">
+                        <select
+                          value={postAllowComments}
+                          onChange={e => setPostAllowComments(e.target.value as any)}
+                          className="pro-composer-dropdown"
+                        >
+                          <option value="public">💬 Anyone can comment</option>
+                          <option value="friends">👥 Friends can comment</option>
+                          <option value="mentioned">🏷️ Mentioned only</option>
                         </select>
                       </div>
                     </div>
@@ -1585,13 +1680,33 @@ export function NewsFeed({
             <div className="pro-filter-tabs">
               <button
                 type="button"
-                className={`pro-tab-btn ${sortBy === 'new' ? 'active' : ''}`}
-                onClick={() => setSortBy('new')}
+                className={`pro-tab-btn ${!selectedCommunitySlug && feedMode === 'home' && sortBy === 'new' ? 'active' : ''}`}
+                onClick={() => {
+                  setSelectedCommunitySlug(null)
+                  setFeedMode('home')
+                  setSortBy('new')
+                }}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
+                <span>For You</span>
+              </button>
+              <button
+                type="button"
+                className={`pro-tab-btn ${!selectedCommunitySlug && feedMode === 'favorites' ? 'active' : ''}`}
+                onClick={() => {
+                  setSelectedCommunitySlug(null)
+                  setFeedMode('favorites')
+                }}
+              >
+                <span>Favorites</span>
+              </button>
+              <button
+                type="button"
+                className={`pro-tab-btn ${!selectedCommunitySlug && feedMode === 'recent' ? 'active' : ''}`}
+                onClick={() => {
+                  setSelectedCommunitySlug(null)
+                  setFeedMode('recent')
+                }}
+              >
                 <span>Recent</span>
               </button>
               <button
@@ -1599,9 +1714,6 @@ export function NewsFeed({
                 className={`pro-tab-btn ${sortBy === 'top' ? 'active' : ''}`}
                 onClick={() => setSortBy('top')}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                </svg>
                 <span>Top Voted</span>
               </button>
               <button
@@ -1609,12 +1721,6 @@ export function NewsFeed({
                 className={`pro-tab-btn ${sortBy === 'media' ? 'active' : ''}`}
                 onClick={() => setSortBy('media')}
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
-                  <line x1="7" y1="2" x2="7" y2="22"></line>
-                  <line x1="17" y1="2" x2="17" y2="22"></line>
-                  <line x1="2" y1="12" x2="22" y2="12"></line>
-                </svg>
                 <span>Media Only</span>
               </button>
             </div>
@@ -1647,7 +1753,7 @@ export function NewsFeed({
             </div>
           ) : (
             <div className="pro-feed-cards-stack">
-              {displayPosts.map(post => {
+              {displayPosts.map((post, postIdx) => {
                 const isAuthor = post.author.user_id === user.id
                 const isSaved = savedPostIds.has(post.id)
                 const currentReactionKey = userReactions[post.id]
@@ -1689,7 +1795,8 @@ export function NewsFeed({
                 const pct2 = totalVotes > 0 ? 100 - pct1 : 50
 
                 return (
-                  <article key={post.id} className="pro-post-card">
+                  <div key={post.id} className="pro-feed-post-wrap">
+                    <article className="pro-post-card">
                     {/* Post Top Header */}
                     <div className="pro-post-header">
                       <div className="pro-post-header-left">
@@ -1811,6 +1918,18 @@ export function NewsFeed({
                               <button
                                 type="button"
                                 className="pro-popup-item"
+                                onClick={() => handleToggleNotifications(post.id)}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                </svg>
+                                <span>{postNotifications[post.id] ? 'Turn off notifications' : 'Turn on notifications'}</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                className="pro-popup-item"
                                 onClick={() => handleCopyPostLink(post.id)}
                               >
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1819,20 +1938,6 @@ export function NewsFeed({
                                 </svg>
                                 <span>Copy Link</span>
                               </button>
-
-                              {!isAuthor && (
-                                <button
-                                  type="button"
-                                  className="pro-popup-item"
-                                  onClick={() => handleSnoozeAuthor(post.author.user_id, post.author.username)}
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <polyline points="12 6 12 12 14 14"></polyline>
-                                  </svg>
-                                  <span>Snooze @{post.author.username} for 30 days</span>
-                                </button>
-                              )}
 
                               <button
                                 type="button"
@@ -1845,6 +1950,68 @@ export function NewsFeed({
                                 </svg>
                                 <span>Hide post from feed</span>
                               </button>
+
+                              {!isAuthor && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="pro-popup-item"
+                                    onClick={() => handleSnoozeAuthor(post.author.user_id, post.author.username, post.id)}
+                                  >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <circle cx="12" cy="12" r="10"></circle>
+                                      <polyline points="12 6 12 12 14 14"></polyline>
+                                    </svg>
+                                    <span>Snooze @{post.author.username} for 30 days</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    className="pro-popup-item"
+                                    onClick={() => {
+                                      setShowReportModal(post.id)
+                                      setActiveMenuPostId(null)
+                                    }}
+                                  >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <circle cx="12" cy="12" r="10"></circle>
+                                      <line x1="12" y1="8" x2="12" y2="12"></line>
+                                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                    </svg>
+                                    <span style={{ color: '#ef4444' }}>Report post</span>
+                                  </button>
+                                </>
+                              )}
+
+                              {isAuthor && (
+                                <>
+                                  <div className="pro-popup-divider" style={{ borderTop: '1px solid var(--line)', margin: '4px 0' }} />
+                                  <button
+                                    type="button"
+                                    className="pro-popup-item"
+                                    onClick={() => handleArchivePost(post.id)}
+                                  >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="21 8 21 21 3 21 3 8"></polyline>
+                                      <rect x="1" y="3" width="22" height="5"></rect>
+                                      <line x1="10" y1="12" x2="14" y2="12"></line>
+                                    </svg>
+                                    <span>Move to Archive</span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    className="pro-popup-item"
+                                    onClick={() => handleMoveToTrash(post.id)}
+                                  >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="3 6 5 6 21 6"></polyline>
+                                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    </svg>
+                                    <span style={{ color: '#ef4444' }}>Move to Trash (30-day restore)</span>
+                                  </button>
+                                </>
+                              )}
                             </div>
                           )}
                         </div>
@@ -2133,9 +2300,52 @@ export function NewsFeed({
                       </div>
                     )}
                   </article>
-                )
-              })}
-            </div>
+                  {(postIdx === 1 || (displayPosts.length === 1 && postIdx === 0)) && (
+                    <article key="ad-sponsored-1" className="pro-post-card pro-sponsored-ad-card" style={{ border: '1px solid #bfdbfe', background: 'var(--paper)' }}>
+                      <div className="pro-post-header">
+                        <div className="pro-post-header-left">
+                          <div className="avatar avatar-medium" style={{ background: '#2563eb', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                            G
+                          </div>
+                          <div className="pro-post-author-meta">
+                            <div className="pro-author-name-line">
+                              <strong>Gather Marketplace & Discover</strong>
+                              <span className="pro-sponsored-tag" style={{ background: '#eff6ff', color: '#2563eb', fontSize: '11px', padding: '2px 8px', borderRadius: '4px', fontWeight: 600, marginLeft: '8px' }}>Sponsored</span>
+                            </div>
+                            <div className="pro-post-sub-line">
+                              <span className="pro-ad-why-btn" style={{ cursor: 'pointer', color: 'var(--text-muted)', fontSize: '12px' }} onClick={() => setShowAdTargetingModal(true)}>
+                                ⓘ Why am I seeing this ad?
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="pro-post-body">
+                        <h3 className="pro-post-title" style={{ fontSize: '16px', margin: '0 0 6px' }}>Explore Verified Stores & Creators on Gather</h3>
+                        <p className="pro-post-text" style={{ fontSize: '14px', margin: '0 0 12px' }}>
+                          Discover top-rated tech gear, curated artisan fashion, and creator merchandise. Free local delivery and instant store-to-door tracking.
+                        </p>
+                        <div className="pro-ad-banner" style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)', borderRadius: '12px', padding: '20px', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <h4 style={{ margin: '0 0 4px', fontSize: '17px', color: '#fff' }}>Official Gather Stores</h4>
+                            <p style={{ margin: 0, opacity: 0.9, fontSize: '13px' }}>Explore live merchant catalog & place direct orders</p>
+                          </div>
+                          <button
+                            type="button"
+                            className="button button-primary"
+                            style={{ background: '#fff', color: '#2563eb', fontWeight: 600, border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}
+                            onClick={onOpenShop}
+                          >
+                            Shop Now
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  )}
+                </div>
+              )
+            })}
+          </div>
           )}
         </main>
 
@@ -2715,6 +2925,83 @@ export function NewsFeed({
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Report Post Modal */}
+      {showReportModal && (
+        <div className="pro-modal-overlay" onClick={() => setShowReportModal(null)}>
+          <div className="pro-space-modal" onClick={e => e.stopPropagation()}>
+            <div className="pro-modal-header">
+              <h3 className="pro-modal-title">Report Post</h3>
+              <button type="button" className="pro-modal-close-btn" onClick={() => setShowReportModal(null)}>✕</button>
+            </div>
+            <div className="pro-modal-body" style={{ padding: '20px' }}>
+              <p style={{ margin: '0 0 16px', color: 'var(--text-muted)' }}>
+                Please select a reason why this post goes against Gather community standards. Your report is completely confidential.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                {[
+                  'Spam or misleading information',
+                  'Harassment or hate speech',
+                  'Violence or dangerous content',
+                  'Inappropriate or adult content',
+                  'Intellectual property violation',
+                  'Something else'
+                ].map(r => (
+                  <label key={r} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="reportReason"
+                      value={r}
+                      checked={reportReason === r}
+                      onChange={e => setReportReason(e.target.value)}
+                    />
+                    <span>{r}</span>
+                  </label>
+                ))}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button type="button" className="button button-outline" onClick={() => setShowReportModal(null)}>Cancel</button>
+                <button type="button" className="button button-primary" onClick={() => handleReportSubmit(showReportModal)}>Submit Report</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Why am I seeing this Ad? (Facebook Module 15: Ads) */}
+      {showAdTargetingModal && (
+        <div className="pro-modal-overlay" onClick={() => setShowAdTargetingModal(false)}>
+          <div className="pro-space-modal" onClick={e => e.stopPropagation()}>
+            <div className="pro-modal-header">
+              <h3 className="pro-modal-title">Why you're seeing this ad</h3>
+              <button type="button" className="pro-modal-close-btn" onClick={() => setShowAdTargetingModal(false)}>✕</button>
+            </div>
+            <div className="pro-modal-body" style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>
+                  🎯
+                </div>
+                <div>
+                  <strong>Audience Targeting Insights</strong>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>The advertiser chose these targeting preferences:</p>
+                </div>
+              </div>
+              <div style={{ background: 'var(--hover)', borderRadius: '10px', padding: '14px', fontSize: '13px', lineHeight: '1.6', marginBottom: '16px' }}>
+                <div>📍 <strong>Location:</strong> People located in Bangladesh</div>
+                <div>🎂 <strong>Age:</strong> 18 to 65+</div>
+                <div>💡 <strong>Interests:</strong> Technology, Online Shopping, Social Networking</div>
+                <div>📱 <strong>Device:</strong> Modern Web and Mobile browsers</div>
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 16px' }}>
+                You can manage your ad preferences and personalization anytime in your Gather Settings.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button type="button" className="button button-primary" onClick={() => setShowAdTargetingModal(false)}>Got It</button>
+              </div>
             </div>
           </div>
         </div>

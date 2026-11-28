@@ -102,6 +102,11 @@ class PostCreate(BaseModel):
     image_url: str | None = Field(default=None, max_length=512)
     video_url: str | None = Field(default=None, max_length=512)
     source: str = Field(default="feed", max_length=32)
+    audience: str = Field(default="public", pattern="^(public|friends|only_me)$")
+    allow_comments: str = Field(default="public", pattern="^(public|friends|mentioned)$")
+    scheduled_at: datetime | None = None
+    feeling: str | None = Field(default=None, max_length=100)
+    location: str | None = Field(default=None, max_length=100)
 
     @field_validator("title")
     @classmethod
@@ -137,6 +142,8 @@ class PostCreate(BaseModel):
 class PostUpdate(BaseModel):
     title: str | None = Field(default=None, max_length=300)
     content: str | None = Field(default=None, max_length=10000)
+    audience: str | None = Field(default=None, pattern="^(public|friends|only_me)$")
+    allow_comments: str | None = Field(default=None, pattern="^(public|friends|mentioned)$")
 
     @field_validator("title")
     @classmethod
@@ -165,6 +172,17 @@ class PostResponse(BaseModel):
     video_url: str | None = None
     views_count: int = 0
     source: str = "feed"
+    audience: str = "public"
+    allow_comments: str = "public"
+    is_archived: bool = False
+    is_deleted: bool = False
+    deleted_at: datetime | None = None
+    scheduled_at: datetime | None = None
+    feeling: str | None = None
+    location: str | None = None
+    is_saved: bool = False
+    is_snoozed: bool = False
+    is_notifications_on: bool = False
     upvote_count: int = 0
     has_upvoted: bool = False
     comment_count: int = 0
