@@ -239,6 +239,121 @@ function IconSubtitles({ size = 16, active = false }: { size?: number; active?: 
   )
 }
 
+function IconFlag({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+      <line x1="4" y1="22" x2="4" y2="15" />
+    </svg>
+  )
+}
+
+function IconFileText({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <polyline points="10 9 9 9 8 9" />
+    </svg>
+  )
+}
+
+function IconServer({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+      <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+      <line x1="6" y1="6" x2="6.01" y2="6" />
+      <line x1="6" y1="18" x2="6.01" y2="18" />
+    </svg>
+  )
+}
+
+function IconCopyright({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M14.83 14.83a4 4 0 1 1 0-5.66" />
+    </svg>
+  )
+}
+
+function IconAlertTriangle({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  )
+}
+
+function IconArrowUp({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="19" x2="12" y2="5" />
+      <polyline points="5 12 12 5 19 12" />
+    </svg>
+  )
+}
+
+function IconArrowDown({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <polyline points="19 12 12 19 5 12" />
+    </svg>
+  )
+}
+
+function IconEdit({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  )
+}
+
+function IconCpu({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <rect x="9" y="9" width="6" height="6" />
+      <line x1="9" y1="1" x2="9" y2="4" />
+      <line x1="15" y1="1" x2="15" y2="4" />
+      <line x1="9" y1="20" x2="9" y2="23" />
+      <line x1="15" y1="20" x2="15" y2="23" />
+      <line x1="20" y1="9" x2="23" y2="9" />
+      <line x1="20" y1="14" x2="23" y2="14" />
+      <line x1="1" y1="9" x2="4" y2="9" />
+      <line x1="1" y1="14" x2="4" y2="14" />
+    </svg>
+  )
+}
+
+function IconUser({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  )
+}
+
+function IconTrash({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <line x1="10" y1="11" x2="10" y2="17" />
+      <line x1="14" y1="11" x2="14" y2="17" />
+    </svg>
+  )
+}
+
 // Helpers
 function formatRelativeTime(dateStr: string): string {
   const d = new Date(dateStr)
@@ -267,25 +382,40 @@ interface WatchViewProps {
   onOpenProfile?: (username: string) => void
 }
 
-// Subtitle definition
+// Subtitle definition with full timeline coverage for interactive transcripts
 const SAMPLE_SUBTITLES: Record<string, { start: number; end: number; text: string }[]> = {
   en: [
-    { start: 0, end: 4, text: 'Welcome to this video stream! Today we are exploring modern software architecture.' },
-    { start: 4, end: 8, text: 'We will look into adaptive bitrate streaming, video chunking, and real-time features.' },
-    { start: 8, end: 14, text: 'Notice how the player seamlessly switches bitrates and renders closed captions in WebVTT format.' },
-    { start: 14, end: 20, text: 'Feel free to leave a comment or send a Super Chat to support the channel!' },
+    { start: 0, end: 5, text: 'Welcome to this video stream! Today we are exploring modern software architecture.' },
+    { start: 5, end: 12, text: 'We will look into adaptive bitrate streaming, video chunking, and real-time features.' },
+    { start: 12, end: 20, text: 'Notice how the player seamlessly switches bitrates and renders closed captions in WebVTT format.' },
+    { start: 20, end: 30, text: 'Feel free to leave a comment or send a Super Chat to support the channel!' },
+    { start: 30, end: 45, text: 'Our media pipeline ingests the raw upload and routes it to distributed transcoding workers.' },
+    { start: 45, end: 60, text: 'Multi-resolution ladders (240p up to 4K) are packaged into HLS manifests and cached globally across CDN edge points.' },
+    { start: 60, end: 75, text: 'The player dynamically monitors network throughput and buffer health for zero interruption.' },
+    { start: 75, end: 95, text: 'Creators can track real-time analytics, audience retention, and copyright protection in Creator Studio.' },
+    { start: 95, end: 120, text: "Thank you for watching! Don't forget to subscribe, share, and explore our playlists below." },
   ],
   bn: [
-    { start: 0, end: 4, text: 'আমাদের এই ভিডিও স্ট্রিমে স্বাগতম! আজ আমরা সফটওয়্যার আর্কিটেকচার নিয়ে আলোচনা করছি।' },
-    { start: 4, end: 8, text: 'আমরা অ্যাডাপটিভ বিটরেট স্ট্রিমিং ও রিয়েল-টাইম ফিচারসমূহ পর্যবেক্ষণ করব।' },
-    { start: 8, end: 14, text: 'প্লেয়ারটি স্বয়ংক্রিয়ভাবে রেজোলিউশন পরিবর্তন এবং সাবটাইটেল প্রদর্শন করতে সক্ষম।' },
-    { start: 14, end: 20, text: 'চ্যানেলকে সাপোর্ট করার জন্য কমেন্ট অথবা সুপার চ্যাট পাঠাতে পারেন!' },
+    { start: 0, end: 5, text: 'আমাদের এই ভিডিও স্ট্রিমে স্বাগতম! আজ আমরা আধুনিক সফটওয়্যার আর্কিটেকচার নিয়ে আলোচনা করছি।' },
+    { start: 5, end: 12, text: 'আমরা অ্যাডাপটিভ বিটরেট স্ট্রিমিং ও রিয়েল-টাইম ফিচারসমূহ পর্যবেক্ষণ করব।' },
+    { start: 12, end: 20, text: 'প্লেয়ারটি স্বয়ংক্রিয়ভাবে রেজোলিউশন পরিবর্তন এবং সাবটাইটেল প্রদর্শন করতে সক্ষম।' },
+    { start: 20, end: 30, text: 'চ্যানেলকে সাপোর্ট করার জন্য কমেন্ট অথবা সুপার চ্যাট পাঠাতে পারেন!' },
+    { start: 30, end: 45, text: 'আমাদের ডেডিকেটেড মিডিয়া পাইপলাইন আপলোড ফাইল গ্রহণ করে ট্রান্সকোডিং কর্মীদের কাছে পাঠায়।' },
+    { start: 45, end: 60, text: '২৪০p থেকে ৪K রেজোলিউশন তৈরি করে HLS ফরম্যাটে বিশ্বব্যাপী CDN-এ ক্যাশ করা হয়।' },
+    { start: 60, end: 75, text: 'প্লেয়ার স্বয়ংক্রিয়ভাবে নেটওয়ার্ক স্পিড ও বাফার হেলথ পর্যবেক্ষণ করে নিরবচ্ছিন্ন স্ট্রিমিং নিশ্চিত করে।' },
+    { start: 75, end: 95, text: 'ক্রিয়েটর স্টুডিওতে অ্যানালিটিক্স ও কপিরাইট সুরক্ষা রিয়েল-টাইমে মনিটর করা যায়।' },
+    { start: 95, end: 120, text: 'দেখার জন্য ধন্যবাদ! সাবস্ক্রাইব করুন এবং আমাদের প্লেলিস্টগুলো উপভোগ করুন।' },
   ],
   es: [
-    { start: 0, end: 4, text: '¡Bienvenidos a este video! Hoy estamos explorando arquitectura moderna.' },
-    { start: 4, end: 8, text: 'Veremos transmisión de tasa de bits adaptativa y funciones en tiempo real.' },
-    { start: 8, end: 14, text: 'El reproductor cambia resoluciones y muestra subtítulos en formato WebVTT.' },
-    { start: 14, end: 20, text: '¡Deja un comentario o envía un Super Chat para apoyar el canal!' },
+    { start: 0, end: 5, text: '¡Bienvenidos a este video! Hoy estamos explorando arquitectura moderna.' },
+    { start: 5, end: 12, text: 'Veremos transmisión de tasa de bits adaptativa y funciones en tiempo real.' },
+    { start: 12, end: 20, text: 'El reproductor cambia resoluciones y muestra subtítulos en formato WebVTT.' },
+    { start: 20, end: 30, text: '¡Deja un comentario o envía un Super Chat para apoyar el canal!' },
+    { start: 30, end: 45, text: 'Nuestra canalización de medios distribuye la codificación a múltiples trabajadores.' },
+    { start: 45, end: 60, text: 'Generamos resoluciones desde 240p hasta 4K empaquetadas en manifiestos HLS distribuidos por CDN.' },
+    { start: 60, end: 75, text: 'El reproductor optimiza el ancho de banda y la salud del búfer en tiempo real.' },
+    { start: 75, end: 95, text: 'Los creadores monitorean análisis y derechos de autor en Creator Studio.' },
+    { start: 95, end: 120, text: '¡Gracias por vernos! No olvides suscribirte y compartir.' },
   ],
 }
 
@@ -303,8 +433,10 @@ export function WatchView({
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
-  // Top Nav View Mode: 'home' | 'shorts' | 'live' | 'library' | 'studio'
-  const [activeTab, setActiveTab] = useState<'home' | 'shorts' | 'live' | 'library' | 'studio'>('home')
+  // Top Nav View Mode: 'home' | 'shorts' | 'live' | 'library' | 'studio' | 'channel'
+  const [activeTab, setActiveTab] = useState<'home' | 'shorts' | 'live' | 'library' | 'studio' | 'channel'>('home')
+  const [selectedChannelSlug, setSelectedChannelSlug] = useState<string | null>(null)
+  const [channelTab, setChannelTab] = useState<'home' | 'videos' | 'shorts' | 'playlists' | 'about'>('home')
 
   // Search & Typo-tolerant Autocomplete State (Feature 3.1)
   const [searchQuery, setSearchQuery] = useState('')
@@ -319,10 +451,44 @@ export function WatchView({
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
 
-  // Adaptive Bitrate & Quality Switcher (Feature 1.1)
-  const [quality, setQuality] = useState<'Auto' | '1080p' | '720p' | '480p' | '360p'>('Auto')
+  // Adaptive Bitrate & Quality Switcher (Feature 1.1) - 240p to 4K (Image 1, Module 4 & 5)
+  const [quality, setQuality] = useState<'Auto' | '4K' | '1080p' | '720p' | '480p' | '360p' | '240p'>('Auto')
   const [showSettingsMenu, setShowSettingsMenu] = useState(false)
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1)
+  const [streamProtocol, setStreamProtocol] = useState<'hls' | 'dash'>('hls')
+  const [selectedAudioTrack, setSelectedAudioTrack] = useState<'original' | 'dub_en' | 'dub_bn' | 'desc'>('original')
+
+  // Accessibility: Interactive Transcript (Image 1, Module 15)
+  const [showTranscript, setShowTranscript] = useState(false)
+  const [transcriptSearch, setTranscriptSearch] = useState('')
+
+  // Moderation: Age Restriction Warning Gate & Reporting (Image 1, Module 14)
+  const [ageWarningDismissed, setAgeWarningDismissed] = useState(false)
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false)
+  const [reportReason, setReportReason] = useState('Spam or misleading')
+  const [reportDetails, setReportDetails] = useState('')
+
+  // Playlists: Add to Playlist Modal & Detail Reordering (Image 1, Module 8)
+  const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false)
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null)
+
+  // Video Management: Edit & Delete Modal (Image 1, Module 3)
+  const [editingPost, setEditingPost] = useState<PostItem | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editContent, setEditContent] = useState('')
+  const [editCategory, setEditCategory] = useState('Tech & Gadgets')
+  const [editVisibility, setEditVisibility] = useState<'public' | 'unlisted' | 'private'>('public')
+  const [submittingEdit, setSubmittingEdit] = useState(false)
+
+  // Copyright & Content ID Claims (Image 1, Module 13)
+  const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false)
+  const [disputeClaimId, setDisputeClaimId] = useState<string>('claim-1')
+  const [disputeGrounds, setDisputeGrounds] = useState<'original' | 'licensed' | 'fair_use' | 'public_domain'>('fair_use')
+  const [disputeExplanation, setDisputeExplanation] = useState('')
+
+  // Live Chat Moderation Tools (Image 1, Module 7)
+  const [slowModeSeconds, setSlowModeSeconds] = useState<number>(3)
+  const [subscriberOnlyChat, setSubscriberOnlyChat] = useState<boolean>(false)
 
   // Closed Captions & Auto-Subtitles (Feature 1.3)
   const [activeSubtitleLang, setActiveSubtitleLang] = useState<'off' | 'en' | 'bn' | 'es'>('en')
@@ -420,8 +586,8 @@ export function WatchView({
   const [newLiveMessage, setNewLiveMessage] = useState('')
   const [flyingEmojis, setFlyingEmojis] = useState<{ id: string; emoji: string; left: number }[]>([])
 
-  // Creator Studio & Analytics (Feature 5.1, 5.2, 5.3)
-  const [studioTab, setStudioTab] = useState<'analytics' | 'content' | 'editor' | 'branding' | 'monetization' | 'security'>('analytics')
+  // Creator Studio & Analytics (Feature 5.1, 5.2, 5.3 & Media Pipeline)
+  const [studioTab, setStudioTab] = useState<'analytics' | 'content' | 'editor' | 'branding' | 'monetization' | 'security' | 'copyright' | 'pipeline'>('analytics')
   const [analyticsRange, setAnalyticsRange] = useState<'7d' | '28d' | '90d'>('28d')
   // Browser Video Editor state (Feature 5.3)
   const [editorTrimStart, setEditorTrimStart] = useState(0)
@@ -660,6 +826,91 @@ export function WatchView({
     setTimeout(() => setNotice(''), 3000)
   }
 
+  // Video Management Handlers (Module 3: Video Edit & Delete)
+  const handleDeletePost = async (postId: number) => {
+    if (!window.confirm('Are you sure you want to delete this video? This action cannot be undone.')) return
+    try {
+      await api.deletePost(token, postId)
+      setPosts(prev => prev.filter(p => p.id !== postId))
+      if (activeWatchPost?.id === postId) setActiveWatchPost(null)
+      setNotice('Video deleted successfully from your channel.')
+      setTimeout(() => setNotice(''), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete video')
+    }
+  }
+
+  const handleSaveEditPost = async () => {
+    if (!editingPost) return
+    setSubmittingEdit(true)
+    try {
+      await api.editPost(token, editingPost.id, {
+        title: editTitle.trim(),
+        content: editContent.trim(),
+      })
+      setPosts(prev => prev.map(p => p.id === editingPost.id ? { ...p, title: editTitle.trim(), content: editContent.trim() } : p))
+      if (activeWatchPost?.id === editingPost.id) {
+        setActiveWatchPost(prev => prev ? { ...prev, title: editTitle.trim(), content: editContent.trim() } : null)
+      }
+      setEditingPost(null)
+      setNotice('Video metadata and settings updated successfully! 🎬')
+      setTimeout(() => setNotice(''), 3000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update video')
+    } finally {
+      setSubmittingEdit(false)
+    }
+  }
+
+  // Playlist Reordering & Item Controls (Module 8: Playlist reorder and edit)
+  const handleMovePlaylistItem = (playlistId: string, index: number, direction: 'up' | 'down') => {
+    setPlaylists(prev => prev.map(pl => {
+      if (pl.id !== playlistId) return pl
+      const newIds = [...pl.postIds]
+      const targetIdx = direction === 'up' ? index - 1 : index + 1
+      if (targetIdx < 0 || targetIdx >= newIds.length) return pl
+      const temp = newIds[index]
+      newIds[index] = newIds[targetIdx]
+      newIds[targetIdx] = temp
+      return { ...pl, postIds: newIds }
+    }))
+  }
+
+  const handleRemovePlaylistItem = (playlistId: string, postId: number) => {
+    setPlaylists(prev => prev.map(pl => {
+      if (pl.id !== playlistId) return pl
+      return { ...pl, postIds: pl.postIds.filter(id => id !== postId) }
+    }))
+    setNotice('Video removed from playlist.')
+    setTimeout(() => setNotice(''), 2500)
+  }
+
+  const handleTogglePlaylistPost = (playlistId: string, postId: number) => {
+    setPlaylists(prev => prev.map(pl => {
+      if (pl.id !== playlistId) return pl
+      const exists = pl.postIds.includes(postId)
+      const newPostIds = exists ? pl.postIds.filter(id => id !== postId) : [...pl.postIds, postId]
+      setNotice(exists ? 'Removed from playlist.' : 'Saved to playlist!')
+      setTimeout(() => setNotice(''), 2500)
+      return { ...pl, postIds: newPostIds }
+    }))
+  }
+
+  // Copyright Dispute Submission (Module 13: Copyright & Content ID)
+  const handleSubmitDispute = () => {
+    setIsDisputeModalOpen(false)
+    setNotice(`Copyright claim #${disputeClaimId} disputed successfully. Under review by rights holder (up to 30 days).`)
+    setTimeout(() => setNotice(''), 4000)
+  }
+
+  // Video Content Moderation Report (Module 14: Moderation & Reports)
+  const handleSubmitReport = () => {
+    setIsReportModalOpen(false)
+    setReportDetails('')
+    setNotice('Video report submitted to Gather Trust & Safety for review. Thank you for keeping the community safe.')
+    setTimeout(() => setNotice(''), 4000)
+  }
+
   // Filtered & Searched Video Posts
   const filteredPosts = useMemo(() => {
     let result = posts.filter(p => !!p.video_url)
@@ -847,129 +1098,175 @@ export function WatchView({
       )}
 
       {/* =========================================================
-          TOP NAVIGATION BAR (YOUTUBE / GATHER WATCH STANDARD)
+          HERO BANNER & SEARCH (MATCHING GATHER BRAND & SHOP STANDARDS)
           ========================================================= */}
-      <header className="yt-header-bar">
-        {/* Left: Brand & Navigation Mode Tabs */}
-        <div className="yt-header-left">
-          <div className="yt-brand-logo" onClick={() => { setActiveTab('home'); setActiveWatchPost(null) }}>
-            <div className="yt-brand-icon-box">
-              <IconPlay size={18} fill />
+      {!activeWatchPost && (
+        <section className="shop-hero watch-hero">
+          <div className="shop-hero-content watch-hero-content">
+            <div className="shop-hero-badge watch-hero-badge">
+              <IconPlay size={14} fill />
+              <span>Gather Video Streaming Engine</span>
             </div>
-            <div className="yt-brand-text">
-              <strong>Watch</strong>
-              <span className="yt-brand-country">PRO</span>
-            </div>
-          </div>
+            <h1 className="shop-hero-title watch-hero-title">Stream, Discover & Broadcast Video</h1>
+            <p className="shop-hero-subtitle watch-hero-subtitle">
+              Adaptive 4K video feeds, short-form Reels, real-time live broadcasts, playlists, and creator studio.
+            </p>
 
-          <nav className="yt-nav-tabs">
-            <button
-              type="button"
-              className={`yt-nav-tab-btn ${activeTab === 'home' && !activeWatchPost ? 'active' : ''}`}
-              onClick={() => { setActiveTab('home'); setActiveWatchPost(null) }}
-            >
-              <IconPlay size={15} />
-              <span>Home</span>
-            </button>
-            <button
-              type="button"
-              className={`yt-nav-tab-btn ${activeTab === 'shorts' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('shorts'); setActiveWatchPost(null) }}
-            >
-              <IconFlame size={15} />
-              <span>Shorts</span>
-            </button>
-            <button
-              type="button"
-              className={`yt-nav-tab-btn ${activeTab === 'live' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('live'); setActiveWatchPost(null) }}
-            >
-              <IconRadioLive size={15} />
-              <span>Live</span>
-            </button>
-            <button
-              type="button"
-              className={`yt-nav-tab-btn ${activeTab === 'library' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('library'); setActiveWatchPost(null) }}
-            >
-              <IconBookmark size={15} />
-              <span>Library</span>
-            </button>
-            <button
-              type="button"
-              className={`yt-nav-tab-btn ${activeTab === 'studio' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('studio'); setActiveWatchPost(null) }}
-            >
-              <IconSettings size={15} />
-              <span>Studio</span>
-            </button>
-          </nav>
-        </div>
-
-        {/* Center: Search & Autocomplete Input (Feature 3.1) */}
-        <div className="yt-header-center">
-          <div className="yt-search-wrapper">
-            <div className="yt-search-box">
+            <div className="shop-search-bar watch-search-bar">
+              <span className="shop-search-icon watch-search-icon">
+                <IconSearch size={16} />
+              </span>
               <input
                 type="text"
-                placeholder="Search videos, topics, creators..."
+                placeholder="Search videos, creators, channels, topics..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setTimeout(() => setSearchFocused(false), 200)}
-                className="yt-search-input"
               />
-              <button type="button" className="yt-search-btn" title="Search">
-                <IconSearch size={16} />
-              </button>
-            </div>
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="shop-search-clear watch-search-clear"
+                  onClick={() => setSearchQuery('')}
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
 
-            {/* Autocomplete Dropdown */}
-            {searchFocused && searchSuggestions.length > 0 && (
-              <div className="yt-autocomplete-menu">
-                {searchSuggestions.map((sug, i) => (
-                  <div
-                    key={i}
-                    className="yt-autocomplete-item"
-                    onMouseDown={() => {
-                      setSearchQuery(sug)
-                      setSearchFocused(false)
-                    }}
-                  >
-                    <IconSearch size={14} />
-                    <span>{sug}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+              {/* Autocomplete Dropdown */}
+              {searchFocused && searchSuggestions.length > 0 && (
+                <div className="yt-autocomplete-menu watch-autocomplete-menu">
+                  {searchSuggestions.map((sug, i) => (
+                    <div
+                      key={i}
+                      className="yt-autocomplete-item watch-autocomplete-item"
+                      onMouseDown={() => {
+                        setSearchQuery(sug)
+                        setSearchFocused(false)
+                      }}
+                    >
+                      <IconSearch size={14} />
+                      <span>{sug}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
+        </section>
+      )}
+
+      {/* =========================================================
+          CONTROLS BAR (NAV TABS & ACTIONS)
+          ========================================================= */}
+      <div className="shop-controls-bar watch-controls-bar yt-header-bar">
+        {/* Left: Brand & Navigation Mode Tabs */}
+        <div className="yt-header-left watch-header-left">
+          {activeWatchPost ? (
+            <button
+              type="button"
+              className="watch-back-to-feed-btn"
+              onClick={() => setActiveWatchPost(null)}
+            >
+              ← Back to Video Feed
+            </button>
+          ) : (
+            <div className="yt-brand-logo watch-brand-logo" onClick={() => { setActiveTab('home'); setActiveWatchPost(null) }}>
+              <div className="brand-mark watch-brand-mark">
+                <IconPlay size={16} fill />
+              </div>
+              <div className="wordmark watch-wordmark">
+                <strong>Watch</strong>
+                <span className="shop-hero-badge watch-tag-badge">4K ENGINE</span>
+              </div>
+            </div>
+          )}
+
+          <nav className="yt-nav-tabs watch-nav-tabs">
+            <button
+              type="button"
+              className={`shop-category-btn yt-nav-tab-btn ${activeTab === 'home' && !activeWatchPost ? 'active' : ''}`}
+              onClick={() => { setActiveTab('home'); setActiveWatchPost(null) }}
+            >
+              <IconPlay size={14} />
+              <span>Feed</span>
+            </button>
+            <button
+              type="button"
+              className={`shop-category-btn yt-nav-tab-btn ${activeTab === 'shorts' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('shorts'); setActiveWatchPost(null) }}
+            >
+              <IconFlame size={14} />
+              <span>Shorts</span>
+            </button>
+            <button
+              type="button"
+              className={`shop-category-btn yt-nav-tab-btn ${activeTab === 'live' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('live'); setActiveWatchPost(null) }}
+            >
+              <IconRadioLive size={14} />
+              <span>Live</span>
+            </button>
+            <button
+              type="button"
+              className={`shop-category-btn yt-nav-tab-btn ${activeTab === 'library' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('library'); setActiveWatchPost(null) }}
+            >
+              <IconBookmark size={14} />
+              <span>Library</span>
+            </button>
+            <button
+              type="button"
+              className={`shop-category-btn yt-nav-tab-btn ${activeTab === 'studio' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('studio'); setActiveWatchPost(null) }}
+            >
+              <IconSettings size={14} />
+              <span>Studio</span>
+            </button>
+            <button
+              type="button"
+              className={`shop-category-btn yt-nav-tab-btn ${activeTab === 'channel' ? 'active' : ''}`}
+              onClick={() => {
+                if (!selectedChannelSlug && (pages[0]?.slug || posts[0]?.community.slug)) {
+                  setSelectedChannelSlug(pages[0]?.slug || posts[0]?.community.slug)
+                }
+                setActiveTab('channel')
+                setActiveWatchPost(null)
+              }}
+            >
+              <IconUser size={14} />
+              <span>Channel</span>
+            </button>
+          </nav>
         </div>
 
         {/* Right: Actions (Go Live, Upload, Premium) */}
-        <div className="yt-header-right">
+        <div className="yt-header-right watch-header-right">
           <button
             type="button"
-            className="yt-btn-go-live"
+            className="yt-btn-go-live watch-btn-go-live"
             onClick={() => setIsLiveModalOpen(true)}
             title="Start live broadcast"
           >
-            <IconRadioLive size={15} />
+            <IconRadioLive size={14} />
             <span>Go Live</span>
           </button>
 
           <button
             type="button"
-            className="yt-btn-upload-primary"
+            className="yt-btn-upload-primary watch-btn-upload-primary"
             onClick={() => setIsUploadVideoModal(true)}
             title="Upload video to channel"
           >
-            <IconUploadCloud size={16} />
-            <span>Upload</span>
+            <IconUploadCloud size={15} />
+            <span>Upload Video</span>
           </button>
 
           <button
             type="button"
-            className={`yt-premium-pill-btn ${isPremium ? 'active' : ''}`}
+            className={`yt-premium-pill-btn watch-premium-pill-btn ${isPremium ? 'active' : ''}`}
             onClick={() => {
               setIsPremium(!isPremium)
               setNotice(isPremium ? 'Premium mode disabled (ads active).' : '✨ Gather Premium enabled: Ad-free streaming!')
@@ -985,7 +1282,7 @@ export function WatchView({
             <UserAvatar avatarUrl={user.avatar_url} fallback={user.nickname || user.username} size={32} />
           </div>
         </div>
-      </header>
+      </div>
 
       {/* =========================================================
           VIEW MODE 1: WATCH THEATER PLAYER (WHEN VIDEO IS SELECTED)
@@ -1018,6 +1315,36 @@ export function WatchView({
                 </div>
               )}
 
+              {/* Age Restriction Warning Gate (Image 1, Module 14: Moderation) */}
+              {(activeWatchPost.title.toLowerCase().includes('18+') || activeWatchPost.title.toLowerCase().includes('mature')) && !ageWarningDismissed && (
+                <div className="yt-age-warning-overlay">
+                  <div className="yt-age-warning-card">
+                    <IconAlertTriangle size={38} />
+                    <h3>Age-Restricted Video (18+)</h3>
+                    <p>
+                      This video is designated for mature audiences based on Gather Community Guidelines.
+                      Viewer discretion is advised.
+                    </p>
+                    <div className="yt-age-warning-actions">
+                      <button
+                        type="button"
+                        className="yt-btn-primary"
+                        onClick={() => setAgeWarningDismissed(true)}
+                      >
+                        I Am 18 or Older • Proceed
+                      </button>
+                      <button
+                        type="button"
+                        className="yt-btn-secondary"
+                        onClick={() => setActiveWatchPost(null)}
+                      >
+                        Go Back
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Real Video Player */}
               <video
                 ref={videoElementRef}
@@ -1042,15 +1369,17 @@ export function WatchView({
               {showStatsForNerds && (
                 <div className="yt-stats-nerds-panel">
                   <div className="yt-stats-header">
-                    <strong>Stats for Nerds</strong>
+                    <strong>Stats for Nerds (Video Streaming Engine)</strong>
                     <button type="button" onClick={() => setShowStatsForNerds(false)}>✕</button>
                   </div>
                   <div className="yt-stats-row"><span>Video ID:</span> <code>{activeWatchPost.id}</code></div>
-                  <div className="yt-stats-row"><span>CDN Node:</span> <code>edge-singapore-01.gather.cdn</code></div>
+                  <div className="yt-stats-row"><span>Protocol:</span> <code>{streamProtocol.toUpperCase()} (Manifest active)</code></div>
+                  <div className="yt-stats-row"><span>Audio Track:</span> <code>{selectedAudioTrack.toUpperCase()}</code></div>
+                  <div className="yt-stats-row"><span>CDN Node:</span> <code>edge-singapore-01.gather.cdn (POP 14ms)</code></div>
                   <div className="yt-stats-row"><span>Resolution:</span> <code>{quality === 'Auto' ? '1920x1080@60fps' : quality}</code></div>
                   <div className="yt-stats-row"><span>Buffer Health:</span> <code>24.6s (Optimal)</code></div>
                   <div className="yt-stats-row"><span>Bandwidth:</span> <code>52.4 Mbps</code></div>
-                  <div className="yt-stats-row"><span>Codecs:</span> <code>avc1.64002a / mp4a.40.2</code></div>
+                  <div className="yt-stats-row"><span>Codecs:</span> <code>avc1.64002a / mp4a.40.2 (Hardware Accelerated)</code></div>
                 </div>
               )}
 
@@ -1070,20 +1399,65 @@ export function WatchView({
 
                   {showSettingsMenu && (
                     <div className="yt-settings-dropdown-menu">
-                      <div className="yt-settings-menu-title">Quality (HLS/DASH)</div>
-                      {(['Auto', '1080p', '720p', '480p', '360p'] as const).map(q => (
+                      <div className="yt-settings-menu-title">Quality (HLS / MPEG-DASH)</div>
+                      {(['Auto', '4K', '1080p', '720p', '480p', '360p', '240p'] as const).map(q => (
                         <div
                           key={q}
                           className={`yt-settings-menu-item ${quality === q ? 'active' : ''}`}
                           onClick={() => { setQuality(q); setShowSettingsMenu(false); setNotice(`Switched quality to ${q}`) }}
                         >
-                          <span>{q === 'Auto' ? 'Auto (1080p HD)' : `${q} HD`}</span>
+                          <span>{q === 'Auto' ? 'Auto (1080p HD)' : q === '4K' ? '4K Ultra HD (2160p)' : `${q} HD`}</span>
                           {quality === q && <IconCheck size={14} />}
                         </div>
                       ))}
+
+                      <div className="yt-settings-menu-divider" />
+                      <div className="yt-settings-menu-title">Audio Track (Accessibility)</div>
+                      {[
+                        { id: 'original', label: 'Original Audio (Stereo 48kHz)' },
+                        { id: 'dub_en', label: 'English Dub (Studio Quality)' },
+                        { id: 'dub_bn', label: 'Bengali Audio (বাংলা ডাব)' },
+                        { id: 'desc', label: 'Descriptive Audio (Accessibility)' },
+                      ].map(track => (
+                        <div
+                          key={track.id}
+                          className={`yt-settings-menu-item ${selectedAudioTrack === track.id ? 'active' : ''}`}
+                          onClick={() => {
+                            setSelectedAudioTrack(track.id as any)
+                            setShowSettingsMenu(false)
+                            setNotice(`Audio track: ${track.label}`)
+                            setTimeout(() => setNotice(''), 2500)
+                          }}
+                        >
+                          <span>{track.label}</span>
+                          {selectedAudioTrack === track.id && <IconCheck size={14} />}
+                        </div>
+                      ))}
+
+                      <div className="yt-settings-menu-divider" />
+                      <div className="yt-settings-menu-title">Streaming Engine</div>
+                      {[
+                        { id: 'hls', label: 'HLS (HTTP Live Streaming - .m3u8)' },
+                        { id: 'dash', label: 'MPEG-DASH (Dynamic Adaptive - .mpd)' },
+                      ].map(proto => (
+                        <div
+                          key={proto.id}
+                          className={`yt-settings-menu-item ${streamProtocol === proto.id ? 'active' : ''}`}
+                          onClick={() => {
+                            setStreamProtocol(proto.id as any)
+                            setShowSettingsMenu(false)
+                            setNotice(`Stream Protocol: ${proto.label}`)
+                            setTimeout(() => setNotice(''), 2500)
+                          }}
+                        >
+                          <span>{proto.label}</span>
+                          {streamProtocol === proto.id && <IconCheck size={14} />}
+                        </div>
+                      ))}
+
                       <div className="yt-settings-menu-divider" />
                       <div className="yt-settings-menu-title">Playback Speed</div>
-                      {[0.75, 1, 1.25, 1.5, 2].map(speed => (
+                      {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map(speed => (
                         <div
                           key={speed}
                           className={`yt-settings-menu-item ${playbackSpeed === speed ? 'active' : ''}`}
@@ -1138,16 +1512,26 @@ export function WatchView({
               <div className="yt-watch-channel-box">
                 <div
                   className="yt-channel-avatar-circle"
-                  onClick={() => onOpenProfile?.(activeWatchPost.author.username)}
+                  onClick={() => {
+                    setSelectedChannelSlug(activeWatchPost.community.slug)
+                    setActiveTab('channel')
+                    setActiveWatchPost(null)
+                  }}
                   style={{ cursor: 'pointer' }}
+                  title="View Channel"
                 >
                   {(activeWatchPost.community.name || activeWatchPost.community.slug)[0].toUpperCase()}
                 </div>
                 <div className="yt-channel-text-meta">
                   <div className="yt-channel-name-line">
                     <strong
-                      onClick={() => onOpenProfile?.(activeWatchPost.author.username)}
+                      onClick={() => {
+                        setSelectedChannelSlug(activeWatchPost.community.slug)
+                        setActiveTab('channel')
+                        setActiveWatchPost(null)
+                      }}
                       style={{ cursor: 'pointer' }}
+                      title="View Channel"
                     >
                       {activeWatchPost.community.name}
                     </strong>
@@ -1190,7 +1574,7 @@ export function WatchView({
                 </button>
               </div>
 
-              {/* Engagement Controls: Like/Dislike, Share, Download, Super Thanks */}
+              {/* Engagement Controls: Like/Dislike, Share, Download, Super Thanks, Playlists, Transcript, Report */}
               <div className="yt-watch-interactions-group">
                 {/* Like / Dislike Split Pill (Feature 4.1) */}
                 <div className="yt-split-vote-pill">
@@ -1244,15 +1628,47 @@ export function WatchView({
                   <span>Download</span>
                 </button>
 
-                {/* Save to Playlist / Watch Later (Feature 4.4) */}
+                {/* Save to Playlist / Watch Later (Feature 4.4 & Module 8) */}
                 <button
                   type="button"
-                  className="yt-action-pill-btn"
+                  className={`yt-action-pill-btn ${watchLaterIds.includes(activeWatchPost.id) ? 'active-pill' : ''}`}
                   onClick={() => handleToggleWatchLater(activeWatchPost.id)}
                   title="Save to Watch Later"
                 >
                   <IconClock size={15} />
-                  <span>{watchLaterIds.includes(activeWatchPost.id) ? 'Saved' : 'Save'}</span>
+                  <span>{watchLaterIds.includes(activeWatchPost.id) ? 'Saved' : 'Watch Later'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="yt-action-pill-btn"
+                  onClick={() => setIsAddToPlaylistOpen(true)}
+                  title="Add to Custom Playlist"
+                >
+                  <IconListPlus size={15} />
+                  <span>Save to Playlist</span>
+                </button>
+
+                {/* Accessibility: Interactive Transcript (Module 15) */}
+                <button
+                  type="button"
+                  className={`yt-action-pill-btn ${showTranscript ? 'active-pill' : ''}`}
+                  onClick={() => setShowTranscript(!showTranscript)}
+                  title="Interactive Transcript"
+                >
+                  <IconFileText size={15} />
+                  <span>Transcript</span>
+                </button>
+
+                {/* Moderation: Report Violation (Module 14) */}
+                <button
+                  type="button"
+                  className="yt-action-pill-btn"
+                  onClick={() => setIsReportModalOpen(true)}
+                  title="Report Content"
+                >
+                  <IconFlag size={15} />
+                  <span>Report</span>
                 </button>
               </div>
             </div>
@@ -1276,6 +1692,62 @@ export function WatchView({
                 <span>#GatherWatch</span>
               </div>
             </div>
+
+            {/* Interactive Time-Synced Transcript Panel (Module 15: Accessibility) */}
+            {showTranscript && (
+              <div className="yt-transcript-card">
+                <div className="yt-transcript-header">
+                  <div className="yt-transcript-title-wrap">
+                    <IconFileText size={18} />
+                    <h4>Interactive Transcript ({activeSubtitleLang === 'off' ? 'English (Auto-generated)' : activeSubtitleLang.toUpperCase()})</h4>
+                  </div>
+                  <div className="yt-transcript-search-wrap">
+                    <input
+                      type="text"
+                      placeholder="Search transcript..."
+                      value={transcriptSearch}
+                      onChange={e => setTranscriptSearch(e.target.value)}
+                      className="yt-transcript-search-input"
+                    />
+                    <button
+                      type="button"
+                      className="yt-transcript-close-btn"
+                      onClick={() => setShowTranscript(false)}
+                      title="Close transcript"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+                <div className="yt-transcript-cues-list">
+                  {(SAMPLE_SUBTITLES[activeSubtitleLang === 'off' ? 'en' : activeSubtitleLang] || SAMPLE_SUBTITLES.en)
+                    .filter(cue => !transcriptSearch.trim() || cue.text.toLowerCase().includes(transcriptSearch.toLowerCase()))
+                    .map((cue, idx) => {
+                      const isActive = videoCurrentTime >= cue.start && videoCurrentTime < cue.end
+                      const formatTime = (secs: number) => {
+                        const m = Math.floor(secs / 60)
+                        const s = Math.floor(secs % 60)
+                        return `${m}:${s < 10 ? '0' : ''}${s}`
+                      }
+                      return (
+                        <div
+                          key={idx}
+                          className={`yt-cue-item ${isActive ? 'active' : ''}`}
+                          onClick={() => {
+                            if (videoElementRef.current) {
+                              videoElementRef.current.currentTime = cue.start
+                              videoElementRef.current.play()
+                            }
+                          }}
+                        >
+                          <span className="yt-cue-timestamp">{formatTime(cue.start)}</span>
+                          <span className="yt-cue-text">{cue.text}</span>
+                        </div>
+                      )
+                    })}
+                </div>
+              </div>
+            )}
 
             {/* Nested Comments Section (Feature 4.2) */}
             <section className="yt-comments-section">
@@ -1774,24 +2246,147 @@ export function WatchView({
             ) : (
               <div className="yt-lib-pane">
                 <div className="yt-lib-pane-header">
-                  <h2>Custom Playlists</h2>
-                  <button
-                    type="button"
-                    className="yt-btn-create-playlist"
-                    onClick={() => setIsCreatePlaylistOpen(true)}
-                  >
-                    + New Playlist
-                  </button>
+                  <h2>{selectedPlaylistId ? `Playlist: ${playlists.find(p => p.id === selectedPlaylistId)?.name || 'Custom Playlist'}` : 'Custom Playlists'}</h2>
+                  <div className="yt-lib-header-actions">
+                    {selectedPlaylistId ? (
+                      <>
+                        <button
+                          type="button"
+                          className="yt-lib-clear-btn"
+                          onClick={() => setSelectedPlaylistId(null)}
+                        >
+                          ← Back to All Playlists
+                        </button>
+                        <button
+                          type="button"
+                          className="yt-btn-primary"
+                          onClick={() => {
+                            const pl = playlists.find(p => p.id === selectedPlaylistId)
+                            if (pl && pl.postIds.length > 0) {
+                              const firstPost = posts.find(p => p.id === pl.postIds[0])
+                              if (firstPost) handleOpenWatchTheater(firstPost)
+                            } else {
+                              setNotice('Playlist is currently empty.')
+                            }
+                          }}
+                        >
+                          <IconPlay size={14} fill />
+                          <span>Play All</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="yt-lib-delete-btn"
+                          onClick={() => {
+                            if (window.confirm('Delete this playlist?')) {
+                              setPlaylists(prev => prev.filter(p => p.id !== selectedPlaylistId))
+                              setSelectedPlaylistId(null)
+                              setNotice('Playlist deleted.')
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="yt-btn-create-playlist"
+                        onClick={() => setIsCreatePlaylistOpen(true)}
+                      >
+                        + New Playlist
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="yt-playlists-list">
-                  {playlists.map(pl => (
-                    <div key={pl.id} className="yt-playlist-card">
-                      <IconListPlus size={24} />
-                      <strong>{pl.name}</strong>
-                      <small>{pl.postIds.length} videos</small>
-                    </div>
-                  ))}
-                </div>
+
+                {selectedPlaylistId ? (
+                  /* Single Playlist View with Reordering (Module 8) */
+                  <div className="yt-playlist-detail-container">
+                    {(() => {
+                      const pl = playlists.find(p => p.id === selectedPlaylistId)
+                      if (!pl || pl.postIds.length === 0) {
+                        return (
+                          <div className="yt-empty-text">
+                            This playlist has no videos yet. Browse videos and click "Save to Playlist" to add content.
+                          </div>
+                        )
+                      }
+                      return (
+                        <div className="yt-playlist-items-table">
+                          {pl.postIds.map((pid, idx) => {
+                            const pItem = posts.find(p => p.id === pid)
+                            if (!pItem) return null
+                            return (
+                              <div key={pid} className="yt-playlist-reorder-row">
+                                <span className="yt-reorder-rank">#{idx + 1}</span>
+                                <div
+                                  className="yt-reorder-thumb-wrap"
+                                  onClick={() => handleOpenWatchTheater(pItem)}
+                                >
+                                  <video src={getMediaUrl(pItem.video_url || '')} preload="metadata" />
+                                </div>
+                                <div
+                                  className="yt-reorder-info"
+                                  onClick={() => handleOpenWatchTheater(pItem)}
+                                >
+                                  <strong>{pItem.title}</strong>
+                                  <small>{pItem.community.name} • {formatViews(pItem.views_count || 0)} views</small>
+                                </div>
+                                <div className="yt-reorder-controls">
+                                  <button
+                                    type="button"
+                                    disabled={idx === 0}
+                                    className="yt-reorder-btn"
+                                    onClick={() => handleMovePlaylistItem(pl.id, idx, 'up')}
+                                    title="Move Up in Playlist"
+                                  >
+                                    <IconArrowUp size={15} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={idx === pl.postIds.length - 1}
+                                    className="yt-reorder-btn"
+                                    onClick={() => handleMovePlaylistItem(pl.id, idx, 'down')}
+                                    title="Move Down in Playlist"
+                                  >
+                                    <IconArrowDown size={15} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="yt-reorder-btn delete"
+                                    onClick={() => handleRemovePlaylistItem(pl.id, pid)}
+                                    title="Remove from Playlist"
+                                  >
+                                    <IconTrash size={15} />
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                ) : (
+                  <div className="yt-playlists-list">
+                    {playlists.length === 0 ? (
+                      <p className="yt-empty-text">No playlists created yet. Create one to organize your videos.</p>
+                    ) : (
+                      playlists.map(pl => (
+                        <div
+                          key={pl.id}
+                          className="yt-playlist-card"
+                          onClick={() => setSelectedPlaylistId(pl.id)}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <IconListPlus size={24} />
+                          <strong>{pl.name}</strong>
+                          <small>{pl.postIds.length} {pl.postIds.length === 1 ? 'video' : 'videos'}</small>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1857,6 +2452,22 @@ export function WatchView({
               >
                 <IconShieldCheck size={16} />
                 <span>Security & Rights</span>
+              </button>
+              <button
+                type="button"
+                className={`yt-studio-nav-btn ${studioTab === 'copyright' ? 'active' : ''}`}
+                onClick={() => setStudioTab('copyright')}
+              >
+                <IconCopyright size={16} />
+                <span>Copyright & Claims</span>
+              </button>
+              <button
+                type="button"
+                className={`yt-studio-nav-btn ${studioTab === 'pipeline' ? 'active' : ''}`}
+                onClick={() => setStudioTab('pipeline')}
+              >
+                <IconServer size={16} />
+                <span>Media Pipeline</span>
               </button>
             </nav>
           </aside>
@@ -2061,13 +2672,252 @@ export function WatchView({
                   <IconShieldCheck size={28} />
                   <div>
                     <strong>Content ID & Audio Fingerprint Status</strong>
-                    <p>All 14 published videos have zero copyright strikes or audio claims.</p>
+                    <p>All published videos are scanned with Gather Content ID and audio fingerprinting technology.</p>
                   </div>
                   <span className="yt-security-status-pill green">100% Clean</span>
                 </div>
               </div>
+            ) : studioTab === 'copyright' ? (
+              /* Content ID & Claims Management (Module 13: Copyright) */
+              <div className="yt-studio-copyright-pane">
+                <div className="yt-studio-pane-header">
+                  <h2>Content ID & Rights Management</h2>
+                  <span className="yt-security-status-pill green">Active Content ID Protection</span>
+                </div>
+                <p className="yt-studio-subtitle">
+                  Review automated audio and video fingerprint matches detected across your channel uploads.
+                  You can file a formal dispute if you hold commercial rights or fair use.
+                </p>
+
+                <div className="yt-claims-table-wrap">
+                  <table className="yt-studio-table">
+                    <thead>
+                      <tr>
+                        <th>Claim ID</th>
+                        <th>Video Title</th>
+                        <th>Detected Match</th>
+                        <th>Claimant / Rights Holder</th>
+                        <th>Policy</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><code>CLM-84920</code></td>
+                        <td><strong>Building Modern Scalable Microservices</strong></td>
+                        <td>Background Audio Track (1:45 - 2:12)</td>
+                        <td>StudioSound Records Inc.</td>
+                        <td><span className="yt-policy-pill monetize">Monetize by claimant</span></td>
+                        <td><span className="yt-claim-status-pill active">Active Claim</span></td>
+                        <td>
+                          <button
+                            type="button"
+                            className="yt-btn-dispute-claim"
+                            onClick={() => {
+                              setDisputeClaimId('CLM-84920')
+                              setIsDisputeModalOpen(true)
+                            }}
+                          >
+                            Dispute Claim
+                          </button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><code>CLM-77142</code></td>
+                        <td><strong>Gather Streaming Engine Deep Dive</strong></td>
+                        <td>Visual B-Roll segment (0:10 - 0:25)</td>
+                        <td>TechGraphics Media</td>
+                        <td><span className="yt-policy-pill track">Track views</span></td>
+                        <td><span className="yt-claim-status-pill clean">Resolved</span></td>
+                        <td>
+                          <button
+                            type="button"
+                            className="yt-btn-dispute-claim"
+                            onClick={() => {
+                              setDisputeClaimId('CLM-77142')
+                              setIsDisputeModalOpen(true)
+                            }}
+                          >
+                            Review
+                          </button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><code>CLM-55201</code></td>
+                        <td><strong>4K Benchmark & HLS Player Test</strong></td>
+                        <td>None (Original composition)</td>
+                        <td>Gather Creator Studio</td>
+                        <td><span className="yt-policy-pill creator">Monetized by creator</span></td>
+                        <td><span className="yt-claim-status-pill clean">100% Original</span></td>
+                        <td>
+                          <span className="yt-claim-clean-tag">✓ Protected</span>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : studioTab === 'pipeline' ? (
+              /* Dedicated Media Pipeline & Transcoding Architecture (Image 2) */
+              <div className="yt-studio-pipeline-pane">
+                <div className="yt-studio-pane-header">
+                  <div>
+                    <h2>Dedicated Media Pipeline & Video Streaming Engine</h2>
+                    <small>YouTube-grade automated multi-bitrate packaging, queue distribution & global edge delivery</small>
+                  </div>
+                  <span className="yt-security-status-pill green">● Engine Online • 14ms Latency</span>
+                </div>
+
+                {/* Pipeline Real-time Metrics */}
+                <div className="yt-pipeline-kpi-grid">
+                  <div className="yt-pipeline-kpi-card">
+                    <IconUploadCloud size={20} />
+                    <div>
+                      <small>Resumable Ingest Queue</small>
+                      <strong>3 Uploads in Flight</strong>
+                    </div>
+                  </div>
+                  <div className="yt-pipeline-kpi-card">
+                    <IconCpu size={20} />
+                    <div>
+                      <small>Transcoding Workers</small>
+                      <strong>6 NVENC / QuickSync Nodes</strong>
+                    </div>
+                  </div>
+                  <div className="yt-pipeline-kpi-card">
+                    <IconFileText size={20} />
+                    <div>
+                      <small>HLS / DASH Packaging</small>
+                      <strong>4K, 1080p, 720p, 480p, 360p, 240p</strong>
+                    </div>
+                  </div>
+                  <div className="yt-pipeline-kpi-card">
+                    <IconServer size={20} />
+                    <div>
+                      <small>Storage & CDN Cache</small>
+                      <strong>98.6% Hit Ratio • 42 Edge POPs</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 6 Stage Pipeline Architecture Cards (Image 2) */}
+                <div className="yt-pipeline-stages-container">
+                  <div className="yt-pipeline-stage-step">
+                    <div className="yt-stage-num-badge">Stage 1</div>
+                    <div className="yt-stage-card">
+                      <div className="yt-stage-header">
+                        <h4>1. Video Upload</h4>
+                        <span className="yt-stage-tag active">Active Ingest</span>
+                      </div>
+                      <p>Resumable chunked upload protocol (5MB blocks), SHA-256 data integrity validation, container validation and metadata extraction.</p>
+                      <div className="yt-stage-specs">
+                        <span>• Chunk protocol: Resumable HTTP/2</span>
+                        <span>• Supported: MP4, MOV, WebM, MKV</span>
+                        <span>• Max Resolution: 4K (3840x2160@60fps)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="yt-pipeline-stage-arrow">↓</div>
+
+                  <div className="yt-pipeline-stage-step">
+                    <div className="yt-stage-num-badge">Stage 2</div>
+                    <div className="yt-stage-card">
+                      <div className="yt-stage-header">
+                        <h4>2. Processing Queue</h4>
+                        <span className="yt-stage-tag active">Redis / Celery</span>
+                      </div>
+                      <p>Distributed asynchronous background jobs, task serialization, job prioritization, auto-scaling worker nodes and dead-letter queue recovery.</p>
+                      <div className="yt-stage-specs">
+                        <span>• Queue broker: Redis Distributed Clusters</span>
+                        <span>• Queue latency: 120ms</span>
+                        <span>• Auto-scaler: 2 to 32 worker pods</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="yt-pipeline-stage-arrow">↓</div>
+
+                  <div className="yt-pipeline-stage-step">
+                    <div className="yt-stage-num-badge">Stage 3</div>
+                    <div className="yt-stage-card">
+                      <div className="yt-stage-header">
+                        <h4>3. Transcoding Engine</h4>
+                        <span className="yt-stage-tag active">Hardware Accelerated</span>
+                      </div>
+                      <p>Multi-resolution video rendition ladder generation with hardware acceleration (NVIDIA NVENC & Intel QuickSync). Dual-pass constrained VBR encoding.</p>
+                      <div className="yt-transcode-ladder-grid">
+                        <span className="yt-ladder-pill">4K UHD (2160p @ 18Mbps)</span>
+                        <span className="yt-ladder-pill">1080p FHD (1080p @ 6Mbps)</span>
+                        <span className="yt-ladder-pill">720p HD (720p @ 3.2Mbps)</span>
+                        <span className="yt-ladder-pill">480p SD (480p @ 1.4Mbps)</span>
+                        <span className="yt-ladder-pill">360p Mobile (360p @ 750kbps)</span>
+                        <span className="yt-ladder-pill">240p Lite (240p @ 350kbps)</span>
+                      </div>
+                      <div className="yt-stage-specs">
+                        <span>• Codecs: H.264/AVC, H.265/HEVC, AV1</span>
+                        <span>• Audio: AAC-LC 128kbps / Opus 96kbps</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="yt-pipeline-stage-arrow">↓</div>
+
+                  <div className="yt-pipeline-stage-step">
+                    <div className="yt-stage-num-badge">Stage 4</div>
+                    <div className="yt-stage-card">
+                      <div className="yt-stage-header">
+                        <h4>4. Media Packaging</h4>
+                        <span className="yt-stage-tag active">HLS & MPEG-DASH</span>
+                      </div>
+                      <p>Adaptive streaming packaging: HLS master playlist (.m3u8), MPEG-DASH manifest (.mpd), WebVTT closed captions in English/Bengali/Spanish, and seek scrubbing sprite sheet thumbnails.</p>
+                      <div className="yt-stage-specs">
+                        <span>• Segments: 4-second TS / fMP4 chunks</span>
+                        <span>• WebVTT captions: Multi-lingual tracks</span>
+                        <span>• Sprite thumbnails: 100-frame storyboard</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="yt-pipeline-stage-arrow">↓</div>
+
+                  <div className="yt-pipeline-stage-step">
+                    <div className="yt-stage-num-badge">Stage 5</div>
+                    <div className="yt-stage-card">
+                      <div className="yt-stage-header">
+                        <h4>5. Storage + Edge CDN</h4>
+                        <span className="yt-stage-tag active">Multi-AZ Edge</span>
+                      </div>
+                      <p>Redundant object storage with multi-region replication. High-speed content delivery network edge POPs with intelligent geographic caching.</p>
+                      <div className="yt-stage-specs">
+                        <span>• Cache Hit Ratio: 98.6%</span>
+                        <span>• Average Edge Latency: 14ms</span>
+                        <span>• Point of Presence: 42 global edge clusters</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="yt-pipeline-stage-arrow">↓</div>
+
+                  <div className="yt-pipeline-stage-step">
+                    <div className="yt-stage-num-badge">Stage 6</div>
+                    <div className="yt-stage-card">
+                      <div className="yt-stage-header">
+                        <h4>6. Video Player Engine</h4>
+                        <span className="yt-stage-tag active">Adaptive Client</span>
+                      </div>
+                      <p>Client-side HTML5 MSE player with dynamic throughput estimation, buffer health telemetry, Stats for Nerds, quality switching from 240p to 4K, and interactive transcripts.</p>
+                      <div className="yt-stage-specs">
+                        <span>• Adaptive Bitrate: Bandwidth-aware switching</span>
+                        <span>• Telemetry: Real-time buffer and dropped frame monitor</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ) : (
-              /* Content List */
+              /* Content List (Module 3: Video Edit & Delete) */
               <div className="yt-studio-content-pane">
                 <div className="yt-studio-pane-header">
                   <h2>Channel Content</h2>
@@ -2088,6 +2938,7 @@ export function WatchView({
                         <th>Date</th>
                         <th>Views</th>
                         <th>Likes</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2096,13 +2947,44 @@ export function WatchView({
                           <td>
                             <div className="yt-table-video-cell">
                               <video src={getMediaUrl(post.video_url || '')} preload="metadata" />
-                              <strong>{post.title}</strong>
+                              <div>
+                                <strong>{post.title}</strong>
+                                <small>{post.community.name}</small>
+                              </div>
                             </div>
                           </td>
                           <td><span className="yt-table-vis-pill">Public</span></td>
                           <td>{new Date(post.created_at).toLocaleDateString()}</td>
-                          <td>{post.views_count || 0}</td>
+                          <td>{formatViews(post.views_count || 0)}</td>
                           <td>{post.upvote_count}</td>
+                          <td>
+                            <div className="yt-table-actions-cell">
+                              <button
+                                type="button"
+                                className="yt-table-act-btn edit"
+                                onClick={() => {
+                                  setEditingPost(post)
+                                  setEditTitle(post.title)
+                                  setEditContent(post.content || '')
+                                  setEditCategory(post.community.category || 'Tech & Gadgets')
+                                  setEditVisibility('public')
+                                }}
+                                title="Edit Video Details"
+                              >
+                                <IconEdit size={14} />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="yt-table-act-btn delete"
+                                onClick={() => handleDeletePost(post.id)}
+                                title="Delete Video"
+                              >
+                                <IconTrash size={14} />
+                                <span>Delete</span>
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -2111,6 +2993,197 @@ export function WatchView({
               </div>
             )}
           </main>
+        </div>
+      ) : activeTab === 'channel' ? (
+        /* =========================================================
+           VIEW MODE 5.5: CHANNEL PROFILE VIEW (Module 2: Channel)
+           ========================================================= */
+        <div className="yt-channel-page-layout">
+          {(() => {
+            const currentSlug = selectedChannelSlug || (pages[0]?.slug || posts[0]?.community.slug)
+            const channelComm = pages.find(p => p.slug === currentSlug) || posts.find(p => p.community.slug === currentSlug)?.community
+            const channelPosts = posts.filter(p => p.community.slug === currentSlug)
+            const isSubscribed = currentSlug ? !!subscribedSlugs[currentSlug] : false
+
+            return (
+              <div className="yt-channel-page-content">
+                {/* Channel Banner */}
+                <div className="yt-channel-banner">
+                  <div className="yt-channel-banner-overlay">
+                    <span className="yt-banner-badge">Gather Official Creator Channel</span>
+                  </div>
+                </div>
+
+                {/* Channel Header Profile Meta */}
+                <div className="yt-channel-header-row">
+                  <div className="yt-channel-avatar-xlarge">
+                    {(channelComm?.name || currentSlug || 'C')[0].toUpperCase()}
+                  </div>
+                  <div className="yt-channel-main-info">
+                    <div className="yt-channel-title-row">
+                      <h1>{channelComm?.name || currentSlug}</h1>
+                      <span className="yt-verified-badge" title="Verified Creator">✓ Verified Creator</span>
+                    </div>
+                    <div className="yt-channel-meta-stats">
+                      <span>@{currentSlug}</span>
+                      <span>•</span>
+                      <span>{channelComm?.member_count || 1} {(channelComm?.member_count || 1) === 1 ? 'subscriber' : 'subscribers'}</span>
+                      <span>•</span>
+                      <span>{channelPosts.length} videos</span>
+                    </div>
+                    <p className="yt-channel-bio">
+                      {channelComm?.description || 'Welcome to the official video channel on Gather Watch! Exploring cutting-edge streaming, technology, and engineering.'}
+                    </p>
+
+                    <div className="yt-channel-action-row">
+                      <button
+                        type="button"
+                        className={`yt-btn-subscribe ${isSubscribed ? 'subscribed' : ''}`}
+                        onClick={() => currentSlug && handleToggleSubscribe(currentSlug)}
+                      >
+                        {isSubscribed ? 'Subscribed' : 'Subscribe'}
+                      </button>
+                      <button
+                        type="button"
+                        className="yt-btn-join-membership"
+                        onClick={() => setIsMembershipModalOpen(true)}
+                      >
+                        Join
+                      </button>
+                      <button
+                        type="button"
+                        className="yt-btn-secondary"
+                        onClick={() => setIsOpenPageModal(true)}
+                      >
+                        + Create Channel
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Channel Switcher */}
+                  <div className="yt-channel-selector-box">
+                    <label>Browse Channels:</label>
+                    <select
+                      value={currentSlug || ''}
+                      onChange={e => setSelectedChannelSlug(e.target.value)}
+                      className="yt-channel-select-dropdown"
+                    >
+                      {Array.from(new Set(posts.map(p => p.community.slug))).map(slug => {
+                        const name = posts.find(p => p.community.slug === slug)?.community.name || slug
+                        return (
+                          <option key={slug} value={slug}>{name} (@{slug})</option>
+                        )
+                      })}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Channel Navigation Sub-tabs */}
+                <div className="yt-channel-subtabs">
+                  <button
+                    type="button"
+                    className={`yt-subtab-btn ${channelTab === 'home' ? 'active' : ''}`}
+                    onClick={() => setChannelTab('home')}
+                  >
+                    Home
+                  </button>
+                  <button
+                    type="button"
+                    className={`yt-subtab-btn ${channelTab === 'videos' ? 'active' : ''}`}
+                    onClick={() => setChannelTab('videos')}
+                  >
+                    Videos ({channelPosts.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`yt-subtab-btn ${channelTab === 'shorts' ? 'active' : ''}`}
+                    onClick={() => setChannelTab('shorts')}
+                  >
+                    Shorts
+                  </button>
+                  <button
+                    type="button"
+                    className={`yt-subtab-btn ${channelTab === 'playlists' ? 'active' : ''}`}
+                    onClick={() => setChannelTab('playlists')}
+                  >
+                    Playlists
+                  </button>
+                  <button
+                    type="button"
+                    className={`yt-subtab-btn ${channelTab === 'about' ? 'active' : ''}`}
+                    onClick={() => setChannelTab('about')}
+                  >
+                    About
+                  </button>
+                </div>
+
+                {/* Subtab Content */}
+                <div className="yt-channel-tab-body">
+                  {channelTab === 'about' ? (
+                    <div className="yt-channel-about-card">
+                      <h3>About {channelComm?.name || currentSlug}</h3>
+                      <p>{channelComm?.description || 'Official video broadcast channel on Gather Watch. Sharing high quality guides and live streams.'}</p>
+                      <hr className="yt-divider" />
+                      <div className="yt-about-stats-list">
+                        <div><strong>Category:</strong> <span>{channelComm?.category || 'Tech & Gadgets'}</span></div>
+                        <div><strong>Channel ID:</strong> <code>{channelComm?.id || 'comm-1'}</code></div>
+                        <div><strong>Total Channel Views:</strong> <span>{formatViews(channelPosts.reduce((acc, p) => acc + (p.views_count || 0), 0))}</span></div>
+                        <div><strong>Joined:</strong> <span>November 2026</span></div>
+                        <div><strong>Content ID Protection:</strong> <span className="yt-security-status-pill green">Verified & Active</span></div>
+                      </div>
+                    </div>
+                  ) : channelTab === 'playlists' ? (
+                    <div className="yt-channel-playlists-grid">
+                      {playlists.map(pl => (
+                        <div
+                          key={pl.id}
+                          className="yt-playlist-card"
+                          onClick={() => {
+                            setSelectedPlaylistId(pl.id)
+                            setLibrarySection('playlists')
+                            setActiveTab('library')
+                          }}
+                        >
+                          <IconListPlus size={24} />
+                          <strong>{pl.name}</strong>
+                          <small>{pl.postIds.length} videos</small>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="yt-channel-videos-grid">
+                      {channelPosts.length === 0 ? (
+                        <p className="yt-empty-text">This channel has not uploaded any videos yet.</p>
+                      ) : (
+                        channelPosts.map(post => (
+                          <div
+                            key={post.id}
+                            className="yt-video-card"
+                            onClick={() => handleOpenWatchTheater(post)}
+                          >
+                            <div className="yt-thumb-container">
+                              <video src={getMediaUrl(post.video_url || '')} preload="metadata" />
+                              <div className="yt-thumb-duration-pill">4:12</div>
+                            </div>
+                            <div className="yt-card-meta-row">
+                              <div className="yt-card-text-col">
+                                <h3 className="yt-card-video-title">{post.title}</h3>
+                                <div className="yt-card-stats-line">
+                                  <span>{formatViews(post.views_count || 0)}</span>
+                                  <span>•</span>
+                                  <span>{formatRelativeTime(post.created_at)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
         </div>
       ) : (
         /* =========================================================
@@ -2792,6 +3865,331 @@ export function WatchView({
                 }}
               >
                 {submittingPage ? 'Creating...' : 'Create Channel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL 8: SAVE TO PLAYLIST MODAL (Module 8: Playlist)
+          ========================================================= */}
+      {isAddToPlaylistOpen && activeWatchPost && (
+        <div className="yt-modal-backdrop" onClick={() => setIsAddToPlaylistOpen(false)}>
+          <div className="yt-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="yt-modal-header">
+              <h3>Save Video to Playlist</h3>
+              <button type="button" className="yt-modal-close-btn" onClick={() => setIsAddToPlaylistOpen(false)}>✕</button>
+            </div>
+            <p className="yt-modal-desc">
+              Select one or more playlists to add <strong>"{activeWatchPost.title}"</strong>:
+            </p>
+
+            <div className="yt-modal-playlist-checklist">
+              {playlists.map(pl => {
+                const inPlaylist = pl.postIds.includes(activeWatchPost.id)
+                return (
+                  <label key={pl.id} className="yt-playlist-check-row">
+                    <input
+                      type="checkbox"
+                      checked={inPlaylist}
+                      onChange={() => handleTogglePlaylistPost(pl.id, activeWatchPost.id)}
+                    />
+                    <div className="yt-playlist-check-text">
+                      <strong>{pl.name}</strong>
+                      <small>{pl.postIds.length} {pl.postIds.length === 1 ? 'video' : 'videos'}</small>
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
+
+            <div className="yt-modal-inline-new-playlist">
+              <input
+                type="text"
+                placeholder="Create new playlist name..."
+                value={newPlaylistName}
+                onChange={e => setNewPlaylistName(e.target.value)}
+                className="yt-form-input"
+              />
+              <button
+                type="button"
+                className="yt-btn-primary"
+                disabled={!newPlaylistName.trim()}
+                onClick={() => {
+                  const newId = Date.now().toString()
+                  setPlaylists(prev => [
+                    ...prev,
+                    { id: newId, name: newPlaylistName.trim(), postIds: [activeWatchPost.id] },
+                  ])
+                  setNewPlaylistName('')
+                  setNotice('New playlist created and video added!')
+                  setTimeout(() => setNotice(''), 2500)
+                }}
+              >
+                + Create & Add
+              </button>
+            </div>
+
+            <div className="yt-modal-footer">
+              <button
+                type="button"
+                className="yt-btn-primary"
+                onClick={() => setIsAddToPlaylistOpen(false)}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL 9: REPORT VIDEO MODAL (Module 14: Moderation)
+          ========================================================= */}
+      {isReportModalOpen && activeWatchPost && (
+        <div className="yt-modal-backdrop" onClick={() => setIsReportModalOpen(false)}>
+          <div className="yt-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="yt-modal-header">
+              <div className="yt-modal-title-with-icon">
+                <IconFlag size={20} />
+                <h3>Report Video</h3>
+              </div>
+              <button type="button" className="yt-modal-close-btn" onClick={() => setIsReportModalOpen(false)}>✕</button>
+            </div>
+            <p className="yt-modal-desc">
+              If this video violates Gather Community Guidelines, submit a report for immediate moderator evaluation:
+            </p>
+
+            <div className="yt-report-reasons-list">
+              {[
+                'Spam, misleading or fraudulent metadata',
+                'Sexual content or mature media without age gate',
+                'Hate speech, harassment or bullying',
+                'Harmful, violent or dangerous activities',
+                'Copyright infringement or intellectual property',
+                'Violates child safety or underage restrictions',
+              ].map(reason => (
+                <label key={reason} className="yt-report-radio-row">
+                  <input
+                    type="radio"
+                    name="reportReason"
+                    value={reason}
+                    checked={reportReason === reason}
+                    onChange={e => setReportReason(e.target.value)}
+                  />
+                  <span>{reason}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="yt-form-group">
+              <label>Additional Information (Optional):</label>
+              <textarea
+                rows={3}
+                placeholder="Provide timestamps or specific details to help our review team..."
+                value={reportDetails}
+                onChange={e => setReportDetails(e.target.value)}
+                className="yt-form-textarea"
+              />
+            </div>
+
+            <div className="yt-modal-footer">
+              <button type="button" className="yt-btn-secondary" onClick={() => setIsReportModalOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="yt-btn-primary red" onClick={handleSubmitReport}>
+                Submit Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL 10: EDIT VIDEO DETAILS (Module 3: Video Edit)
+          ========================================================= */}
+      {editingPost && (
+        <div className="yt-modal-backdrop" onClick={() => setEditingPost(null)}>
+          <div className="yt-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="yt-modal-header">
+              <div className="yt-modal-title-with-icon">
+                <IconEdit size={20} />
+                <h3>Edit Video Details</h3>
+              </div>
+              <button type="button" className="yt-modal-close-btn" onClick={() => setEditingPost(null)}>✕</button>
+            </div>
+
+            <div className="yt-form-group">
+              <label>Video Title</label>
+              <input
+                type="text"
+                value={editTitle}
+                onChange={e => setEditTitle(e.target.value)}
+                className="yt-form-input"
+              />
+            </div>
+
+            <div className="yt-form-group">
+              <label>Description & Chapters</label>
+              <textarea
+                rows={4}
+                value={editContent}
+                onChange={e => setEditContent(e.target.value)}
+                className="yt-form-textarea"
+                placeholder="Include timestamps (e.g. 0:00 Intro, 1:30 Setup) for interactive chapters"
+              />
+            </div>
+
+            <div className="yt-form-row">
+              <div className="yt-form-group half">
+                <label>Category</label>
+                <select
+                  value={editCategory}
+                  onChange={e => setEditCategory(e.target.value)}
+                  className="yt-form-select"
+                >
+                  <option value="Tech & Gadgets">Tech & Gadgets</option>
+                  <option value="Gaming">Gaming</option>
+                  <option value="Music">Music</option>
+                  <option value="Education">Education</option>
+                  <option value="Entertainment">Entertainment</option>
+                  <option value="News">News</option>
+                </select>
+              </div>
+
+              <div className="yt-form-group half">
+                <label>Visibility</label>
+                <select
+                  value={editVisibility}
+                  onChange={e => setEditVisibility(e.target.value as any)}
+                  className="yt-form-select"
+                >
+                  <option value="public">Public (Visible to everyone)</option>
+                  <option value="unlisted">Unlisted (Anyone with link)</option>
+                  <option value="private">Private (Only channel managers)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="yt-modal-footer">
+              <button
+                type="button"
+                className="yt-btn-secondary"
+                onClick={() => setEditingPost(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="yt-btn-primary"
+                disabled={submittingEdit || !editTitle.trim()}
+                onClick={handleSaveEditPost}
+              >
+                {submittingEdit ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL 11: DISPUTE COPYRIGHT CLAIM (Module 13: Copyright)
+          ========================================================= */}
+      {isDisputeModalOpen && (
+        <div className="yt-modal-backdrop" onClick={() => setIsDisputeModalOpen(false)}>
+          <div className="yt-modal-card" onClick={e => e.stopPropagation()}>
+            <div className="yt-modal-header">
+              <div className="yt-modal-title-with-icon">
+                <IconCopyright size={20} />
+                <h3>Dispute Content ID Claim #{disputeClaimId}</h3>
+              </div>
+              <button type="button" className="yt-modal-close-btn" onClick={() => setIsDisputeModalOpen(false)}>✕</button>
+            </div>
+            <p className="yt-modal-desc">
+              Select the legal grounds upon which you are contesting this automated Content ID match:
+            </p>
+
+            <div className="yt-dispute-grounds-list">
+              <label className="yt-dispute-option-card">
+                <input
+                  type="radio"
+                  name="disputeGrounds"
+                  value="original"
+                  checked={disputeGrounds === 'original'}
+                  onChange={e => setDisputeGrounds(e.target.value as any)}
+                />
+                <div>
+                  <strong>Original Content</strong>
+                  <small>I am the original creator and own all master audio and video rights in this upload.</small>
+                </div>
+              </label>
+
+              <label className="yt-dispute-option-card">
+                <input
+                  type="radio"
+                  name="disputeGrounds"
+                  value="licensed"
+                  checked={disputeGrounds === 'licensed'}
+                  onChange={e => setDisputeGrounds(e.target.value as any)}
+                />
+                <div>
+                  <strong>Commercial License or Written Permission</strong>
+                  <small>I have purchased or received explicit commercial distribution authorization from the claimant.</small>
+                </div>
+              </label>
+
+              <label className="yt-dispute-option-card">
+                <input
+                  type="radio"
+                  name="disputeGrounds"
+                  value="fair_use"
+                  checked={disputeGrounds === 'fair_use'}
+                  onChange={e => setDisputeGrounds(e.target.value as any)}
+                />
+                <div>
+                  <strong>Fair Use Doctrine</strong>
+                  <small>Content is used transformatively for commentary, criticism, news reporting, scholarship or education.</small>
+                </div>
+              </label>
+
+              <label className="yt-dispute-option-card">
+                <input
+                  type="radio"
+                  name="disputeGrounds"
+                  value="public_domain"
+                  checked={disputeGrounds === 'public_domain'}
+                  onChange={e => setDisputeGrounds(e.target.value as any)}
+                />
+                <div>
+                  <strong>Public Domain</strong>
+                  <small>The work is not protected under copyright law or rights have legally expired.</small>
+                </div>
+              </label>
+            </div>
+
+            <div className="yt-form-group">
+              <label>Legal Statement & Justification (Required):</label>
+              <textarea
+                rows={3}
+                placeholder="State why your use of the claimed content does not infringe copyright..."
+                value={disputeExplanation}
+                onChange={e => setDisputeExplanation(e.target.value)}
+                className="yt-form-textarea"
+              />
+            </div>
+
+            <div className="yt-modal-footer">
+              <button type="button" className="yt-btn-secondary" onClick={() => setIsDisputeModalOpen(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="yt-btn-primary"
+                disabled={!disputeExplanation.trim()}
+                onClick={handleSubmitDispute}
+              >
+                Submit Legal Dispute
               </button>
             </div>
           </div>
